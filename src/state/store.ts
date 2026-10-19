@@ -1,0 +1,62 @@
+import { create } from 'zustand';
+import { readPref } from '../util/storage';
+
+export type Step =
+  | 'loading'
+  | 'silhouette'
+  | 'intro'
+  | 'warning'
+  | 'shaking'
+  | 'launch'
+  | 'rebel'
+  | 'peel'
+  | 'monster'
+  | 'exit'
+  | 'end';
+
+export type Tier = 'high' | 'low';
+
+export interface Headline {
+  text: string;
+  accent?: boolean;
+  size?: 'xl' | 'md';
+}
+
+export interface AppState {
+  step: Step;
+  tier: Tier;
+  tierLocked: boolean;
+  muted: boolean;
+  audioOk: boolean;
+  headline: Headline | null;
+  hint: string | null;
+  hintUrgent: boolean;
+  caption: string | null;
+  fallback: boolean;
+  reducedMotion: boolean;
+  showFps: boolean;
+  director: boolean;
+}
+
+const params = new URLSearchParams(window.location.search);
+const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+const forcedTier: Tier | null = params.has('director') ? 'high' : params.has('lite') ? 'low' : null;
+
+export const useStore = create<AppState>()(() => ({
+  step: 'loading',
+  tier: forcedTier ?? 'high',
+  tierLocked: forcedTier !== null,
+  muted: readPref('muted') === '1',
+  audioOk: true,
+  headline: null,
+  hint: null,
+  hintUrgent: false,
+  caption: null,
+  fallback: false,
+  reducedMotion: reduced,
+  showFps: params.has('fps'),
+  director: params.has('director'),
+}));
+
+export const getState = useStore.getState;
+export const setState = useStore.setState;
