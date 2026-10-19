@@ -43,6 +43,18 @@ export const SHAKE_LINES: ReadonlyArray<[number, string]> = [
   [0.78, "I'M WARNING YOU."],
 ];
 
+// Launch / flight
+export const CAP_POP_AT = 0.8; // s of pressure build before the cap bursts
+export const GEYSER_HOLD = 0.45; // s of spray in place before take-off
+export const FLIGHT_DURATION = 3.8;
+export const FLIGHT_DURATION_REDUCED = 1.2;
+export const FLIGHT_HEIGHT = 1.05;
+export const FLIGHT_SWING = 0.62; // fraction of half the visible width
+export const FLIGHT_SHRINK = 0.6; // scale drops to 1 - this at the far point
+export const CAP_DROP_DELAY = 0.7;
+export const POP_BURST = { high: 260, low: 90 } as const;
+export const SPRAY_RATE = { high: 230, low: 75 } as const;
+
 // Stuck-user help
 export const HINT_WARNING_S = 2.5;
 export const HINT_URGENT_S = 6;
@@ -67,5 +79,5 @@ export const PEEL_CURL_END = 12;
 export const FPS_PROBE_START_S = 0.6;
 export const FPS_PROBE_LEN_S = 2;
 export const FPS_LOW_THRESHOLD = 45;
-export const PARTICLES = { high: 300, low: 80 } as const;
+export const PARTICLES = { high: 700, low: 220 } as const;
 export const DROPLETS = { high: 14, low: 0 } as const;

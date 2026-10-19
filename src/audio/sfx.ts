@@ -227,7 +227,13 @@ export function sting(): void {
   tone('sine', 65, 45, 0.7, 0.6);
 }
 
+export function click(): void {
+  caption('[click]');
+  tone('triangle', 2600, 1700, 0.25, 0.06);
+  burst('highpass', 3000, 0.25, 0.001, 0.03);
+}
+
 export function sparkle(): void {
-  caption('[✨ yellow cap]');
+  caption('[✨ new yellow cap]');
   [1318.5, 1760, 2093].forEach((f, i) => tone('sine', f, f, 0.12, 0.35, i * 0.06));
 }

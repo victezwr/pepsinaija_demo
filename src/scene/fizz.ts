@@ -16,11 +16,11 @@ export class Fizz {
     this.geo = new THREE.BufferGeometry();
     this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
     const mat = new THREE.PointsMaterial({
-      color: 0xd8e8ff,
-      size: 0.018,
+      color: 0xfff3e2, // pale cola foam
+      size: 0.032,
       sizeAttenuation: true,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.95,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       map: dotTexture(),

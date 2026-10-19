@@ -29,7 +29,7 @@ Rule: exactly one unit is `In progress` at a time (see `ai-workflow-rules.md`).
 | 2.2 | Intro timeline + Skip | Done | 2026-10-19 | ~5 s; replay ~2 s. |
 | 2.3 | Warning idle + stuck-user hints | Done | 2026-10-19 | Hint 2.5 s, urgent 6 s, self-tremble 12 s. |
 | 2.4 | Shake energy: drag, Android motion, hold, keyboard | Done | 2026-10-19 | `SHAKE_DRAG_GAIN` 0.62 ≈ 6 vigorous strokes. **Tune on Spark 10C.** |
-| 2.5 | Launch + fizz + blue → yellow cap | Done | 2026-10-19 | |
+| 2.5 | Launch + fizz + blue → yellow cap | Done | 2026-10-19 | Owner feedback applied: bulge → blue cap bursts off → geyser → bottle rockets base-first on a sine path, shrinking into the distance and back → capless landing → yellow cap drops and screws on. |
 
 ## Phase 3 — Personality  ✅
 | # | Unit | Status | Date | Notes |

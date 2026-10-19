@@ -135,6 +135,10 @@ function buildRig(
   capMat.map = blueMap;
   capMat.roughness = 0.4;
 
+  const nozzle = new THREE.Object3D();
+  nozzle.position.set(0, 0.9, 0);
+  (labelMesh.parent ?? model).add(nozzle);
+
   const capFlash = new THREE.PointLight(0xffc400, 0, 1.2, 2);
   capFlash.position.set(0, 0.45, 0.25);
   spin.add(capFlash);
@@ -162,6 +166,8 @@ function buildRig(
     root,
     spin,
     cap: capMesh,
+    capParent: capMesh.parent ?? model,
+    nozzle,
     capMat,
     yellowMap,
     blueMap,

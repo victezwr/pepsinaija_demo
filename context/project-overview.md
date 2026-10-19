@@ -30,7 +30,7 @@ SILHOUETTE → INTRO → WARNING → SHAKING → LAUNCH → REBEL → PEEL → M
 | 1 | **Intro** | — (Skip available) | Rumble, blue rim light traces the bottle, camera push-in, halftone ring fades up. ≤ 6 s. |
 | 2 | **Warning** | — | "DON'T SHAKE ME." Idle sway, droplets, quiet fizz, "drag to shake" hint. |
 | 3 | **Shaking** | Drags back and forth. Android: physical shake also counts. Anyone: press-and-hold. | Shake meter fills with wobble, louder fizz and a pulsing ring. Captions escalate. A single click does nothing. |
-| 4 | **Launch** | — (input locked) | Pressure hiss → pop → bottle shoots up and spins → lands with a thud. **Blue cap flashes into the new yellow cap.** |
+| 4 | **Launch** | — (input locked) | Pressure hiss + bulge → **blue cap bursts off** → fizz geyser → the spray rockets the bottle around the frame on a sine-wave path, shrinking into the distance and growing back → capless landing → **the new yellow cap drops in and screws on.** |
 | 5 | **Rebel** | Tries to touch or catch the bottle | "HUMANS CAN BE TRUSTED." The bottle dodges, always staying on screen. **Exactly 3 dodges**, then it gives up. |
 | 6 | **Peel** | Grabs the label and drags | The label edge flaps as a cue. The label curls off following the drag. Released < 60%: springs back. ≥ 60%: finishes by itself. |
 | 7 | **Monster** | — | The label rolls/flicks away → beat of silence → **"YOU MONSTER."** |
