@@ -28,15 +28,15 @@ Rule: exactly one unit is `In progress` at a time (see `ai-workflow-rules.md`).
 | 2.1 | Silhouette + tap to unlock audio | Done | 2026-10-19 | |
 | 2.2 | Intro timeline + Skip | Done | 2026-10-19 | ~5 s; replay ~2 s. |
 | 2.3 | Warning idle + stuck-user hints | Done | 2026-10-19 | Hint 2.5 s, urgent 6 s, self-tremble 12 s. |
-| 2.4 | Shake energy: drag, Android motion, hold, keyboard | Done | 2026-10-19 | `SHAKE_DRAG_GAIN` 0.62 ≈ 6 vigorous strokes. **Tune on Spark 10C.** |
+| 2.4 | Shake energy: drag, Android motion, hold, keyboard | Done | 2026-10-19 | Owner change: shaking is now **up and down** (vertical drag). No hint texts anywhere. |
 | 2.5 | Launch + fizz + blue → yellow cap | Done | 2026-10-19 | |
 
 ## Phase 3 — Personality  ✅
 | # | Unit | Status | Date | Notes |
 |---|---|---|---|---|
-| 3.1 | Dodges (3, clamped) | Done | 2026-10-19 | Lines: TOO SLOW. / NOPE. → …FINE. |
-| 3.2 | Peel deformation + drag + spring-back | Done | 2026-10-19 | Paper-white label back. Commit at 60%. |
-| 3.3 | Roll-away + silence + YOU MONSTER | Done | 2026-10-19 | |
+| 3.1 | Dodges (3, clamped) | Done | 2026-10-19 | Owner change: line is now HUMANS CAN'T BE TRUSTED. → TOO SLOW. / NOPE. → CATCH ME IF YOU CAN. → bottle bolts into the distance. |
+| 3.2 | Peel deformation + drag + spring-back | Removed from flow | 2026-10-19 | Owner: no peeling. Code is still in the repo but no longer reachable; delete when the game lands. |
+| 3.3 | Roll-away + silence + YOU MONSTER | Removed from flow | 2026-10-19 | Goes with the peel. |
 | 3.4 | Exit + end card + replay | Done | 2026-10-19 | |
 
 ## Phase 4 — Sound & polish
@@ -54,6 +54,11 @@ Rule: exactly one unit is `In progress` at a time (see `ai-workflow-rules.md`).
 | 5.2 | Spark 10C tuning pass (owner) | **Next** | Open the site with `?fps`. Report: fps during idle/shake/peel, shake difficulty, dodge feel, peel feel, text size. |
 | 5.3 | Vercel project/domain without "pepsi" | To do | Owner action. |
 | 5.4 | Record 9:16 X clip with `?director` | To do | |
+
+## Phase 6 — Game (decision pending)
+| # | Unit | Status | Notes |
+|---|---|---|---|
+| 6.0 | Choose game: runner vs 1v5 fight | **Next** | The bottle escapes to a far tower; the game is how you get it back. |
 
 ## Backlog (v1.1)
 - Video version for phones below the Spark 10C.

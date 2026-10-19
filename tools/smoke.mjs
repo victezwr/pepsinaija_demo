@@ -35,14 +35,14 @@ await waitStep('warning');
 await page.waitForTimeout(3500);
 await shot('warning');
 
-// Shake: vigorous back-and-forth drag on the bottle.
+// Shake: vigorous up-and-down drag on the bottle.
 b = await box();
 const cy = (b.top + b.bottom) / 2;
 await page.mouse.move(b.cx, cy);
 await page.mouse.down();
 let shook = 0;
 for (let i = 0; i < 80 && (await step()) !== 'launch'; i++) {
-  await page.mouse.move(b.cx + (i % 2 ? -90 : 90), cy, { steps: 4 });
+  await page.mouse.move(b.cx, cy + (i % 2 ? -90 : 90), { steps: 4 });
   if (++shook === 8) await shot('shaking');
 }
 await page.mouse.up();
@@ -52,32 +52,15 @@ await waitStep('rebel');
 await page.waitForTimeout(600);
 await shot('yellow-cap');
 
-// Rebel: reach for it until it gives up.
+// Rebel: reach for it until it runs off.
 for (let i = 0; i < 6 && (await step()) === 'rebel'; i++) {
   b = await box();
   await page.mouse.click(b.cx + 5, (b.top + b.bottom) / 2);
   await page.waitForTimeout(1200);
   await shot(`dodge-${i + 1}`);
 }
-await waitStep('peel');
-await page.waitForTimeout(2000);
-await shot('peel-ready');
-
-// Peel: drag away from the bottle, screenshot halfway, then commit.
-b = await box();
-const px = b.cx - b.hw * 0.8, py = (b.top + b.bottom) / 2;
-await page.mouse.move(px, py);
-await page.mouse.down();
-await page.mouse.move(px - 70, py, { steps: 10 });
-await page.waitForTimeout(300);
-await shot('peel-half');
-await page.mouse.move(px - 200, py + 40, { steps: 12 });
-await page.waitForTimeout(200);
-await page.mouse.up();
-await waitStep('monster');
-await page.waitForFunction(() => window.__dsm.getState().headline?.text === 'YOU MONSTER.', null, { timeout: 30000 });
-await page.waitForTimeout(400);
-await shot('you-monster');
+await page.waitForTimeout(700);
+await shot('escape');
 await waitStep('end');
 await page.waitForTimeout(2200);
 await shot('end-card');

@@ -43,11 +43,8 @@ export const SHAKE_LINES: ReadonlyArray<[number, string]> = [
   [0.78, "I'M WARNING YOU."],
 ];
 
-// Stuck-user help
-export const HINT_WARNING_S = 2.5;
-export const HINT_URGENT_S = 6;
+// Stuck-user help (no text hints: the bottle trembles by itself instead)
 export const SELF_TREMBLE_S = 12;
-export const HINT_REBEL_S = 8;
 
 // Dodge
 export const DODGES_BEFORE_TIRED = 3;
@@ -55,6 +52,8 @@ export const DODGE_COOLDOWN_MS = 420;
 export const DODGE_PROXIMITY_PX = 60;
 export const DODGE_EDGE_MARGIN = 0.28;
 export const DODGE_LINES = ['', 'TOO SLOW.', 'NOPE.'];
+export const ESCAPE_HEIGHT = 1.0;
+export const ESCAPE_SCALE = 0.06; // shrinks to a speck as it runs off
 
 // Peel
 export const PEEL_COMMIT = 0.6;

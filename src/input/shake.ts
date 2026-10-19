@@ -2,13 +2,14 @@ import * as C from '../config';
 
 /**
  * Turns drags, holds, device motion and the keyboard into one 0..1 shake energy.
- * Only back-and-forth drags count fully: a one-way stroke stops adding after SHAKE_STROKE_CAP.
+ * Shaking is vertical (up and down, like shaking a real bottle). Only back-and-forth strokes
+ * count fully: a one-way stroke stops adding after SHAKE_STROKE_CAP.
  */
 class ShakeMeter {
   energy = 0;
-  /** Smoothed horizontal drag velocity in px/s, used for tilt. */
+  /** Smoothed vertical drag velocity in px/s (screen y, down = positive). */
   velocity = 0;
-  /** Horizontal drag offset in px from the pointer-down point. */
+  /** Vertical drag offset in px from the pointer-down point (down = positive). */
   offsetPx = 0;
   active = false;
   touched = false;
@@ -17,7 +18,7 @@ class ShakeMeter {
   private downAt = 0;
   private downX = 0;
   private downY = 0;
-  private lastX = 0;
+  private lastY = 0;
   private runPx = 0;
   private runSign = 0;
   private holding = false;
@@ -44,8 +45,8 @@ class ShakeMeter {
     if (!this.active) return;
     this.down = true;
     this.downAt = nowMs;
-    this.downX = this.lastX = x;
-    this.downY = y;
+    this.downX = x;
+    this.downY = this.lastY = y;
     this.runPx = 0;
     this.runSign = 0;
     this.touched = true;
@@ -53,20 +54,20 @@ class ShakeMeter {
 
   pointerMove(x: number, y: number, dtS: number): void {
     if (!this.active || !this.down) return;
-    const dx = x - this.lastX;
-    this.lastX = x;
-    this.offsetPx = x - this.downX;
+    const dy = y - this.lastY;
+    this.lastY = y;
+    this.offsetPx = y - this.downY;
     if (Math.hypot(x - this.downX, y - this.downY) > 14) this.holding = false;
-    const sign = Math.sign(dx);
+    const sign = Math.sign(dy);
     if (sign !== 0 && sign !== this.runSign) {
       this.runSign = sign;
       this.runPx = 0;
     }
     const cap = C.SHAKE_STROKE_CAP * this.minDim;
-    const counted = Math.max(0, Math.min(Math.abs(dx), cap - this.runPx));
-    this.runPx += Math.abs(dx);
+    const counted = Math.max(0, Math.min(Math.abs(dy), cap - this.runPx));
+    this.runPx += Math.abs(dy);
     this.energy = Math.min(1, this.energy + (counted / this.minDim) * C.SHAKE_DRAG_GAIN);
-    if (dtS > 0) this.velocity += (dx / dtS - this.velocity) * Math.min(1, dtS * 18);
+    if (dtS > 0) this.velocity += (dy / dtS - this.velocity) * Math.min(1, dtS * 18);
   }
 
   pointerUp(): void {

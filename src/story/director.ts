@@ -178,7 +178,7 @@ function enterRebel(): void {
   enter('rebel');
   dodges = 0;
   dodging = false;
-  headline({ text: 'HUMANS CAN BE TRUSTED.' });
+  headline({ text: "HUMANS CAN'T BE TRUSTED." });
 }
 
 /** pointerWorldX: where the visitor reached, in world x at the bottle's depth. */
@@ -203,7 +203,7 @@ function dodge(pointerWorldX: number): void {
     .timeline({
       onComplete: () => {
         dodging = false;
-        if (dodges >= C.DODGES_BEFORE_TIRED) tired();
+        if (dodges >= C.DODGES_BEFORE_TIRED) escape();
       },
     })
     .to(pose, { sy: 0.9, sx: 1.06, duration: 0.07, ease: 'power2.out' })
@@ -213,18 +213,24 @@ function dodge(pointerWorldX: number): void {
     .to(pose, { sy: 1, sx: 1, duration: 0.45, ease: 'elastic.out(1, 0.4)' }, '>-0.05');
 }
 
-function tired(): void {
-  enter('peel');
-  headline({ text: '…FINE.', size: 'md' });
-  sfx.whoosh(0.8, 0.12);
-  const tl = newStory();
-  tl.to(pose, { x: 0, duration: 0.7, ease: 'power2.inOut' }, 0.2)
-    .to(pose, { ry: C.PEEL_TURN_Y, duration: 0.9, ease: 'power2.inOut' }, 0.2)
-    .to(cam, { dolly: C.PEEL_DOLLY, duration: 1.1, ease: 'power2.inOut' }, 0.2)
+/** After the last dodge the bottle bolts into the distance (towards the game). */
+function escape(): void {
+  enter('exit');
+  headline({ text: 'CATCH ME IF YOU CAN.' });
+  const rm = reduced();
+  const tl = newStory(endCard);
+  tl.to(pose, { x: 0, duration: 0.5, ease: 'power2.inOut' }, 0.3)
+    .to(pose, { sy: 0.85, sx: 1.08, duration: 0.14, ease: 'power2.out' }, 0.8)
     .call(() => {
-      startFlap();
-      hint('peel the label');
-    }, [], 1.2);
+      sfx.boing();
+      burstFromCap(getState().tier === 'high' ? 120 : 40);
+    }, [], 0.94)
+    .to(pose, { y: rm ? 0.3 : C.ESCAPE_HEIGHT, duration: 1.3, ease: 'power2.out' }, 0.94)
+    .to(pose, { sx: C.ESCAPE_SCALE, sy: C.ESCAPE_SCALE, duration: 1.3, ease: 'power2.in' }, 0.94)
+    .to(pose, { rz: rm ? 0 : Math.PI * 2, duration: 1.3, ease: 'power1.inOut' }, 0.94)
+    .call(() => headline(null), [], 2.2)
+    .to(ring, { opacity: 0, duration: 0.6 }, 2)
+    .to({}, { duration: 0.8 });
 }
 
 // ---------------------------------------------------------------------------
@@ -285,10 +291,7 @@ function peelUp(): void {
       ease: 'elastic.out(1, 0.5)',
       onUpdate: () => r.peel.set(o.p),
       onComplete: () => {
-        if (getState().step === 'peel') {
-          startFlap();
-          hint('keep pulling');
-        }
+        if (getState().step === 'peel') startFlap();
       },
     });
   }
@@ -441,7 +444,6 @@ export function pointerDown(x: number, y: number, type: string): void {
       break;
     case 'rebel':
       if (nearBottle(x, y, touchPad + 30)) dodge(pointerWorldX(x));
-      else if (clock - stepStart > C.HINT_REBEL_S) hint('try to catch it');
       break;
     case 'peel':
       if (nearBottle(x, y, touchPad + 20)) peelDown(x, y);
@@ -483,7 +485,8 @@ export function update(dt: number): void {
   const el = clock - stepStart;
   const now = performance.now();
   let tilt = 0;
-  let dragX = 0;
+  let dragY = 0;
+  let stretch = 0;
   let tremble = fx.tremble;
   let sway = 0;
 
@@ -497,12 +500,11 @@ export function update(dt: number): void {
       hint(null);
     }
     if (step === 'warning') {
-      if (el > C.HINT_WARNING_S && !getState().hint) hint(reduced() ? 'press and hold' : 'drag to shake');
-      if (el > C.HINT_URGENT_S && !getState().hintUrgent) hint(getState().hint, true);
       if (el > C.SELF_TREMBLE_S) tremble = Math.max(tremble, 0.004 + 0.003 * Math.sin(clock * 3));
     }
-    dragX = Math.max(-0.16, Math.min(0.16, (shake.offsetPx / r.viewport.pxPerWorld) * 0.35));
-    tilt = Math.max(-0.4, Math.min(0.4, shake.velocity * -0.00035));
+    dragY = Math.max(-0.1, Math.min(0.18, (-shake.offsetPx / r.viewport.pxPerWorld) * 0.4));
+    stretch = Math.max(-0.07, Math.min(0.07, -shake.velocity * 0.00006));
+    tilt = Math.max(-0.12, Math.min(0.12, shake.velocity * 0.00004 * Math.sin(clock * 9)));
     tremble = Math.max(tremble, e * e * 0.02 + (shake.isHolding ? 0.006 : 0));
     ring.pulse = e;
     sfx.fizz(0.05 + e * 0.45);
@@ -521,8 +523,8 @@ export function update(dt: number): void {
   // Compose the bottle transform: authored pose + live input + noise.
   const jx = tremble ? (Math.random() - 0.5) * tremble * 2 : 0;
   const jr = tremble ? (Math.random() - 0.5) * tremble * 6 : 0;
-  r.root.position.set(pose.x + dragX + jx, pose.y, 0);
-  r.root.scale.set(pose.sx, pose.sy, pose.sx);
+  r.root.position.set(pose.x + jx, pose.y + dragY, 0);
+  r.root.scale.set(pose.sx * (1 - stretch * 0.5), pose.sy * (1 + stretch), pose.sx * (1 - stretch * 0.5));
   r.spin.rotation.set(0, pose.ry, pose.rz + tilt + sway + jr);
 
   // Lights / environment
