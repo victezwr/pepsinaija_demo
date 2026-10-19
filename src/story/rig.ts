@@ -11,8 +11,6 @@ export interface Pose {
   rz: number;
   sx: number;
   sy: number;
-  /** Uniform scale: the bottle shrinks into the distance during the flight. */
-  s: number;
 }
 
 export interface Rig {
@@ -21,8 +19,6 @@ export interface Rig {
   root: THREE.Group; // base pivot (y = 0): position + squash
   spin: THREE.Group; // centre pivot: rotation
   cap: THREE.Mesh;
-  capParent: THREE.Object3D;
-  nozzle: THREE.Object3D; // neck opening, for the spray
   capMat: THREE.MeshStandardMaterial;
   yellowMap: THREE.Texture;
   blueMap: THREE.Texture;
@@ -39,7 +35,7 @@ export interface Rig {
   viewport: { w: number; h: number; halfWidth: number; pxPerWorld: number };
 }
 
-export const pose: Pose = { x: 0, y: 0, ry: 0, rz: 0, sx: 1, sy: 1, s: 1 };
+export const pose: Pose = { x: 0, y: 0, ry: 0, rz: 0, sx: 1, sy: 1 };
 export const cam = { dolly: 1, shake: 0 };
 export const lights = { key: 0, rimL: 0, rimR: 0, env: 0 };
 export const ring = { opacity: 0, scale: 0.85, pulse: 0, flash: 0 };

@@ -46,10 +46,8 @@ for (let i = 0; i < 80 && (await step()) !== 'launch'; i++) {
   if (++shook === 8) await shot('shaking');
 }
 await page.mouse.up();
-for (const [ms, name] of [[900, 'cap-pop'], [700, 'takeoff'], [900, 'flight-a'], [900, 'flight-b'], [900, 'flight-c'], [1000, 'landed'], [900, 'cap-drop']]) {
-  await page.waitForTimeout(ms);
-  await shot(name);
-}
+await page.waitForTimeout(400);
+await shot('launch');
 await waitStep('rebel');
 await page.waitForTimeout(600);
 await shot('yellow-cap');

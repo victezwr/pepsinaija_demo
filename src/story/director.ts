@@ -26,7 +26,6 @@ let labelPivot: THREE.Group | null = null;
 let shakeLine = 0;
 let probe = { frames: 0, time: 0, done: false };
 let shortIntro = false;
-const flight = { t: 0, lastX: 0, lastY: 0, spraying: false, emitAcc: 0, whooshAcc: 0 };
 
 const tmp = new THREE.Vector3();
 const tmp2 = new THREE.Vector3();
@@ -112,11 +111,6 @@ function enterWarning(): void {
   shakeLine = 0;
 }
 
-/**
- * Shaken-bottle rocket: pressure bulge → cap bursts off → geyser → the spray drives the
- * bottle base-first around the frame on a sine path, shrinking into the distance and
- * growing back → capless landing → the new yellow cap drops in and screws on.
- */
 function launch(): void {
   if (launched) return;
   launched = true;
@@ -126,125 +120,55 @@ function launch(): void {
   hint(null);
   headline(null);
   const rm = reduced();
-  const flightS = rm ? C.FLIGHT_DURATION_REDUCED : C.FLIGHT_DURATION;
-  const takeoff = C.CAP_POP_AT + C.GEYSER_HOLD;
-  const landAt = takeoff + flightS;
-  Object.assign(flight, { t: 0, lastX: 0, lastY: 0, spraying: false, emitAcc: 0, whooshAcc: 0 });
   const tl = newStory(enterRebel);
-  sfx.hiss(C.CAP_POP_AT);
-  tl.to(fx, { tremble: 0.03, duration: C.CAP_POP_AT, ease: 'power2.in' }, 0)
-    .to(pose, { sx: 1.05, duration: C.CAP_POP_AT, ease: 'power2.in' }, 0)
-    .to(ring, { pulse: 1, duration: C.CAP_POP_AT }, 0)
-    .call(popCap, [], C.CAP_POP_AT)
-    .to(pose, { sx: 1, duration: 0.4, ease: 'elastic.out(1, 0.4)' }, C.CAP_POP_AT)
-    .to(flight, { t: 1, duration: flightS, ease: 'none', onUpdate: flyStep }, takeoff)
+  sfx.hiss(0.7);
+  tl.to(fx, { tremble: 0.028, duration: 0.7, ease: 'power2.in' }, 0)
+    .to(ring, { pulse: 1, duration: 0.7 }, 0)
     .call(() => {
-      flight.spraying = false;
-      sfx.fizz(0.05);
-    }, [], landAt - 0.35)
-    .call(land, [], landAt)
-    .to(pose, { sy: 0.86, sx: 1.08, duration: 0.07, ease: 'power2.out' }, landAt)
-    .to(pose, { sy: 1, sx: 1, duration: 0.7, ease: 'elastic.out(1, 0.35)' }, landAt + 0.07)
-    .to(ring, { pulse: 0, duration: 0.6 }, landAt)
-    .call(dropYellowCap, [], landAt + C.CAP_DROP_DELAY)
-    .to({}, { duration: 1.3 });
-}
-
-function popCap(): void {
-  const r = rigOrNull();
-  if (!r) return;
-  const rm = reduced();
-  fx.tremble = 0;
-  sfx.pop();
-  sfx.whoosh(0.7, 0.5);
-  sfx.fizz(0.5);
-  ring.flash = 1;
-  cam.shake = rm ? 0 : 0.025;
-  sprayFromNozzle(getState().tier === 'high' ? C.POP_BURST.high : C.POP_BURST.low, 2.6, 0.5);
-  flight.spraying = true;
-  // Fly the old cap off in world space, independent of the bottle.
-  r.scene.attach(r.cap);
-  gsap.to(r.cap.position, {
-    x: r.cap.position.x + (Math.random() - 0.5) * 0.8,
-    y: r.cap.position.y + 2.6,
-    duration: 0.9,
-    ease: 'power2.out',
-    onComplete: () => {
-      r.cap.visible = false;
-    },
-  });
-  gsap.to(r.cap.rotation, { x: rm ? 0 : 9, z: rm ? 0 : 5, duration: 0.9, ease: 'power1.out' });
-}
-
-function flyStep(): void {
-  const r = rigOrNull();
-  if (!r) return;
-  const rm = reduced();
-  const t = flight.t;
-  const env = Math.sin(Math.PI * t);
-  const x = rm ? 0 : r.viewport.halfWidth * C.FLIGHT_SWING * Math.sin(3 * Math.PI * t) * env;
-  const y = rm ? 0.18 * env : C.FLIGHT_HEIGHT * Math.pow(env, 0.6) + 0.16 * Math.sin(6 * Math.PI * t) * env;
-  pose.x = x;
-  pose.y = y;
-  pose.s = rm ? 1 : 1 - C.FLIGHT_SHRINK * Math.pow(env, 1.2);
-  const vx = x - flight.lastX;
-  const vy = y - flight.lastY;
-  flight.lastX = x;
-  flight.lastY = y;
-  if (rm || Math.hypot(vx, vy) < 1e-5) return;
-  // The spray pushes the bottle base-first: its neck points against the direction of travel.
-  let target = Math.atan2(vx, -vy);
-  while (target - pose.rz > Math.PI) target -= Math.PI * 2;
-  while (target - pose.rz < -Math.PI) target += Math.PI * 2;
-  pose.rz += (target - pose.rz) * 0.2;
-  const upright = THREE.MathUtils.smoothstep(t, 0.85, 0.98);
-  if (upright > 0) pose.rz += (Math.round(pose.rz / (Math.PI * 2)) * Math.PI * 2 - pose.rz) * upright;
+      fx.tremble = 0;
+      sfx.pop();
+      sfx.whoosh(0.7, 0.5);
+      burstFromCap(getState().tier === 'high' ? C.PARTICLES.high : C.PARTICLES.low);
+      ring.flash = 1;
+      cam.shake = rm ? 0 : 0.02;
+    }, [], 0.7)
+    .to(pose, { y: rm ? 0.2 : 1.3, duration: 0.55, ease: 'power2.out' }, 0.7)
+    .to(pose, { rz: rm ? 0 : -Math.PI * 2, duration: 1.0, ease: 'power1.inOut' }, 0.7)
+    .to(pose, { y: 0, duration: 0.45, ease: 'power2.in' }, 1.25)
+    .call(land, [], 1.7)
+    .to(pose, { sy: 0.86, sx: 1.08, duration: 0.07, ease: 'power2.out' }, 1.7)
+    .to(pose, { sy: 1, sx: 1, duration: 0.7, ease: 'elastic.out(1, 0.35)' }, 1.77)
+    .to(ring, { pulse: 0, duration: 0.6 }, 1.7)
+    .to({}, { duration: 0.8 });
 }
 
 function land(): void {
   pose.rz = 0;
-  pose.s = 1;
   sfx.thud();
   cam.shake = reduced() ? 0 : 0.035;
   ring.flash = 1;
+  revealYellowCap();
 }
 
-function dropYellowCap(): void {
+function revealYellowCap(): void {
   const r = rigOrNull();
   if (!r) return;
-  r.capParent.add(r.cap);
-  r.cap.position.set(0, 1.4, 0);
-  r.cap.rotation.set(0, 0, 0);
-  r.cap.scale.set(1, 1, 1);
   r.capMat.map = r.yellowMap;
-  r.cap.visible = true;
-  sfx.whoosh(0.45, 0.2);
-  gsap.to(r.cap.rotation, { y: Math.PI * 4, duration: 0.6, ease: 'power2.out' });
-  gsap.to(r.cap.position, {
-    y: 0,
-    duration: 0.6,
-    ease: 'bounce.out',
-    onComplete: () => {
-      sfx.click();
-      r.capMat.emissive.set(0xffc400);
-      r.capMat.emissiveIntensity = 0.9;
-      gsap.to(r.capMat, { emissiveIntensity: 0, duration: 1.2, ease: 'power2.out' });
-      r.capFlash.intensity = 3;
-      gsap.to(r.capFlash, { intensity: 0, duration: 1.1, ease: 'power2.out' });
-      ring.flash = 1;
-      sfx.sparkle();
-    },
-  });
+  r.capMat.emissive.set(0xffc400);
+  r.capMat.emissiveIntensity = 0.9;
+  gsap.to(r.capMat, { emissiveIntensity: 0, duration: 1.2, ease: 'power2.out' });
+  r.capFlash.intensity = 3;
+  gsap.to(r.capFlash, { intensity: 0, duration: 1.1, ease: 'power2.out' });
+  sfx.sparkle();
 }
 
-/** Emits along the bottle's neck axis (works upside down mid-flight). */
-function sprayFromNozzle(count: number, speed: number, spread: number): void {
+function burstFromCap(count: number): void {
   const r = rigOrNull();
   if (!r) return;
-  r.nozzle.getWorldPosition(tmp);
-  r.spin.getWorldPosition(tmp2);
-  tmp2.subVectors(tmp, tmp2).normalize();
-  r.fizz.emit(count, tmp, tmp2, speed, spread);
+  r.cap.getWorldPosition(tmp);
+  tmp.y += 0.04;
+  tmp2.set(0, 1, 0);
+  r.fizz.emit(count, tmp, tmp2, 2.2, 1.4);
 }
 
 // ---------------------------------------------------------------------------
@@ -443,7 +367,7 @@ function resetScene(): void {
   flap?.kill();
   flap = null;
   gsap.killTweensOf([pose, cam, lights, ring, fx]);
-  Object.assign(pose, { x: 0, y: 0, ry: 0, rz: 0, sx: 1, sy: 1, s: 1 });
+  Object.assign(pose, { x: 0, y: 0, ry: 0, rz: 0, sx: 1, sy: 1 });
   Object.assign(ring, { opacity: 0, scale: 0.85, pulse: 0, flash: 0 });
   Object.assign(lights, { key: C.KEY_INTENSITY, rimL: C.RIM_L_INTENSITY, rimR: C.RIM_R_INTENSITY, env: C.ENV_INTENSITY });
   fx.tremble = 0;
@@ -457,13 +381,7 @@ function resetScene(): void {
   setState({ headline: null, hint: null, caption: null });
   const r = rigOrNull();
   if (!r) return;
-  gsap.killTweensOf([r.capMat, r.capFlash, r.cap.position, r.cap.rotation]);
-  flight.spraying = false;
-  r.capParent.add(r.cap);
-  r.cap.position.set(0, 0, 0);
-  r.cap.rotation.set(0, 0, 0);
-  r.cap.scale.set(1, 1, 1);
-  r.cap.visible = true;
+  gsap.killTweensOf([r.capMat, r.capFlash]);
   r.capMat.map = r.blueMap;
   r.capMat.emissiveIntensity = 0;
   r.capFlash.intensity = 0;
@@ -588,7 +506,7 @@ export function update(dt: number): void {
     tremble = Math.max(tremble, e * e * 0.02 + (shake.isHolding ? 0.006 : 0));
     ring.pulse = e;
     sfx.fizz(0.05 + e * 0.45);
-    if (e > 0.6 && Math.random() < dt * e * 20) sprayFromNozzle(2, 1.6, 1.2);
+    if (e > 0.6 && Math.random() < dt * e * 20) burstFromCap(2);
     while (shakeLine < C.SHAKE_LINES.length && e >= C.SHAKE_LINES[shakeLine][0]) {
       headline({ text: C.SHAKE_LINES[shakeLine][1] });
       shakeLine++;
@@ -604,7 +522,7 @@ export function update(dt: number): void {
   const jx = tremble ? (Math.random() - 0.5) * tremble * 2 : 0;
   const jr = tremble ? (Math.random() - 0.5) * tremble * 6 : 0;
   r.root.position.set(pose.x + dragX + jx, pose.y, 0);
-  r.root.scale.set(pose.sx * pose.s, pose.sy * pose.s, pose.sx * pose.s);
+  r.root.scale.set(pose.sx, pose.sy, pose.sx);
   r.spin.rotation.set(0, pose.ry, pose.rz + tilt + sway + jr);
 
   // Lights / environment
@@ -626,19 +544,6 @@ export function update(dt: number): void {
   r.camera.lookAt(sx * 0.5, lookY, 0);
   r.viewport.halfWidth = (vh * aspect * cam.dolly) / 2;
   r.viewport.pxPerWorld = r.viewport.h / (vh * cam.dolly);
-
-  // Rocket spray + whooshes on the flight's swings
-  if (flight.spraying) {
-    flight.emitAcc += dt * (getState().tier === 'high' ? C.SPRAY_RATE.high : C.SPRAY_RATE.low);
-    const n = Math.floor(flight.emitAcc);
-    flight.emitAcc -= n;
-    if (n > 0) sprayFromNozzle(n, 1.8, 0.45);
-    flight.whooshAcc += dt;
-    if (flight.whooshAcc > 0.62 && step === 'launch' && flight.t > 0) {
-      flight.whooshAcc = 0;
-      sfx.whoosh(0.45, 0.3);
-    }
-  }
 
   // Particles / droplets
   r.fizz.update(dt);
