@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "fix-model": "node fix-model.mjs ../assets/source/tripo-bottle-original.glb ../assets/source/label-wrap.png ../assets/models/pepsi-bottle.glb"
+    "fix-model": "node fix-model.mjs ../assets/source/tripo-bottle-original.glb ../assets/source/label-wrap-concept.png ../public/models/pepsi-bottle.glb"
   },
   "dependencies": {
     "@gltf-transform/core": "^4",

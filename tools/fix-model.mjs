@@ -1,6 +1,6 @@
 // Usage: node fix.mjs in.glb label.png out.glb
 import { NodeIO, Document } from '@gltf-transform/core';
-import { ALL_EXTENSIONS, KHRDracoMeshCompression } from '@gltf-transform/extensions';
+import { ALL_EXTENSIONS, KHRDracoMeshCompression, EXTTextureWebP } from '@gltf-transform/extensions';
 import { weld, simplify, prune, dedup } from '@gltf-transform/functions';
 import { MeshoptSimplifier } from 'meshoptimizer';
 import draco3d from 'draco3dgltf';
@@ -18,7 +18,7 @@ for (const e of root.listExtensionsUsed()) if (e.extensionName !== 'KHR_draco_me
 
 // 1. Reduce ~977k verts to a web-friendly count.
 await MeshoptSimplifier.ready;
-await doc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: 0.15, error: 0.0002 }));
+await doc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: 0.08, error: 0.0003 }));
 
 // 2. De-light the texture: clear-plastic areas baked as opaque white become translucent,
 //    baked highlights on the cola get toned down; the yellow cap is left untouched.
@@ -42,8 +42,8 @@ for (let i = 0, p = 0; i < data.length; i += 4, p++) {
     data[i] *= k; data[i + 1] *= k; data[i + 2] *= k;
   }
 }
-const bottlePng = await sharp(data, { raw: info }).png().toBuffer();
-const capJpg = await sharp(Buffer.from(srcTex.getImage())).resize(1024, 1024).jpeg({ quality: 88 }).toBuffer();
+const bottleImg = await sharp(data, { raw: info }).resize(1024, 1024).webp({ quality: 82, alphaQuality: 80 }).toBuffer();
+const capImg = await sharp(Buffer.from(srcTex.getImage())).resize(1024, 1024).webp({ quality: 85 }).toBuffer();
 
 // 3. Split the merged mesh into Cap and Bottle by texture colour + height.
 const prim = root.listMeshes()[0].listPrimitives()[0];
@@ -51,6 +51,18 @@ const pos = prim.getAttribute('POSITION').getArray();
 const nrm = prim.getAttribute('NORMAL').getArray();
 const uv = prim.getAttribute('TEXCOORD_0').getArray();
 const idx = prim.getIndices().getArray();
+{
+  const nVerts = pos.length / 3, nbrs = Array.from({ length: nVerts }, () => new Set());
+  for (let t = 0; t < idx.length; t += 3) for (let k = 0; k < 3; k++) { nbrs[idx[t + k]].add(idx[t + (k + 1) % 3]); nbrs[idx[t + k]].add(idx[t + (k + 2) % 3]); }
+  for (let pass = 0; pass < 4; pass++) {
+    const src = nrm.slice();
+    for (let v = 0; v < nVerts; v++) {
+      let x = src[v * 3], y = src[v * 3 + 1], z = src[v * 3 + 2];
+      for (const n of nbrs[v]) { x += src[n * 3]; y += src[n * 3 + 1]; z += src[n * 3 + 2]; }
+      const l = Math.hypot(x, y, z) || 1; nrm[v * 3] = x / l; nrm[v * 3 + 1] = y / l; nrm[v * 3 + 2] = z / l;
+    }
+  }
+}
 const isCapV = (v) => {
   if (pos[v * 3 + 1] < 0.88) return false;
   const x = Math.min(info.width - 1, Math.max(0, Math.floor(uv[v * 2] * info.width)));
@@ -81,9 +93,9 @@ const mkPrim = (tri) => {
 };
 const tex = (name, img, mime) => out.createTexture(name).setImage(img).setMimeType(mime);
 
-const bottleMat = out.createMaterial('Bottle').setBaseColorTexture(tex('bottle_basecolor', bottlePng, 'image/png'))
+const bottleMat = out.createMaterial('Bottle').setBaseColorTexture(tex('bottle_basecolor', bottleImg, 'image/webp'))
   .setRoughnessFactor(0.12).setMetallicFactor(0).setAlphaMode('BLEND').setDoubleSided(true);
-const capMat = out.createMaterial('Cap').setBaseColorTexture(tex('cap_basecolor', capJpg, 'image/jpeg'))
+const capMat = out.createMaterial('Cap').setBaseColorTexture(tex('cap_basecolor', capImg, 'image/webp'))
   .setRoughnessFactor(0.45).setMetallicFactor(0);
 scene.addChild(out.createNode('Bottle').setMesh(out.createMesh('Bottle').addPrimitive(mkPrim(groups.Bottle).setMaterial(bottleMat))));
 scene.addChild(out.createNode('Cap').setMesh(out.createMesh('Cap').addPrimitive(mkPrim(groups.Cap).setMaterial(capMat))));
@@ -103,12 +115,13 @@ const labelPrim = out.createPrimitive()
   .setAttribute('NORMAL', out.createAccessor().setType('VEC3').setArray(new Float32Array(LN)).setBuffer(buf))
   .setAttribute('TEXCOORD_0', out.createAccessor().setType('VEC2').setArray(new Float32Array(LU)).setBuffer(buf))
   .setIndices(out.createAccessor().setType('SCALAR').setArray(new Uint16Array(LI)).setBuffer(buf));
-const labelJpg = await sharp(LABEL).resize(2048).jpeg({ quality: 90 }).toBuffer();
-const labelMat = out.createMaterial('Label').setBaseColorTexture(tex('label_basecolor', labelJpg, 'image/jpeg'))
+const labelImg = await sharp(LABEL).resize(2048).webp({ quality: 88 }).toBuffer();
+const labelMat = out.createMaterial('Label').setBaseColorTexture(tex('label_basecolor', labelImg, 'image/webp'))
   .setRoughnessFactor(0.35).setMetallicFactor(0).setDoubleSided(true);
 scene.addChild(out.createNode('Label').setMesh(out.createMesh('Label').addPrimitive(labelPrim.setMaterial(labelMat))));
 
 out.createExtension(KHRDracoMeshCompression).setRequired(true);
+out.createExtension(EXTTextureWebP).setRequired(true);
 await out.transform(dedup(), prune());
 await io.write(OUT, out);
 console.log('cap tris', groups.Cap.length / 3, 'bottle tris', groups.Bottle.length / 3, 'label H', Hgt.toFixed(4), 'Y0', Y0.toFixed(4));

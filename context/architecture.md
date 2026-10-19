@@ -29,7 +29,7 @@ The product is a **static single-page site**. There is no server code, no databa
 | Model loading | `GLTFLoader` + `DRACOLoader` with a **self-hosted** decoder at `/draco/` | No third-party CDN at runtime. |
 | Background ring | 2D `<canvas>` behind a transparent WebGL canvas | Cheaper than a shader on low-end GPUs. |
 | Fonts | Google Fonts: **Archivo** (`wdth 125, wght 900` for headlines) | Free match for Pepsi's wide, heavy display style. |
-| Analytics | `@vercel/analytics` (page views) + an internal `track()` wrapper | Vercel **custom events need Pro**, so story events go to a free provider (Umami Cloud or PostHog) once keys exist. Until then `track()` is a no-op in production and logs in dev. |
+| Analytics | `@vercel/analytics` (page views) + an internal `track()` wrapper | Vercel **custom events need Pro**, so story events go to a free provider (Umami Cloud or PostHog) once keys exist. Until then `track()` is a no-op in production and logs in dev. The Umami script is the only third-party runtime script, and it loads only when that env var is set. |
 | Hosting | **Vercel** (Hobby), Git integration | The production branch is the repo's default branch. |
 | Asset pipeline | `tools/` (Node + gltf-transform + sharp, Python + Pillow) | Fully reproducible from `assets/source/`. |
 

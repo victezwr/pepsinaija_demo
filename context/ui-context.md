@@ -75,8 +75,9 @@ Headlines are always **two to four words**. No paragraphs anywhere in the experi
 |---|---|
 | Silhouette | TAP TO WAKE IT · 🔊 best with sound |
 | Warning | DON'T SHAKE ME. · *drag to shake* |
-| Shaking (50% / 80%) | easy… / I'M WARNING YOU |
+| Shaking (45% / 78%) | EASY… / I'M WARNING YOU. |
 | Rebel | HUMANS CAN BE TRUSTED. · *try to catch it* |
-| After 3 dodges | …fine. · *peel the label* |
-| Punchline | YOU MONSTER. |
+| Dodges 2 / 3 | TOO SLOW. / NOPE. |
+| After 3 dodges | …FINE. · *peel the label* (after a failed peel: *keep pulling*) |
+| Punchline | YOU MONSTER. (white with electric-blue glow) |
 | End card | STAY ON THE **PULSE** |
