@@ -9,15 +9,15 @@ export class Fizz {
   private readonly geo: THREE.BufferGeometry;
   private next = 0;
 
-  constructor(private readonly max: number) {
+  constructor(private readonly max: number, color = 0xd8e8ff, size = 0.018) {
     this.pos = new Float32Array(max * 3).fill(-999);
     this.vel = new Float32Array(max * 3);
     this.life = new Float32Array(max);
     this.geo = new THREE.BufferGeometry();
     this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
     const mat = new THREE.PointsMaterial({
-      color: 0xd8e8ff,
-      size: 0.018,
+      color,
+      size,
       sizeAttenuation: true,
       transparent: true,
       opacity: 0.85,

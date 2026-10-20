@@ -310,6 +310,86 @@ export function crash(hard: boolean): void {
   }
 }
 
+/** The Chairman's pea whistle: a high, trilling "FEEEEW!". */
+export function whistle(): void {
+  caption('[whistle]');
+  if (!ctx || !master) return;
+  const t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  o.frequency.setValueAtTime(2600, t);
+  o.frequency.linearRampToValueAtTime(3000, t + 0.08);
+  o.frequency.linearRampToValueAtTime(2850, t + 0.7);
+  const trill = ctx.createOscillator();
+  const depth = ctx.createGain();
+  trill.frequency.value = 32; // the pea rattling
+  depth.gain.value = 0.5;
+  const amp = ctx.createGain();
+  amp.gain.value = 0.5;
+  trill.connect(depth).connect(amp.gain);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.32, t + 0.03);
+  g.gain.setValueAtTime(0.32, t + 0.55);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
+  o.connect(amp).connect(g).connect(master);
+  o.start(t);
+  trill.start(t);
+  o.stop(t + 0.8);
+  trill.stop(t + 0.8);
+}
+
+/** Twisting the cap: a sharp gas hiss ("psssht"). */
+export function capOpen(): void {
+  caption('[psssht]');
+  burst('highpass', 3500, 0.5, 0.004, 0.32);
+  burst('bandpass', 6000, 0.25, 0.002, 0.12, 2);
+}
+
+/** Okada horn: a quick "pim-pim", panned to the lane it is coming down. */
+export function horn(lane: number): void {
+  if (!ctx || !master) return;
+  const t = ctx.currentTime;
+  const out = ctx.createGain();
+  out.gain.value = 0.22;
+  let dest: AudioNode = out;
+  if (typeof ctx.createStereoPanner === 'function') {
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = lane * 0.7;
+    out.connect(pan);
+    dest = pan;
+  }
+  dest.connect(master);
+  [0, 0.16].forEach((dt) => {
+    [420, 527].forEach((f) => {
+      const o = ctx!.createOscillator();
+      o.type = 'square';
+      o.frequency.value = f;
+      const g = ctx!.createGain();
+      g.gain.setValueAtTime(0.0001, t + dt);
+      g.gain.exponentialRampToValueAtTime(0.5, t + dt + 0.01);
+      g.gain.setValueAtTime(0.5, t + dt + 0.09);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dt + 0.12);
+      o.connect(g).connect(out);
+      o.start(t + dt);
+      o.stop(t + dt + 0.13);
+    });
+  });
+}
+
+/** The bottle smacking into a palm. */
+export function catchIt(): void {
+  burst('bandpass', 1800, 0.45, 0.002, 0.07, 1.5);
+  tone('sine', 220, 120, 0.3, 0.1);
+}
+
+/** Fizz Boost kicking in. */
+export function boost(): void {
+  caption('[FIZZ BOOST]');
+  hiss(0.5);
+  tone('sawtooth', 220, 880, 0.12, 0.6);
+  whoosh(0.8, 0.5);
+}
+
 export function sparkle(): void {
   caption('[new yellow cap]');
   [1318.5, 1760, 2093].forEach((f, i) => tone('sine', f, f, 0.12, 0.35, i * 0.06));

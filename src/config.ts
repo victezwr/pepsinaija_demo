@@ -1,7 +1,7 @@
 // Every tunable number lives here. Units: world units (bottle ≈ 0.98 tall), seconds unless suffixed.
 
 export const CREDIT_HANDLE = '@VOtakpor';
-export const BRAND_HANDLE = '@PepsiNaija';
+export const BRAND_HANDLE = '@Pepsi_naija';
 
 // Model
 export const MODEL_URL = '/models/pepsi-bottle.glb';

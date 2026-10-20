@@ -2,7 +2,7 @@
 
 An interactive 3D story about a cold Pepsi bottle that really doesn't want to be shaken.
 
-> **Unofficial concept / spec project** by [@VOtakpor](https://x.com/VOtakpor) for @PepsiNaija. Not affiliated with or endorsed by PepsiCo.
+> **Unofficial concept / spec project** by [@VOtakpor](https://x.com/VOtakpor) for @Pepsi_naija. Not affiliated with or endorsed by PepsiCo.
 
 Wake the bottle → ignore the warning → shake it → watch the new **yellow cap** land → try to catch it → it escapes to a water tower down a Lagos street → **The Chase**: outrun the agberos, collect 1000 yellow caps, get the Pepsi → STAY ON THE PULSE.
 

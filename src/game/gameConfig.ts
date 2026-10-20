@@ -1,71 +1,72 @@
-// Every tunable number for the chase. Units: metres, seconds, m/s.
+// Every tunable number for The Yellow Chase. Units: metres, seconds, m/s.
 
-export const COIN_TARGET = 1000;
+export const TITLE = 'THE YELLOW CHASE';
+export const X_HANDLE = '@Pepsi_naija';
+export const HASHTAG = '#PepsiYellowChase';
+export const SHARE_URL = 'https://dontshakeme.vercel.app';
 
-/** Speed rises in stages as the coin count grows (Subway Surfers-style pace jumps). */
-/**
- * Owner direction: the run starts at what used to be stage 4 (20 m/s) and the world only
- * gets faster from there. Gaps grow with speed so there is always ~1.1 s or more to react.
- */
-export const STAGES: ReadonlyArray<{ coins: number; speed: number; gap: [number, number]; maxBlocked: number }> = [
-  { coins: 0, speed: 20, gap: [28, 36], maxBlocked: 1 },
-  { coins: 200, speed: 22, gap: [27, 34], maxBlocked: 2 },
-  { coins: 400, speed: 24, gap: [27, 33], maxBlocked: 2 },
-  { coins: 600, speed: 26.5, gap: [28, 33], maxBlocked: 3 },
-  { coins: 800, speed: 29, gap: [30, 35], maxBlocked: 3 },
+/** Endless run: the pace jumps in stages by distance (opening speed = the old stage 4). */
+export const STAGES: ReadonlyArray<{ dist: number; speed: number; gap: [number, number]; maxBlocked: number }> = [
+  { dist: 0, speed: 20, gap: [28, 36], maxBlocked: 1 },
+  { dist: 500, speed: 22, gap: [27, 34], maxBlocked: 2 },
+  { dist: 1200, speed: 24, gap: [27, 33], maxBlocked: 2 },
+  { dist: 2000, speed: 26.5, gap: [28, 33], maxBlocked: 3 },
+  { dist: 3000, speed: 29, gap: [30, 35], maxBlocked: 3 },
 ];
+export const SPEED_EASE_PER_S = 2.5;
 export const MAX_STEP = 0.4; // metres per collision sub-step
-export const SPEED_EASE_PER_S = 2.5; // how fast speed blends to a new stage
 
 // Track
 export const LANE_WIDTH = 2.2;
-export const LANES = [-1, 0, 1] as const;
 export const ROAD_HALF = LANE_WIDTH * 1.5 + 0.3;
 export const SIDEWALK = 3.2;
-export const SPAWN_HORIZON = 130; // rows are spawned this far ahead
-export const DESPAWN_Z = 12; // behind the camera
-export const START_GRACE = 60; // ~3 s of empty road at the opening speed
+export const SPAWN_HORIZON = 130;
+export const DESPAWN_Z = 12;
+export const START_GRACE = 60;
 
 // Player
 export const RUNNER_HEIGHT = 1.75;
 export const AGBERO_HEIGHT = 1.8;
+export const CHAIRMAN_SCALE = 1.12;
 export const LANE_SWITCH_RATE = 14;
 export const JUMP_VELOCITY = 9.2;
 export const GRAVITY = 27;
 export const FAST_FALL_VELOCITY = -16;
 export const DUCK_TIME = 0.8;
-export const SLIDE_LEAN = 0.9; // rad the runner throws the body back while sliding
+export const SLIDE_LEAN = 0.9;
 export const STAND_TOP = 1.7;
 export const DUCK_TOP = 1.0;
 export const PLAYER_HALF_W = 0.35;
 export const PLAYER_HALF_D = 0.35;
-export const STUMBLE_WINDOW = 4; // a second stumble inside this window = caught
+export const STUMBLE_WINDOW = 4; // second stumble while the Chairman is close = caught
+export const BOTTLE_HELD = 0.34; // metres tall in the hand (slightly bigger than life, so it reads)
 
 // Chasers
-export const CHASE_CLOSE = 1.0; // just behind the runner, flanking
-export const CHASE_FAR = 10; // behind the camera
+export const CHASE_CLOSE = 1.0;
+export const CHASE_FAR = 10;
 export const CHASE_HOLD_S = 3;
-export const BUBBLE_LINES = ['Hold am!', 'Where you dey go?!', 'Bring that Pepsi come!', 'Oya stop there!', 'Na our own be dat!'];
+export const BUBBLE_LINES = ['Hold am!', 'Where you dey go?!', 'Oya drop am!', 'Bring that Pepsi come!', 'Stop there!'];
 
-// Coins (yellow caps)
+// Okadas drive at you, with a horn first
+export const OKADA_EXTRA = 0.55; // extra closing speed as a fraction of yours
+export const HORN_LEAD_S = 1.4;
+
+// Coins (yellow caps) + Fizz Boost
 export const COIN_POOL = 140;
 export const COIN_SPACING = 1.6;
 export const COIN_RADIUS = 0.22;
 export const COIN_PICKUP = 0.9;
-
-// Finish
-export const TOWER_DISTANCE = 150; // locked tower stays this far ahead until COIN_TARGET
-export const TOWER_HEIGHT = 14;
-export const BOTTLE_ON_TOWER = 2.4;
-export const FINISH_STOP = 11; // runner stops this far in front of the tower
+export const CHILL_FULL = 50; // caps to fill the Fizz meter
+export const BOOST_S = 8;
+export const BOOST_HEIGHT = 3.4; // above the danfo roofs
+export const BOOST_GRACE_S = 1;
 
 // Camera
 export const CAM_HEIGHT = 2.9;
 export const CAM_BACK = 5.4;
 export const CAM_LOOK_AHEAD = 9;
-export const REVEAL_S = 3.2; // camera pull-back
-export const REVEAL_HOLD_S = 0.9; // hold on the bottle after it lands
-export const BOTTLE_DROP_S = 0.45;
+export const DROP_S = 0.7; // the bottle falling into the runner's hand
+export const START_S = 1.8; // tap → whistle → camera swing → control
 
 export type PropName =
   | 'danfo'
@@ -77,13 +78,8 @@ export type PropName =
   | 'building-1'
   | 'building-2'
   | 'building-3'
-  | 'pole'
-  | 'tower';
+  | 'pole';
 
-/**
- * Obstacles. Tripo models are normalised (longest side = 1, base at y = 0).
- * `action` tells the player what beats it; hit boxes are in metres.
- */
 export const OBSTACLES = {
   danfo: { prop: 'danfo', action: 'swerve', scale: 5, rotY: 0, halfW: 1.0, length: 5, bottom: 0, top: 2.7, weight: 3 },
   keke: { prop: 'keke', action: 'swerve', scale: 2.8, rotY: Math.PI / 2, halfW: 0.8, length: 2.8, bottom: 0, top: 1.8, weight: 3 },

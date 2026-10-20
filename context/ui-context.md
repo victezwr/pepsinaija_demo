@@ -57,7 +57,7 @@ Headlines are always **two to four words**. No paragraphs anywhere in the experi
 - **Shake meter:** no bar. The meter is the bottle's trembling, the ring's pulse and escalating captions ("easy…" → "I'M WARNING YOU").
 - **Captions (sound cues):** small italic line at the bottom, e.g. *[fizz rising]*, *[POP]*. Always shown when muted or when audio failed, otherwise hidden.
 - **Buttons:** Skip (intro only), Mute, Lite toggle, Replay (end card). Text or icon with visible focus ring, minimum 44×44 px.
-- **End card:** halftone ring + logo centred, "STAY ON THE" (white) over "PULSE" (electric blue), Replay button, credit line "Unofficial concept by @VOtakpor for @PepsiNaija · Not affiliated with PepsiCo".
+- **End card:** halftone ring + logo centred, "STAY ON THE" (white) over "PULSE" (electric blue), Replay button, credit line "Unofficial concept by @VOtakpor for @Pepsi_naija · Not affiliated with PepsiCo".
 - **Fallback:** poster still of the bottle + the end card, plus "Your browser can't run the 3D version" in muted text.
 
 ## Halftone ring

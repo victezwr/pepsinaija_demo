@@ -4,21 +4,24 @@ import * as music from '../audio/music';
 import * as sfx from '../audio/sfx';
 import * as voices from '../audio/voices';
 import { track } from '../analytics/track';
+import { Fizz } from '../scene/fizz';
 import { writePref } from '../util/storage';
 import type { CharacterAsset, GameAssets } from './assets';
 import * as G from './gameConfig';
 import { gameDom, useGame, type GamePhase, type Runner } from './gameStore';
 
-export type GameInput = 'left' | 'right' | 'up' | 'down';
+export type GameInput = 'left' | 'right' | 'up' | 'down' | 'boost';
 
 const laneX = (lane: number): number => lane * G.LANE_WIDTH;
 const rand = (a: number, b: number): number => a + Math.random() * (b - a);
 const smooth = (t: number): number => t * t * (3 - 2 * t);
+const lerp = THREE.MathUtils.lerp;
 const setPhase = (phase: GamePhase): void => useGame.setState({ phase });
 
 /** A skinned character with cross-faded clips. Models face +Z; the chase runs towards -Z. */
 class Actor {
   readonly root = new THREE.Group();
+  readonly hand: THREE.Object3D | null;
   private readonly mixer: THREE.AnimationMixer;
   private readonly actions = new Map<string, THREE.AnimationAction>();
   private current: THREE.AnimationAction | null = null;
@@ -30,18 +33,23 @@ class Actor {
     model.scale.setScalar(height / Math.max(0.01, box.max.y - box.min.y));
     model.rotation.y = Math.PI;
     this.root.add(model);
+    let hand: THREE.Object3D | null = null;
+    model.traverse((o) => {
+      if (!hand && /RightHand$/.test(o.name)) hand = o;
+    });
+    this.hand = hand;
     this.mixer = new THREE.AnimationMixer(model);
     for (const [name, clip] of Object.entries(asset.clips)) this.actions.set(name, this.mixer.clipAction(clip));
   }
 
-  play(name: string, opts: { loop?: boolean; fade?: number; speed?: number } = {}): void {
+  play(name: string, opts: { loop?: boolean; fade?: number; speed?: number; pingPong?: boolean } = {}): void {
     const next = this.actions.get(name);
     if (!next) return;
-    const { loop = true, fade = 0.15, speed = 1 } = opts;
+    const { loop = true, fade = 0.15, speed = 1, pingPong = false } = opts;
     next.timeScale = speed;
     if (next === this.current) return;
     next.reset();
-    next.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+    next.setLoop(loop ? (pingPong ? THREE.LoopPingPong : THREE.LoopRepeat) : THREE.LoopOnce, Infinity);
     next.clampWhenFinished = !loop;
     next.enabled = true;
     next.setEffectiveWeight(1);
@@ -57,6 +65,7 @@ class Actor {
 
   update(dt: number): void {
     this.mixer.update(dt);
+    this.root.updateMatrixWorld(true);
   }
 }
 
@@ -67,6 +76,7 @@ interface Obstacle {
   z: number;
   active: boolean;
   hit: boolean;
+  horned: boolean;
 }
 
 interface Slot {
@@ -86,28 +96,34 @@ export class ChaseWorld {
   private readonly poleSpan: number;
   private readonly roadTex: THREE.Texture;
   private readonly walkTex: THREE.Texture;
-  private readonly tower = new THREE.Group();
+  private readonly parkedDanfo: THREE.Group;
   private readonly bottle: THREE.Group;
+  private readonly heroBottle: THREE.Group;
+  private bottleHolder: Actor | null = null;
+  private readonly fizzBlue = new Fizz(320, 0x5a8cff, 0.11);
+  private readonly fizzYellow = new Fizz(320, 0xffd23a, 0.11);
   private readonly coinMesh: THREE.InstancedMesh;
   private readonly coinX = new Float32Array(G.COIN_POOL);
   private readonly coinY = new Float32Array(G.COIN_POOL);
   private readonly coinZ = new Float32Array(G.COIN_POOL);
   private readonly coinOn = new Uint8Array(G.COIN_POOL);
   private nextCoin = 0;
+  private readonly sky: THREE.Texture;
+  private readonly fog: THREE.Fog;
   private readonly m4 = new THREE.Matrix4();
   private readonly q = new THREE.Quaternion();
   private readonly v = new THREE.Vector3();
   private readonly s = new THREE.Vector3();
   private readonly look = new THREE.Vector3();
   private readonly zero = new THREE.Vector3(0, 0, 0);
-  private readonly bottleFrom = new THREE.Vector3();
-  private readonly sky: THREE.Texture;
-  private readonly fog: THREE.Fog;
-  private slideT = 0;
-  private lean = 0;
+  private readonly fwd = new THREE.Vector3();
+  private readonly right = new THREE.Vector3();
+  private readonly camFrom = new THREE.Vector3();
+  private readonly lookFrom = new THREE.Vector3();
 
   // Run state
   private time = 0;
+  private phaseT = 0;
   private speed = 0;
   private distance = 0;
   private ahead = G.START_GRACE;
@@ -118,20 +134,26 @@ export class ChaseWorld {
   private vy = 0;
   private grounded = true;
   private duckT = 0;
+  private slideT = 0;
+  private lean = 0;
   private lockAnimUntil = 0;
   private lastStumble = -99;
   private chaseGap: number = G.CHASE_CLOSE;
   private chaseCloseUntil = 0;
-  private towerZ = -G.TOWER_DISTANCE;
+  private chairmanLunge = 0;
   private camShake = 0;
-  private phaseT = 0;
   private bubbleText = '';
   private bubbleUntil = 0;
   private nextBubbleAt = 0;
-  private coins = 0;
+  private caps = 0;
+  private chill = 0;
+  private boostT = 0;
+  private boostY = 0;
+  private invulnerableUntil = 0;
   private stage = 0;
-  private landed = false;
-  /** Test-only (?debug&autopilot): dodges by itself so the finish can be checked headless. */
+  private storeTick = 0;
+  private whistled = false;
+  /** Test-only (?debug&autopilot): dodges by itself so long runs can be checked headless. */
   autopilot = false;
 
   constructor(
@@ -151,20 +173,14 @@ export class ChaseWorld {
 
     // Road + sidewalks (scrolling textures; the geometry never moves)
     this.roadTex = roadTexture();
-    const road = new THREE.Mesh(
-      new THREE.PlaneGeometry(G.ROAD_HALF * 2, 320),
-      new THREE.MeshStandardMaterial({ map: this.roadTex, roughness: 0.95 }),
-    );
+    this.roadTex.repeat.set(1, 320 / 8);
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(G.ROAD_HALF * 2, 320), new THREE.MeshStandardMaterial({ map: this.roadTex, roughness: 0.95 }));
     road.rotation.x = -Math.PI / 2;
     road.position.z = -140;
-    this.roadTex.repeat.set(1, 320 / 8);
     this.walkTex = walkTexture();
     this.walkTex.repeat.set(1, 320 / 4);
     for (const side of [-1, 1]) {
-      const walk = new THREE.Mesh(
-        new THREE.PlaneGeometry(G.SIDEWALK, 320),
-        new THREE.MeshStandardMaterial({ map: this.walkTex, roughness: 1 }),
-      );
+      const walk = new THREE.Mesh(new THREE.PlaneGeometry(G.SIDEWALK, 320), new THREE.MeshStandardMaterial({ map: this.walkTex, roughness: 1 }));
       walk.rotation.x = -Math.PI / 2;
       walk.position.set(side * (G.ROAD_HALF + G.SIDEWALK / 2), 0.12, -140);
       const curb = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.14, 320), new THREE.MeshStandardMaterial({ color: 0xd9d2c4 }));
@@ -176,7 +192,7 @@ export class ChaseWorld {
     // Buildings: shoulder to shoulder, fronts facing the road
     const bScale = 7.5;
     const bWidth = 0.72 * bScale;
-    const perSide = lowTier ? 20 : 26;
+    const perSide = lowTier ? 24 : 28;
     this.buildingSpan = perSide * bWidth;
     for (const side of [-1, 1]) {
       for (let i = 0; i < perSide; i++) {
@@ -188,9 +204,9 @@ export class ChaseWorld {
           this.group.add(b);
           return b;
         });
-        const slot = { variants, z: G.DESPAWN_Z - i * bWidth };
         variants[Math.floor(Math.random() * 3)].visible = true;
-        this.buildings.push(slot);
+        // Start the row behind the camera too: the menu looks back down the street.
+        this.buildings.push({ variants, z: G.DESPAWN_Z + 30 - i * bWidth });
       }
     }
     const poleEvery = 18;
@@ -199,11 +215,16 @@ export class ChaseWorld {
     for (const side of [-1, 1]) {
       for (let i = 0; i < polesPerSide; i++) {
         const p = place(assets.props.pole, 7.5);
-        p.position.set(side * (G.ROAD_HALF + 0.7), 0, G.DESPAWN_Z - i * poleEvery - (side > 0 ? poleEvery / 2 : 0));
+        p.position.set(side * (G.ROAD_HALF + 0.7), 0, G.DESPAWN_Z + 30 - i * poleEvery - (side > 0 ? poleEvery / 2 : 0));
         this.poles.push(p);
         this.group.add(p);
       }
     }
+
+    // Motor-park set dressing: a danfo parked beside the runner in the menu
+    this.parkedDanfo = place(assets.props.danfo, 5);
+    this.parkedDanfo.position.set(-laneX(1), 0, 1.5);
+    this.group.add(this.parkedDanfo);
 
     // Obstacle pools
     const pool: Record<G.ObstacleKind, number> = { danfo: 4, keke: 4, okada: 4, barrier: 5, table: 4, banner: 4 };
@@ -214,7 +235,7 @@ export class ChaseWorld {
         obj.rotation.y = def.rotY;
         obj.visible = false;
         this.group.add(obj);
-        this.obstacles.push({ kind, obj, lane: 0, z: 0, active: false, hit: false });
+        this.obstacles.push({ kind, obj, lane: 0, z: 0, active: false, hit: false, horned: false });
       }
     }
 
@@ -226,52 +247,48 @@ export class ChaseWorld {
     this.coinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.group.add(this.coinMesh);
 
-    // The prize: water tower with the bottle on top, glowing through the haze
-    const tw = place(assets.props.tower, G.TOWER_HEIGHT);
-    this.tower.add(tw);
+    // The Pepsi: one held in hand, one big hero copy for the game-over shot
     this.bottle = assets.bottle;
-    this.bottle.scale.setScalar(G.BOTTLE_ON_TOWER / 0.98);
-    this.bottle.position.y = G.TOWER_HEIGHT;
-    this.bottle.traverse((o) => {
-      if (o instanceof THREE.Mesh) {
+    this.bottle.scale.setScalar(G.BOTTLE_HELD / 0.98);
+    this.heroBottle = assets.bottle.clone();
+    this.heroBottle.scale.setScalar(0.55 / 0.98);
+    this.heroBottle.visible = false;
+    for (const b of [this.bottle, this.heroBottle]) {
+      b.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
         const mats = Array.isArray(o.material) ? o.material : [o.material];
         mats.forEach((m) => {
           if (m instanceof THREE.MeshStandardMaterial) m.fog = false;
         });
-      }
-    });
-    const glow = new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffd36b, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }),
-    );
-    glow.scale.setScalar(7);
-    glow.position.set(0, G.TOWER_HEIGHT + 1.1, -0.9); // behind the bottle so it halos instead of washing it out
-    this.tower.add(this.bottle, glow);
-    this.group.add(this.tower);
+      });
+    }
+    this.group.add(this.bottle, this.heroBottle, this.fizzBlue.points, this.fizzYellow.points);
 
     // Characters
     this.runners = { male: new Actor(assets.male, G.RUNNER_HEIGHT), female: new Actor(assets.female, G.RUNNER_HEIGHT) };
     this.runner = this.runners.male;
     for (const r of Object.values(this.runners)) {
       r.root.visible = false;
-      this.group.add(r.root);
       r.root.add(blobShadow(0.55));
+      this.group.add(r.root);
     }
+    this.runner.root.visible = true;
     for (let i = 0; i < 3; i++) {
-      const a = new Actor(assets.agbero, G.AGBERO_HEIGHT * (0.95 + i * 0.04));
+      const a = new Actor(assets.agbero, G.AGBERO_HEIGHT * (i === 0 ? G.CHAIRMAN_SCALE : 0.95 + i * 0.03));
       a.root.add(blobShadow(0.6));
-      a.play('idle');
       this.agberos.push(a);
       this.group.add(a.root);
     }
-    this.layoutAgberos(true);
+    this.toMenuPose();
   }
 
-  // ------------------------------------------------------------------ flow
+  private get chairman(): Actor {
+    return this.agberos[0];
+  }
 
-  /**
-   * Compiles every shader the chase needs while the story is still playing, with the scene
-   * set up exactly as it will be (story objects hidden, game fog on), so the hand-off has no hitch.
-   */
+  // ------------------------------------------------------------------ hand-off & menu
+
+  /** Compiles every shader the chase needs while the story is still playing (no hitch at the cut). */
   prewarm(gl: THREE.WebGLRenderer): void {
     const hidden: THREE.Object3D[] = [];
     for (const child of this.scene.children) {
@@ -301,14 +318,14 @@ export class ChaseWorld {
     });
   }
 
-  /** Hand-off from the story: switch the scene over and start the reveal on the tower. */
+  /** Story hand-off: the bottle that rocketed off-screen falls into the runner's hand. */
   activate(): void {
     this.scene.background = this.sky;
     this.scene.fog = this.fog;
     this.scene.environmentIntensity = 0.35;
     this.group.visible = true;
     this.phaseT = 0;
-    this.landed = false;
+    this.bottleHolder = null;
     voices.preloadVoices();
     setPhase('reveal');
   }
@@ -318,52 +335,92 @@ export class ChaseWorld {
     this.runner = this.runners[r];
     this.runner.root.visible = true;
     this.runner.root.position.set(0, 0, 0);
-    this.runner.play('cheer');
+    this.runner.play('idle', { pingPong: true, speed: 0.4 });
+    if (this.bottleHolder && this.bottleHolder !== this.chairman) this.bottleHolder = this.runner;
     useGame.setState({ runner: r });
   }
 
-  /** Fresh run from zero (also used for "Run am again"). */
-  start(): void {
+  private toMenuPose(): void {
+    this.runner.play('idle', { pingPong: true, speed: 0.4 });
+    this.chairman.play('idle');
+    this.agberos[1].play('idle');
+    this.agberos[2].play('idle');
+    this.layoutMenuAgberos();
+  }
+
+  private layoutMenuAgberos(): void {
+    // Behind the runner (towards +z), muttering and staring at the yellow cap
+    const spots: Array<[number, number, number]> = [
+      [1.2, 4.0, -0.25],
+      [2.6, 5.2, -0.45],
+      [-0.4, 5.8, -0.1],
+    ];
+    this.agberos.forEach((a, i) => {
+      const [x, z, yaw] = spots[i];
+      a.root.position.set(x, 0, z);
+      a.root.rotation.y = yaw;
+    });
+  }
+
+  /** TAP TO RUN: psssht → "Oya hold am!" + whistle → camera swings behind → control. */
+  tapToRun(): void {
+    if (useGame.getState().phase !== 'menu') return;
+    this.resetRun();
+    sfx.capOpen();
+    this.whistled = false;
+    this.phaseT = 0;
+    setPhase('starting');
+    track('game_start', { runner: useGame.getState().runner });
+  }
+
+  /** RUN AGAIN from the game-over screen: straight back into the chase. */
+  runAgain(): void {
+    this.resetRun();
+    this.parkedDanfo.visible = false;
+    this.whistled = false;
+    this.phaseT = 0.5; // skip the cap-open beat
+    setPhase('starting');
+    track('game_start', { runner: useGame.getState().runner, again: 1 });
+  }
+
+  private resetRun(): void {
     for (const o of this.obstacles) {
       o.active = false;
       o.obj.visible = false;
     }
     this.coinOn.fill(0);
-    this.time = 0;
-    this.speed = G.STAGES[0].speed * 0.6;
+    this.fizzBlue.clear();
+    this.fizzYellow.clear();
+    this.speed = 0;
     this.distance = 0;
     this.ahead = G.START_GRACE;
     this.lane = this.prevLane = 0;
     this.px = this.py = this.vy = 0;
     this.grounded = true;
-    this.duckT = 0;
-    this.slideT = 0;
-    this.lean = 0;
+    this.duckT = this.slideT = this.lean = 0;
     this.lockAnimUntil = 0;
     this.lastStumble = -99;
-    this.chaseGap = G.CHASE_CLOSE;
-    this.chaseCloseUntil = G.CHASE_HOLD_S;
-    this.towerZ = -G.TOWER_DISTANCE;
-    this.coins = 0;
-    this.stage = 0;
-    this.nextBubbleAt = 0.4;
+    this.chaseGap = 4.5;
+    this.chairmanLunge = 0;
     this.bubbleUntil = 0;
-    this.bottle.position.set(0, G.TOWER_HEIGHT, 0);
-    this.bottle.rotation.set(0, 0, 0);
-    this.bottle.scale.setScalar(G.BOTTLE_ON_TOWER / 0.98);
-    if (this.bottle.parent !== this.tower) this.tower.add(this.bottle);
+    this.caps = this.chill = 0;
+    this.boostT = this.boostY = 0;
+    this.invulnerableUntil = 0;
+    this.stage = 0;
+    this.heroBottle.visible = false;
+    this.bottleHolder = this.runner;
+    this.runner.root.rotation.set(0, 0, 0);
     this.runner.root.visible = true;
-    this.runner.play('run');
-    for (const a of this.agberos) a.play('run');
-    useGame.setState({ coins: 0, stage: 0, unlocked: false, banner: null });
-    setPhase('running');
-    void music.start(0);
-    voices.shout(3, 0.6); // the chase is on
-    track('game_start', { runner: useGame.getState().runner });
+    this.agberos.forEach((a) => {
+      a.root.rotation.y = 0;
+    });
+    useGame.setState({ caps: 0, distance: 0, stage: 0, chill: 0, boosting: false, banner: null });
   }
 
   input(action: GameInput): void {
-    if (useGame.getState().phase !== 'running') return;
+    const phase = useGame.getState().phase;
+    if (phase !== 'running' && phase !== 'starting') return;
+    const boosting = this.boostT > 0;
     switch (action) {
       case 'left':
       case 'right': {
@@ -375,29 +432,42 @@ export class ChaseWorld {
         break;
       }
       case 'up':
-        if (!this.grounded) return;
+        if (!this.grounded || boosting) return;
         this.vy = G.JUMP_VELOCITY;
         this.grounded = false;
-        this.duckT = 0;
-        this.slideT = 0;
+        this.duckT = this.slideT = 0;
         this.runner.play('jump', { loop: false, speed: 1.35, fade: 0.08 });
         this.lockAnimUntil = this.time + 0.7;
         sfx.jump();
         break;
       case 'down':
-        // Slide: knees bent, body thrown back, feet first under the banner.
+        if (boosting) return;
         if (!this.grounded) this.vy = G.FAST_FALL_VELOCITY;
-        this.duckT = G.DUCK_TIME;
-        this.slideT = G.DUCK_TIME;
+        this.duckT = this.slideT = G.DUCK_TIME;
         this.runner.play('duck', { fade: 0.06 });
         this.lockAnimUntil = this.time + G.DUCK_TIME;
         if (this.grounded) sfx.slide();
+        break;
+      case 'boost':
+        this.startBoost();
         break;
       default: {
         const never: never = action;
         return never;
       }
     }
+  }
+
+  private startBoost(): void {
+    if (this.boostT > 0 || this.chill < G.CHILL_FULL || useGame.getState().phase !== 'running') return;
+    this.boostT = G.BOOST_S;
+    this.chill = 0;
+    this.chaseCloseUntil = 0;
+    this.runner.play('duck', { fade: 0.2 }); // surf stance
+    sfx.boost();
+    music.setStage(Math.min(G.STAGES.length - 1, this.stage + 1));
+    this.flashBanner('FIZZ BOOST!', 1400);
+    useGame.setState({ chill: 0, boosting: true });
   }
 
   // ------------------------------------------------------------------ frame
@@ -407,52 +477,96 @@ export class ChaseWorld {
     this.time += dt;
     this.phaseT += dt;
 
-    if (phase === 'running') {
-      const target = G.STAGES[this.stage].speed;
+    if (phase === 'starting' || phase === 'running') {
+      const target = phase === 'starting' && this.phaseT < 0.55 ? 0 : G.STAGES[this.stage].speed;
       this.speed += (target - this.speed) * Math.min(1, dt * G.SPEED_EASE_PER_S);
     } else {
       this.speed = Math.max(0, this.speed - this.speed * Math.min(1, dt * 4) - dt * 2);
     }
     const d = this.speed * dt;
-    this.distance += d;
-    if (phase === 'running') {
-      if (this.autopilot) this.drive();
+
+    if (phase === 'reveal') this.revealStep();
+    else if (phase === 'starting') this.startingStep();
+
+    if (phase === 'running' || phase === 'starting') {
+      if (this.autopilot && phase === 'running') this.drive();
       this.movePlayer(dt);
       // Sub-step the world so a fast frame can't carry a thin obstacle straight past the runner.
       const steps = Math.max(1, Math.ceil(d / G.MAX_STEP));
-      for (let i = 0; i < steps && useGame.getState().phase === 'running'; i++) {
+      for (let i = 0; i < steps && ['running', 'starting'].includes(useGame.getState().phase); i++) {
         this.scroll(d / steps, true);
-        this.collide();
-        this.collect();
+        if (phase === 'running') {
+          this.collide();
+          this.collect();
+        }
       }
-      this.updateStage();
-      const unlocked = useGame.getState().unlocked;
-      if (unlocked) {
-        this.towerZ += d;
-        if (this.towerZ >= -G.FINISH_STOP) this.win();
+      this.distance += d;
+      if (phase === 'running') this.updateStage();
+      this.updateBoost(dt);
+      this.storeTick -= dt;
+      if (this.storeTick <= 0) {
+        this.storeTick = 0.1;
+        useGame.setState({ distance: Math.floor(this.distance) });
       }
     } else {
       this.scroll(d, false);
     }
-    if (phase === 'caught') {
-      this.caughtStep(dt);
-    } else if (phase === 'won' || phase === 'end') {
-      this.wonStep(dt);
-    }
+    if (phase === 'caught') this.caughtStep();
 
-    this.tower.position.z = this.towerZ;
-    // Slide lean eases in fast and out a little slower; pivot is the feet.
-    const wantLean = this.slideT > 0 && this.grounded ? G.SLIDE_LEAN : 0;
+    // Runner transform: slide lean (pivot at the feet), boost height, surf stance
+    const wantLean = this.slideT > 0 && this.grounded && this.boostT <= 0 ? G.SLIDE_LEAN : 0;
     this.lean += (wantLean - this.lean) * Math.min(1, dt * (wantLean > this.lean ? 22 : 12));
     this.runner.root.rotation.x = this.lean;
-    this.runner.root.position.set(this.px, this.py - this.lean * 0.12, 0);
+    if (phase !== 'caught') this.runner.root.rotation.y = this.boostY > 0.3 ? 0.55 : 0;
+    this.runner.root.position.set(this.px, this.py + this.boostY - this.lean * 0.12, 0);
     const runRate = Math.min(1.75, Math.max(0.6, this.speed / 12));
-    if (phase === 'running' && this.runner.currentName === 'run') this.runner.setSpeed(runRate);
+    if (this.runner.currentName === 'run') this.runner.setSpeed(runRate);
     this.runner.update(dt);
     this.updateChasers(dt, phase);
+    this.updateBottle(phase);
     this.updateCoins();
+    this.fizzBlue.update(dt);
+    this.fizzYellow.update(dt);
     this.updateCamera(dt, phase);
-    this.updateBubble();
+    this.updateBubble(phase);
+  }
+
+  private revealStep(): void {
+    // The bottle falls out of the sky into the runner's hand, then the idle menu.
+    if (this.phaseT >= G.DROP_S && !this.bottleHolder) {
+      this.bottleHolder = this.runner;
+      sfx.catchIt();
+    }
+    if (this.phaseT > G.DROP_S + 0.5 && this.chairman.currentName !== 'shout') {
+      this.chairman.play('shout');
+      this.bubbleText = 'Ah-ah! Yellow cap?!';
+      this.bubbleUntil = this.time + 2.2;
+      voices.shout(1, 0.45);
+    }
+    if (this.phaseT > G.DROP_S + 1.4) {
+      this.chairman.play('idle', { fade: 0.4 });
+      setPhase('menu');
+    }
+  }
+
+  private startingStep(): void {
+    if (!this.whistled && this.phaseT > 0.45) {
+      this.whistled = true;
+      this.bubbleText = 'Oya hold am!';
+      this.bubbleUntil = this.time + 1.8;
+      voices.shout(3, 0.65);
+      sfx.whistle();
+      this.chairman.play('shout');
+      this.runner.play('run', { fade: 0.2 });
+      for (const a of this.agberos.slice(1)) a.play('run');
+    }
+    if (this.whistled && this.phaseT > 0.9 && this.chairman.currentName !== 'run') this.chairman.play('run');
+    if (this.phaseT >= G.START_S) {
+      this.chaseCloseUntil = this.time + G.CHASE_HOLD_S;
+      this.nextBubbleAt = this.time + 1.5;
+      void music.start(0);
+      setPhase('running');
+    }
   }
 
   private scroll(d: number, spawn: boolean): void {
@@ -460,7 +574,7 @@ export class ChaseWorld {
     this.walkTex.offset.y = (this.walkTex.offset.y + d / 4) % 1;
     for (const slot of this.buildings) {
       slot.z += d;
-      if (slot.z > G.DESPAWN_Z + 6) {
+      if (slot.z > G.DESPAWN_Z + 36) {
         slot.z -= this.buildingSpan;
         slot.variants.forEach((b) => {
           b.visible = false;
@@ -471,12 +585,21 @@ export class ChaseWorld {
     }
     for (const p of this.poles) {
       p.position.z += d;
-      if (p.position.z > G.DESPAWN_Z + 4) p.position.z -= this.poleSpan;
+      if (p.position.z > G.DESPAWN_Z + 34) p.position.z -= this.poleSpan;
+    }
+    if (this.parkedDanfo.visible) {
+      this.parkedDanfo.position.z += d;
+      if (this.parkedDanfo.position.z > G.DESPAWN_Z + 6) this.parkedDanfo.visible = false;
     }
     for (const o of this.obstacles) {
       if (!o.active) continue;
-      o.z += d;
+      // Okadas ride at you; you hear them before you see them.
+      o.z += o.kind === 'okada' ? d * (1 + G.OKADA_EXTRA) : d;
       o.obj.position.z = o.z;
+      if (o.kind === 'okada' && !o.horned && o.z > -this.speed * (1 + G.OKADA_EXTRA) * G.HORN_LEAD_S) {
+        o.horned = true;
+        sfx.horn(o.lane);
+      }
       if (o.z - G.OBSTACLES[o.kind].length / 2 > G.DESPAWN_Z) {
         o.active = false;
         o.obj.visible = false;
@@ -489,7 +612,6 @@ export class ChaseWorld {
     }
     if (!spawn) return;
     this.ahead -= d;
-    if (useGame.getState().unlocked) return;
     while (this.ahead < G.SPAWN_HORIZON) {
       this.spawnRow(-this.ahead);
       const [a, b] = G.STAGES[this.stage].gap;
@@ -513,6 +635,7 @@ export class ChaseWorld {
       const def = G.OBSTACLES[kind];
       o.active = true;
       o.hit = false;
+      o.horned = false;
       o.lane = lanes[i];
       o.z = z - def.length / 2;
       o.obj.position.set(laneX(o.lane), 0, o.z);
@@ -521,7 +644,7 @@ export class ChaseWorld {
       actionByLane.set(o.lane, def.action);
     });
 
-    // A line of caps in a passable lane; arcs over jump obstacles
+    // A trail of caps in a passable lane; arcs over jump obstacles
     const open = [-1, 0, 1].filter((l) => !swerveLanes.has(l));
     if (!open.length) return;
     const cl = open[Math.floor(Math.random() * open.length)];
@@ -561,12 +684,36 @@ export class ChaseWorld {
     }
     if (this.duckT > 0) this.duckT -= dt;
     if (this.slideT > 0 && this.grounded) this.slideT -= dt;
-    if (this.time >= this.lockAnimUntil && this.grounded && this.duckT <= 0 && this.runner.currentName !== 'run') {
-      this.runner.play('run', { fade: 0.12 });
+    const free = this.time >= this.lockAnimUntil && this.grounded && this.duckT <= 0 && this.boostT <= 0;
+    if (free && this.whistled && this.runner.currentName !== 'run') this.runner.play('run', { fade: 0.12 });
+  }
+
+  private updateBoost(dt: number): void {
+    if (this.boostT > 0) {
+      this.boostT -= dt;
+      this.boostY += (G.BOOST_HEIGHT - this.boostY) * Math.min(1, dt * 5);
+      // Fizz pouring out under the runner's feet
+      this.v.set(this.px, this.boostY - 0.1, 0.2);
+      this.s.set(0, -0.6, 1);
+      this.fizzBlue.emit(7, this.v, this.s, 3.4, 1.4);
+      this.fizzYellow.emit(6, this.v, this.s, 3.4, 1.4);
+      if (this.boostT <= 0) {
+        this.invulnerableUntil = this.time + G.BOOST_GRACE_S + 0.6;
+        useGame.setState({ boosting: false });
+        music.setStage(this.stage);
+        sfx.whoosh(0.6, 0.35);
+      }
+    } else if (this.boostY > 0) {
+      this.boostY = Math.max(0, this.boostY - dt * 6);
+      if (this.boostY === 0) {
+        sfx.land();
+        this.runner.play('run', { fade: 0.15 });
+      }
     }
   }
 
   private collide(): void {
+    if (this.boostT > 0 || this.boostY > 0.4 || this.time < this.invulnerableUntil) return;
     const top = this.py + (this.duckT > 0 && this.grounded ? G.DUCK_TOP : G.STAND_TOP);
     for (const o of this.obstacles) {
       if (!o.active || o.hit) continue;
@@ -576,7 +723,7 @@ export class ChaseWorld {
       if (dx > def.halfW + G.PLAYER_HALF_W) continue;
       if (top <= def.bottom || this.py >= def.top) continue;
       o.hit = true;
-      // Grazing the side while changing lanes = stumble; running into the front = caught.
+      // Grazing the side = stumble; running into the front = caught.
       if (dx > def.halfW * 0.55) this.stumble();
       else this.caught();
       return;
@@ -593,99 +740,75 @@ export class ChaseWorld {
     this.runner.play('stumble', { loop: false, speed: 1.7, fade: 0.06 });
     this.lockAnimUntil = this.time + 1;
     this.chaseCloseUntil = this.time + G.CHASE_HOLD_S;
+    this.chairmanLunge = 1; // the Chairman surges right up behind you
     this.camShake = 0.25;
-    this.bubbleText = 'We don almost catch am!';
-    this.bubbleUntil = this.time + 1.6;
+    this.bubbleText = 'Oya drop am!';
+    this.bubbleUntil = this.time + 1.8;
     sfx.crash(false);
-    voices.shout(2, 0.55);
+    voices.shout(1, 0.6);
   }
 
   private caught(): void {
     this.phaseT = 0;
+    this.boostT = this.boostY = 0;
+    this.slideT = this.duckT = 0;
     this.runner.play('fall', { loop: false, speed: 1.3, fade: 0.06 });
     this.camShake = 0.45;
     this.bubbleText = 'We don catch am!';
     this.bubbleUntil = this.time + 3;
-    this.slideT = 0;
     sfx.crash(true);
     window.setTimeout(() => voices.shout(3, 0.7), 250);
     music.stop(0.4);
-    const best = Math.max(useGame.getState().best, this.coins);
-    writePref('best', String(best));
-    useGame.setState({ best, banner: null });
+    const dist = Math.floor(this.distance);
+    const best = Math.max(useGame.getState().best, dist);
+    writePref('bestDistance', String(best));
+    useGame.setState({ best, distance: dist, banner: null, boosting: false });
+    // Remember where the camera is, to swing round to the trophy shot from here
+    this.camFrom.copy(this.camera.position);
+    this.camera.getWorldDirection(this.fwd);
+    this.lookFrom.copy(this.camera.position).addScaledVector(this.fwd, 9);
     setPhase('caught');
-    track('game_caught', { coins: this.coins });
+    track('game_caught', { distance: dist, caps: this.caps });
   }
 
-  private caughtStep(dt: number): void {
-    if (this.phaseT > 0.7 && this.agberos[0].currentName !== 'shout') for (const a of this.agberos) a.play('shout');
-    this.chaseGap += (0.9 - this.chaseGap) * Math.min(1, dt * 3);
-  }
-
-  private win(): void {
-    this.phaseT = 0;
-    this.runner.play('cheer', { fade: 0.2 });
-    for (const a of this.agberos) a.play('idle', { fade: 0.3 });
-    this.bubbleText = 'Haa! E don land!';
-    this.bubbleUntil = this.time + 3;
-    // Move the bottle out of the tower so it can fly to the runner.
-    this.bottle.getWorldPosition(this.bottleFrom);
-    this.group.attach(this.bottle);
-    useGame.setState({ banner: 'E DON LAND.' });
-    music.stop(0.8);
-    sfx.sting();
-    setPhase('won');
-    track('game_won', { coins: this.coins });
-  }
-
-  private wonStep(dt: number): void {
-    const t = Math.min(1, this.phaseT / 1.5);
-    const e = smooth(t);
-    // Arc from the tower top down to just in front of the runner
-    const tx = this.px;
-    const tz = -2.2;
-    this.bottle.position.set(
-      THREE.MathUtils.lerp(this.bottleFrom.x, tx, e),
-      THREE.MathUtils.lerp(this.bottleFrom.y, 0, e) + Math.sin(Math.PI * t) * 3,
-      THREE.MathUtils.lerp(this.bottleFrom.z, tz, e),
-    );
-    this.bottle.scale.setScalar(THREE.MathUtils.lerp(G.BOTTLE_ON_TOWER, 1.1, e) / 0.98);
-    this.bottle.rotation.y += dt * (1 - t) * 8;
-    this.chaseGap += (5 - this.chaseGap) * Math.min(1, dt * 2);
-    if (this.phaseT > 3.2 && useGame.getState().phase === 'won') setPhase('end');
-  }
-
-  private collect(): void {
-    const top = this.py + G.STAND_TOP;
-    let got = 0;
-    for (let i = 0; i < G.COIN_POOL; i++) {
-      if (!this.coinOn[i]) continue;
-      if (Math.abs(this.coinZ[i]) > G.COIN_PICKUP) continue;
-      if (Math.abs(this.coinX[i] - this.px) > 0.9) continue;
-      if (this.coinY[i] < this.py - 0.3 || this.coinY[i] > top + 0.2) continue;
-      this.coinOn[i] = 0;
-      got++;
+  private caughtStep(): void {
+    // The Chairman takes the bottle and lifts it like a trophy; the boys celebrate.
+    if (this.phaseT > 0.8 && this.bottleHolder !== this.chairman) {
+      this.bottleHolder = this.chairman;
+      for (const a of this.agberos) a.play('shout');
     }
-    if (!got) return;
-    this.coins += got;
-    sfx.coin();
-    const unlockedNow = this.coins >= G.COIN_TARGET && !useGame.getState().unlocked;
-    useGame.setState({ coins: this.coins, ...(unlockedNow ? { unlocked: true } : {}) });
-    if (unlockedNow) {
-      this.flashBanner('1000 CAPS! THE PEPSI DEY YOUR FRONT. RUN!', 2600);
-      sfx.sparkle();
-    }
+    this.heroBottle.visible = this.phaseT > 1.2;
   }
 
   private updateStage(): void {
     let s = 0;
-    for (let i = 0; i < G.STAGES.length; i++) if (this.coins >= G.STAGES[i].coins) s = i;
+    for (let i = 0; i < G.STAGES.length; i++) if (this.distance >= G.STAGES[i].dist) s = i;
     if (s === this.stage) return;
     this.stage = s;
     useGame.setState({ stage: s });
     this.flashBanner('SPEED UP!', 1300);
     sfx.whoosh(0.6, 0.4);
-    music.setStage(s);
+    if (this.boostT <= 0) music.setStage(s);
+  }
+
+  private collect(): void {
+    const boosting = this.boostT > 0 || this.boostY > 0.4;
+    const top = this.py + this.boostY + G.STAND_TOP;
+    let got = 0;
+    for (let i = 0; i < G.COIN_POOL; i++) {
+      if (!this.coinOn[i]) continue;
+      if (Math.abs(this.coinZ[i]) > G.COIN_PICKUP) continue;
+      if (Math.abs(this.coinX[i] - this.px) > 0.9) continue;
+      // While surfing the fizz, caps in your lane fly up to you.
+      if (!boosting && (this.coinY[i] < this.py - 0.3 || this.coinY[i] > top + 0.2)) continue;
+      this.coinOn[i] = 0;
+      got++;
+    }
+    if (!got) return;
+    this.caps += got;
+    this.chill = Math.min(G.CHILL_FULL, this.chill + (this.boostT > 0 ? 0 : got));
+    sfx.coin();
+    useGame.setState({ caps: this.caps, chill: this.chill / G.CHILL_FULL });
   }
 
   private flashBanner(text: string, ms: number): void {
@@ -695,29 +818,73 @@ export class ChaseWorld {
     }, ms);
   }
 
-  private layoutAgberos(snap: boolean): void {
-    const offs: Array<[number, number]> = [
-      [-1.35, 0.2],
-      [1.3, 0.7],
-      [0.75, 2.2],
-    ];
-    this.agberos.forEach((a, i) => {
-      const [ox, oz] = offs[i];
-      const x = this.px * 0.85 + ox;
-      const z = this.chaseGap + oz;
-      if (snap) a.root.position.set(x, 0, z);
-      else a.root.position.lerp(this.v.set(x, 0, z), 0.2);
-    });
+  private updateChasers(dt: number, phase: GamePhase): void {
+    if (phase === 'reveal' || phase === 'menu') {
+      this.layoutMenuAgberos();
+    } else if (phase === 'caught') {
+      // Surround the runner, facing the camera for the trophy shot
+      const spots: Array<[number, number, number]> = [
+        [0.95, -0.7, -0.35],
+        [-1.2, 0.4, 0.3],
+        [0.3, 1.4, 0],
+      ];
+      this.agberos.forEach((a, i) => {
+        const [x, z, yaw] = spots[i];
+        a.root.position.lerp(this.v.set(this.px + x, 0, z), Math.min(1, dt * 4));
+        a.root.rotation.y += (yaw - a.root.rotation.y) * Math.min(1, dt * 5);
+      });
+    } else {
+      const want = this.boostT > 0 ? G.CHASE_FAR + 4 : this.time < this.chaseCloseUntil ? G.CHASE_CLOSE : G.CHASE_FAR;
+      const rate = phase === 'starting' ? 1.2 : want > this.chaseGap ? 0.6 : 2;
+      this.chaseGap += (want - this.chaseGap) * Math.min(1, dt * rate);
+      this.chairmanLunge = Math.max(0, this.chairmanLunge - dt * 0.6);
+      const offs: Array<[number, number]> = [
+        [-1.35, 0.2],
+        [1.3, 0.7],
+        [0.75, 2.2],
+      ];
+      this.agberos.forEach((a, i) => {
+        let [ox, oz] = offs[i];
+        if (i === 0 && this.chairmanLunge > 0) {
+          // Right on your heels, reaching for the Pepsi
+          ox = lerp(ox, 0.35, this.chairmanLunge);
+          oz = lerp(oz, -0.4, this.chairmanLunge);
+        }
+        a.root.position.lerp(this.v.set(this.px * 0.85 + ox, 0, this.chaseGap + oz), Math.min(1, dt * 6));
+        a.root.rotation.y += (0 - a.root.rotation.y) * Math.min(1, dt * 6);
+        if (phase === 'running') a.setSpeed(Math.max(0.7, this.speed / 11));
+      });
+    }
+    for (const a of this.agberos) a.update(dt);
   }
 
-  private updateChasers(dt: number, phase: GamePhase): void {
-    if (phase === 'running') {
-      const want = this.time < this.chaseCloseUntil ? G.CHASE_CLOSE : G.CHASE_FAR;
-      this.chaseGap += (want - this.chaseGap) * Math.min(1, dt * (want > this.chaseGap ? 0.6 : 2));
-      for (const a of this.agberos) a.setSpeed(Math.max(0.7, this.speed / 11));
+  private updateBottle(phase: GamePhase): void {
+    const b = this.bottle;
+    if (phase === 'reveal' && !this.bottleHolder) {
+      // Falling from where the story's bottle left the frame
+      const t = Math.min(1, this.phaseT / G.DROP_S);
+      this.handPos(this.runner, this.v);
+      b.position.set(this.v.x, lerp(this.v.y + 7, this.v.y, t * t), this.v.z);
+      b.rotation.set(0, this.time * 6, 0);
+      return;
     }
-    this.layoutAgberos(phase === 'reveal' || phase === 'card' || phase === 'select');
-    for (const a of this.agberos) a.update(dt);
+    const holder = this.bottleHolder ?? this.runner;
+    this.handPos(holder, this.v);
+    b.position.copy(this.v);
+    if (phase === 'menu' && holder === this.runner) {
+      // Tossing it and catching it, admiring the yellow cap
+      const toss = Math.max(0, Math.sin(this.time * 2.6));
+      b.position.y += toss * 0.45;
+      b.rotation.set(0, this.time * 2.6 * 2, Math.sin(this.time * 2.6) * 0.3);
+    } else {
+      b.rotation.set(0, 0, holder === this.chairman ? 0.15 : -0.25);
+    }
+    b.position.y += G.BOTTLE_HELD * 0.15;
+  }
+
+  private handPos(actor: Actor, out: THREE.Vector3): THREE.Vector3 {
+    if (actor.hand) return actor.hand.getWorldPosition(out);
+    return out.set(actor.root.position.x + 0.3, actor.root.position.y + 1.0, actor.root.position.z - 0.2);
   }
 
   private updateCoins(): void {
@@ -738,77 +905,75 @@ export class ChaseWorld {
 
   private updateCamera(dt: number, phase: GamePhase): void {
     const cam = this.camera;
-    // Widen a touch as the pace climbs, for a sense of speed.
-    const boost = phase === 'running' ? Math.max(0, this.speed - G.STAGES[0].speed) * 0.45 : 0;
+    const boost = phase === 'running' ? Math.max(0, this.speed - G.STAGES[0].speed) * 0.45 + (this.boostY > 0.3 ? 6 : 0) : 0;
     const fov = (cam.aspect < 0.8 ? 70 : 55) + boost;
     if (Math.abs(cam.fov - fov) > 0.2) {
-      cam.fov = fov;
+      cam.fov += (fov - cam.fov) * Math.min(1, dt * 4);
       cam.updateProjectionMatrix();
     }
     this.camShake *= Math.pow(0.02, dt);
     const sx = (Math.random() - 0.5) * this.camShake;
     const sy = (Math.random() - 0.5) * this.camShake;
-    const restPos = this.v.set(this.px * 0.5 + sx, G.CAM_HEIGHT + this.py * 0.3 + sy, G.CAM_BACK);
-    const restLook = this.look.set(this.px * 0.5, 1.2, -G.CAM_LOOK_AHEAD);
-    if (phase === 'reveal') {
-      // Continue the story's exit: the bottle drops out of the sky onto the tower top,
-      // the camera holds on it, then pulls back down the street.
-      const drop = Math.min(1, this.phaseT / G.BOTTLE_DROP_S);
-      this.bottle.position.y = G.TOWER_HEIGHT + 5 * (1 - drop) * (1 - drop);
-      if (drop >= 1 && !this.landed) {
-        this.landed = true;
-        sfx.land();
-        sfx.sparkle();
-      }
-      const squash = this.landed ? Math.max(0, 1 - (this.phaseT - G.BOTTLE_DROP_S) / 0.35) : 0;
-      this.bottle.scale.set(1 + squash * 0.12, 1 - squash * 0.15, 1 + squash * 0.12).multiplyScalar(G.BOTTLE_ON_TOWER / 0.98);
-      const t = smooth(Math.max(0, Math.min(1, (this.phaseT - G.REVEAL_HOLD_S) / G.REVEAL_S)));
-      const fromY = G.TOWER_HEIGHT + 1.4;
-      cam.position.set(0, THREE.MathUtils.lerp(fromY, restPos.y, t), THREE.MathUtils.lerp(this.towerZ + 7, restPos.z, t));
-      const lookY = THREE.MathUtils.lerp(fromY, restLook.y, t);
-      const lookZ = THREE.MathUtils.lerp(this.towerZ, restLook.z, t);
-      cam.lookAt(0, lookY, lookZ);
-      if (this.phaseT > G.REVEAL_HOLD_S + G.REVEAL_S * 0.7 && this.agberos[0].currentName !== 'shout') {
-        for (const a of this.agberos) a.play('shout');
-        voices.shout(3, 0.6);
-        this.bubbleText = 'Na our own be dat!';
-        this.bubbleUntil = this.time + 2.6;
-      }
-      if (this.phaseT >= G.REVEAL_HOLD_S + G.REVEAL_S + 0.5) setPhase('card');
+    const chasePos = this.v.set(this.px * 0.5 + sx, G.CAM_HEIGHT + (this.py + this.boostY) * 0.45 + sy, G.CAM_BACK);
+    const chaseLook = this.look.set(this.px * 0.5, 1.2 + this.boostY * 0.6, -G.CAM_LOOK_AHEAD);
+    // Menu: in front of the runner, looking back at them and the agberos behind
+    const menuPos = this.s.set(1.35 + Math.sin(this.time * 0.4) * 0.15, 1.5, -3.5);
+    const menuLook = { x: 0.2, y: 1.15, z: 1.5 };
+
+    if (phase === 'reveal' || phase === 'menu' || phase === 'loading') {
+      cam.position.copy(menuPos);
+      cam.lookAt(menuLook.x, menuLook.y, menuLook.z);
       return;
     }
-    if (phase === 'won' || phase === 'end') {
-      // Swing round in front of the runner (between them and the tower) to face them and the bottle
-      const t = smooth(Math.min(1, this.phaseT / 1.6));
-      cam.position.set(
-        THREE.MathUtils.lerp(restPos.x, this.px + 1.8, t),
-        THREE.MathUtils.lerp(restPos.y, 1.7, t),
-        THREE.MathUtils.lerp(restPos.z, -5.2, t),
-      );
-      cam.lookAt(THREE.MathUtils.lerp(restLook.x, this.px, t), THREE.MathUtils.lerp(restLook.y, 1.1, t), THREE.MathUtils.lerp(restLook.z, -1, t));
+    if (phase === 'starting') {
+      // Swing round the runner's right side to settle behind them
+      const t = smooth(Math.min(1, Math.max(0, (this.phaseT - 0.35) / (G.START_S - 0.35))));
+      const a0 = Math.atan2(menuPos.x, menuPos.z);
+      const a = lerp(a0, 0, t);
+      const r = lerp(Math.hypot(menuPos.x, menuPos.z), G.CAM_BACK, t);
+      cam.position.set(Math.sin(a) * r + chasePos.x * t, lerp(menuPos.y, chasePos.y, t), Math.cos(a) * r);
+      cam.lookAt(lerp(menuLook.x, chaseLook.x, t), lerp(menuLook.y, chaseLook.y, t), lerp(menuLook.z, chaseLook.z, t));
       return;
     }
-    cam.position.copy(restPos);
-    cam.lookAt(restLook);
+    if (phase === 'caught') {
+      // Swing to the front-left for the trophy shot
+      const t = smooth(Math.min(1, this.phaseT / 1.3));
+      // Swing to the roomier side so the camera never ends up inside a roadside pole
+      const camX = this.px + (this.px < 0 ? 1.8 : -1.8);
+      cam.position.set(lerp(this.camFrom.x, camX, t), lerp(this.camFrom.y, 2.0, t), lerp(this.camFrom.z, -4.6, t));
+      cam.lookAt(lerp(this.lookFrom.x, this.px + 0.2, t), lerp(this.lookFrom.y, 1.25, t), lerp(this.lookFrom.z, 0.2, t));
+      // The hero bottle hangs top-right of the frame, spinning
+      cam.updateMatrixWorld();
+      cam.getWorldDirection(this.fwd);
+      this.right.crossVectors(this.fwd, cam.up).normalize();
+      const halfH = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * 2.4;
+      this.heroBottle.position
+        .copy(cam.position)
+        .addScaledVector(this.fwd, 2.4)
+        .addScaledVector(this.right, halfH * cam.aspect * 0.5)
+        .addScaledVector(cam.up, halfH * 0.18);
+      this.heroBottle.rotation.set(0, this.time * 1.6, 0.12);
+      return;
+    }
+    cam.position.copy(chasePos);
+    cam.lookAt(chaseLook);
   }
 
-  private updateBubble(): void {
+  private updateBubble(phase: GamePhase): void {
     const el = gameDom.bubble;
     if (!el) return;
-    const phase = useGame.getState().phase;
     if (phase === 'running' && this.chaseGap < 5 && this.time > this.nextBubbleAt && this.time > this.bubbleUntil) {
       this.bubbleText = G.BUBBLE_LINES[Math.floor(Math.random() * G.BUBBLE_LINES.length)];
       this.bubbleUntil = this.time + 1.8;
-      voices.shout(1, 0.5);
       this.nextBubbleAt = this.time + 3.2;
+      voices.shout(1, 0.5);
     }
-    const show = this.time < this.bubbleUntil && phase !== 'end';
-    if (!show) {
+    if (this.time >= this.bubbleUntil) {
       el.style.opacity = '0';
       return;
     }
-    const a = this.agberos[0].root.position;
-    this.v.set(a.x, G.AGBERO_HEIGHT + 0.45, a.z).project(this.camera);
+    const a = this.chairman.root.position;
+    this.v.set(a.x, G.AGBERO_HEIGHT * G.CHAIRMAN_SCALE + 0.45, a.z).project(this.camera);
     if (this.v.z > 1) {
       el.style.opacity = '0';
       return;
@@ -837,13 +1002,18 @@ export class ChaseWorld {
   }
 
   debugState(): Record<string, unknown> {
-    return { phaseT: this.phaseT, time: this.time, towerZ: this.towerZ, speed: this.speed };
+    return { phaseT: this.phaseT, time: this.time, speed: this.speed, distance: this.distance, chill: this.chill, boostT: this.boostT };
   }
 
-  /** Test hook (?debug only): jump the coin count, e.g. to check the finish. */
-  debugCoins(n: number): void {
-    this.coins = n - 1;
-    this.addCoin(this.px, 0.75, -0.2);
+  /** Test hook (?debug only): get caught now, to check the trophy shot. */
+  debugCatch(): void {
+    if (useGame.getState().phase === 'running') this.caught();
+  }
+
+  /** Test hook (?debug only): fill the Fizz meter. */
+  debugFillChill(): void {
+    this.chill = G.CHILL_FULL;
+    useGame.setState({ chill: 1 });
   }
 
   dispose(): void {
@@ -892,7 +1062,6 @@ function roadTexture(): THREE.Texture {
       g.fillStyle = `rgb(${v},${v - 3},${v - 6})`;
       g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
     }
-    // Lane dashes at the two lane boundaries (road is 3 lanes + 0.3 m margins)
     const total = G.ROAD_HALF * 2;
     g.fillStyle = 'rgba(245,240,225,0.9)';
     for (const b of [-0.5, 0.5]) {
@@ -938,17 +1107,6 @@ function skyTexture(): THREE.Texture {
     grd.addColorStop(1, '#eaa070');
     g.fillStyle = grd;
     g.fillRect(0, 0, 4, 256);
-  });
-}
-
-function glowTexture(): THREE.Texture {
-  return canvasTex(128, 128, (g) => {
-    const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-    grd.addColorStop(0, 'rgba(255,220,120,0.9)');
-    grd.addColorStop(0.4, 'rgba(255,190,60,0.35)');
-    grd.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = grd;
-    g.fillRect(0, 0, 128, 128);
   });
 }
 

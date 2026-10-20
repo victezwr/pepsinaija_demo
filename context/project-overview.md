@@ -3,7 +3,7 @@
 ## Summary
 A cinematic, browser-based, interactive 3D story starring a cold 50 cl Pepsi bottle. The visitor wakes the bottle, is warned not to shake it, shakes it anyway, and triggers a fizzy launch that reveals Pepsi's **new yellow cap**. The bottle turns mischievous and dodges the visitor. Once caught, the visitor peels off its label; the label rolls away and the screen says **"YOU MONSTER."** The bare bottle storms off and a Pepsi end card closes with **"STAY ON THE PULSE."**
 
-It is an **unofficial concept / spec piece** by **@VOtakpor**, built **for** (not **by**) Pepsi Naija, to be posted on X and tagged @PepsiNaija.
+It is an **unofficial concept / spec piece** by **@VOtakpor**, built **for** (not **by**) Pepsi Naija, to be posted on X and tagged @Pepsi_naija.
 
 ## Audience & goal weighting
 | Goal | Weight | Meaning |
@@ -67,7 +67,7 @@ SILHOUETTE → INTRO → WARNING → SHAKING → LAUNCH → REBEL → PEEL → M
 - Backend, database, accounts, user profiles, leaderboards, comments.
 - E-commerce, giveaways, promotions, or anything implying a real Pepsi campaign.
 - **Any BBNaija/MultiChoice branding** on the site.
-- A domain or site wording that says "by Pepsi" or "official". The credit always says **"for @PepsiNaija"**.
+- A domain or site wording that says "by Pepsi" or "official". The credit always says **"for @Pepsi_naija"**.
 - Liquid simulation, physics-solver stickers, multiplayer, VR/AR, native apps, multi-page navigation.
 - The iOS motion-permission pop-up.
 

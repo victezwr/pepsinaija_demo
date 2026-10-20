@@ -3,7 +3,8 @@ import { Component, Suspense, useEffect, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { track } from './analytics/track';
 import { CAMERA_FOV } from './config';
-import { GameScene, gameInput } from './game/GameScene';
+import { GameScene, gameInput, gameTapToRun } from './game/GameScene';
+import { useGame } from './game/gameStore';
 import { GameUI } from './game/GameUI';
 import type { GameInput } from './game/world';
 import { Experience } from './scene/Experience';
@@ -48,6 +49,7 @@ export function App(): JSX.Element {
   const step = useStore((s) => s.step);
   const lastMove = useRef(0);
   const swipe = useRef<{ x: number; y: number; done: boolean } | null>(null);
+  const lastTap = useRef({ t: 0, x: 0, y: 0 });
 
   useEffect(() => {
     if (!hasWebGL()) goFallback('webgl');
@@ -82,9 +84,15 @@ export function App(): JSX.Element {
       ' ': 'up',
       ArrowDown: 'down',
       s: 'down',
+      b: 'boost',
     };
     const down = (e: KeyboardEvent): void => {
       if (getState().step === 'game') {
+        if (useGame.getState().phase === 'menu' && (e.key === 'Enter' || e.key === ' ') && !isButton(e.target)) {
+          e.preventDefault();
+          gameTapToRun();
+          return;
+        }
         const action = keys[e.key];
         if (action && !isButton(e.target)) {
           e.preventDefault();
@@ -129,8 +137,13 @@ export function App(): JSX.Element {
           // Android can suspend page audio (app switch, screen dim); every tap wakes it again.
           if (getState().step !== 'silhouette' && getState().step !== 'loading') unlockAudio();
           lastMove.current = e.timeStamp;
-          if (step === 'game') swipe.current = { x: e.clientX, y: e.clientY, done: false };
-          else director.pointerDown(e.clientX, e.clientY, e.pointerType);
+          if (step === 'game') {
+            swipe.current = { x: e.clientX, y: e.clientY, done: false };
+            if (useGame.getState().phase === 'menu') {
+              gameTapToRun();
+              return;
+            }
+          } else director.pointerDown(e.clientX, e.clientY, e.pointerType);
         }}
         onPointerMove={(e) => {
           if (step === 'game') {
@@ -148,7 +161,16 @@ export function App(): JSX.Element {
           lastMove.current = e.timeStamp;
           director.pointerMove(e.clientX, e.clientY, e.pointerType, e.buttons > 0, dt);
         }}
-        onPointerUp={() => {
+        onPointerUp={(e) => {
+          // Double-tap (two quick taps that didn't become swipes, same spot) fires the Fizz Boost.
+          const sw = swipe.current;
+          if (step === 'game' && sw && !sw.done) {
+            const lt = lastTap.current;
+            if (e.timeStamp - lt.t < 320 && Math.hypot(e.clientX - lt.x, e.clientY - lt.y) < 40) {
+              gameInput('boost');
+              lastTap.current = { t: 0, x: 0, y: 0 };
+            } else lastTap.current = { t: e.timeStamp, x: e.clientX, y: e.clientY };
+          }
           swipe.current = null;
           director.pointerUp();
         }}

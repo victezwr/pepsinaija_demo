@@ -4,7 +4,7 @@ import type * as THREE from 'three';
 import { unlock as unlockAudio } from '../audio/sfx';
 import { getState as getStory, setState as setStory } from '../state/store';
 import { loadGameAssets } from './assets';
-import { useGame } from './gameStore';
+import { useGame, type Runner } from './gameStore';
 import { ChaseWorld, type GameInput } from './world';
 
 let world: ChaseWorld | null = null;
@@ -13,21 +13,31 @@ export function gameInput(action: GameInput): void {
   world?.input(action);
 }
 
-export function gameStart(): void {
-  unlockAudio(); // START / RUN AM AGAIN are taps: make sure audio is awake for the music
-  world?.start();
+/** TAP TO RUN on the motor-park menu. */
+export function gameTapToRun(): void {
+  unlockAudio();
+  world?.tapToRun();
+}
+
+export function gameRunAgain(): void {
+  unlockAudio();
+  world?.runAgain();
+}
+
+export function chooseRunner(r: Runner): void {
+  world?.chooseRunner(r);
 }
 
 export function gameDebugState(): Record<string, unknown> | null {
   return world ? world.debugState() : null;
 }
 
-export function gameDebugCoins(n: number): void {
-  world?.debugCoins(n);
+export function gameDebugCatch(): void {
+  world?.debugCatch();
 }
 
-export function chooseRunner(r: 'male' | 'female'): void {
-  world?.chooseRunner(r);
+export function gameDebugChill(): void {
+  world?.debugFillChill();
 }
 
 /**

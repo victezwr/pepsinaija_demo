@@ -28,11 +28,11 @@ const PROPS: PropName[] = [
   'building-2',
   'building-3',
   'pole',
-  'tower',
 ];
 
 /** Trim windows (seconds) cut from Tripo's longer clips; see context/progress-tracker.md. */
 const TRIMS: Record<string, [number, number]> = {
+  idle: [0.0, 0.3], // the standing start of the jump clip, held as an idle
   jump: [0.95, 1.95],
   duck: [0.86, 0.98], // the deep crouch before the jump, held as a duck
   stumble: [0.3, 2.1],
@@ -52,7 +52,8 @@ function character(gltf: { scene: THREE.Group; animations: THREE.AnimationClip[]
   const clips: Record<string, THREE.AnimationClip> = {};
   for (const c of gltf.animations) clips[c.name] = c;
   for (const [name, [from, to]] of Object.entries(TRIMS)) {
-    const src = clips[name === 'duck' ? 'jump' : name];
+    const src = clips[name === 'duck' || name === 'idle' ? 'jump' : name];
+    if (name === 'idle' && clips.idle) continue; // the agbero has a real idle
     if (src) clips[name] = THREE.AnimationUtils.subclip(src, name, Math.round(from * 30), Math.round(to * 30), 30);
   }
   gltf.scene.traverse((o) => {

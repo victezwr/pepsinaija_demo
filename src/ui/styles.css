@@ -223,3 +223,66 @@ body {
 /* White flash bridging the story's exit into the chase */
 .handoff-flash { position: fixed; inset: 0; background: #fff6df; pointer-events: none; z-index: 5; animation: handoff 0.6s ease-out both; }
 @keyframes handoff { from { opacity: 0.95; } to { opacity: 0; } }
+
+/* ---------------------------------------------------------------- The Yellow Chase v2 */
+.game-title {
+  position: absolute; left: var(--inset); right: var(--inset); top: calc(max(var(--inset), env(safe-area-inset-top)) + 58px);
+  margin: 0; text-align: center; font-stretch: 125%; font-weight: 900; font-size: clamp(28px, 8.5vw, 64px); line-height: 0.95;
+  color: #ffc400; text-shadow: 0 3px 0 #0033ff, 0 8px 22px rgba(0, 0, 0, 0.55); animation: slam 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.menu-bottom {
+  position: absolute; left: 0; right: 0; bottom: calc(max(var(--inset), env(safe-area-inset-bottom)) + 34px);
+  display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none;
+}
+.runners--mini { width: min(52vw, 220px); gap: 10px; pointer-events: auto; }
+.tap-to-run {
+  margin: 4px 0 0; font-stretch: 125%; font-weight: 900; font-size: clamp(20px, 6vw, 30px); letter-spacing: 0.04em;
+  color: #fff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6); animation: breathe 1.1s ease-in-out infinite;
+}
+.menu-hint { display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px; color: rgba(255, 255, 255, 0.85); text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+.menu-hint span { margin-left: 6px; }
+.menu-best { margin: 0; font-size: 12px; letter-spacing: 0.08em; color: rgba(255, 255, 255, 0.75); }
+
+.hud2 {
+  position: absolute; left: var(--inset); right: var(--inset); top: calc(max(var(--inset), env(safe-area-inset-top)) + 54px);
+  display: flex; justify-content: space-between; align-items: flex-start; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+}
+.hud2__dist { font-size: 16px; font-weight: 600; }
+.hud2__dist strong { font-size: 30px; font-stretch: 115%; font-weight: 900; }
+.hud2__meta { display: block; font-size: 10px; letter-spacing: 0.12em; opacity: 0.85; margin-top: 2px; }
+.hud2__right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.hud2__caps { display: flex; align-items: center; gap: 6px; font-size: 16px; }
+.hud2__caps strong { font-size: 24px; font-stretch: 115%; font-weight: 900; }
+.fizz {
+  position: relative; width: 110px; height: 14px; border-radius: 99px; overflow: hidden;
+  background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.fizz__fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #0033ff, #3d7bff 55%, #ffc400); transition: width 0.2s; }
+.fizz span { position: relative; display: block; text-align: center; font-size: 9px; line-height: 13px; font-weight: 800; letter-spacing: 0.2em; }
+.fizz--full { box-shadow: 0 0 0 2px #ffc400, 0 0 16px rgba(255, 196, 0, 0.8); animation: pulse 0.8s ease-in-out infinite; }
+.fizz--on .fizz__fill { animation: drain 8s linear both; }
+@keyframes drain { from { width: 100%; } to { width: 0%; } }
+.fizz-prompt {
+  position: absolute; left: 0; right: 0; bottom: calc(max(var(--inset), env(safe-area-inset-bottom)) + 70px); margin: 0;
+  text-align: center; font-stretch: 125%; font-weight: 900; font-size: 18px; color: #ffc400;
+  text-shadow: 0 2px 0 #0033ff, 0 4px 12px rgba(0, 0, 0, 0.6); animation: pulse 0.8s ease-in-out infinite;
+}
+
+.gameover {
+  position: absolute; left: 0; right: 0; margin: 0 auto; bottom: max(12px, env(safe-area-inset-bottom));
+  width: min(94vw, 440px); padding: 18px 18px 12px; border-radius: 22px; text-align: center; pointer-events: auto;
+  background: rgba(6, 10, 30, 0.86); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.14); animation: rise 0.45s 1.8s ease both;
+}
+.gameover__title { margin: 0 0 12px; font-stretch: 125%; font-weight: 900; font-size: clamp(20px, 6vw, 28px); line-height: 1; }
+.gameover__stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.gameover__stats div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.gameover__stats strong { font-size: 22px; font-stretch: 115%; font-weight: 900; }
+.gameover__stats span { font-size: 10px; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; }
+.gameover__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gameover__actions .btn { min-height: 48px; font-size: 13px; padding: 0 10px; }
+.btn--x { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #fff; color: #000; border: 0; font-weight: 800; }
+.btn--x:hover { background: #e9e9e9; }
+.gameover__brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 14px 0 4px; font-stretch: 125%; font-weight: 900; font-size: 15px; }
+.gameover__brand b { color: var(--blue); filter: brightness(1.6); }
+.linkbtn { background: none; border: 0; color: var(--muted); font: 500 12px var(--font); text-decoration: underline; cursor: pointer; padding: 6px; }

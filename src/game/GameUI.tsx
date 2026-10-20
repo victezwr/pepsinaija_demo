@@ -1,9 +1,11 @@
-import { useCallback, useEffect } from 'react';
-import { EndCard } from '../ui/EndCard';
-import { ArrowIcon, CapIcon } from '../ui/icons';
-import { COIN_TARGET, STAGES } from './gameConfig';
-import { chooseRunner, gameStart } from './GameScene';
+import { useCallback } from 'react';
+import { track } from '../analytics/track';
+import { ArrowIcon, CapIcon, XIcon } from '../ui/icons';
+import { HASHTAG, SHARE_URL, STAGES, TITLE, X_HANDLE } from './gameConfig';
+import { chooseRunner, gameRunAgain } from './GameScene';
 import { gameDom, useGame, type Runner } from './gameStore';
+
+const fmt = (n: number): string => n.toLocaleString('en-NG');
 
 export function GameUI(): JSX.Element {
   const phase = useGame((s) => s.phase);
@@ -14,105 +16,73 @@ export function GameUI(): JSX.Element {
     <div className="game-ui">
       <div ref={registerBubble} className="bubble" aria-live="polite" />
       {phase === 'loading' && <p className="game-loading">Loading the streets…</p>}
-      {phase === 'card' && <IntroCard />}
-      {phase === 'select' && <SelectRunner />}
-      {(phase === 'running' || phase === 'caught' || phase === 'won') && <Hud />}
-      {phase === 'caught' && <CaughtCard />}
-      {phase === 'end' && <WinEnd />}
+      {phase === 'menu' && <Menu />}
+      {(phase === 'starting' || phase === 'running') && <Hud />}
+      {phase === 'caught' && <GameOver />}
     </div>
   );
 }
 
-function IntroCard(): JSX.Element {
-  return (
-    <div className="game-center">
-    <section className="game-card" aria-label="How to play">
-      <h2 className="game-card__title">THE CHASE</h2>
-      <p className="game-card__line">Avoid all obstacles to get the new Pepsi.</p>
-      <p className="game-card__line">
-        Collect as many caps as possible. You need{' '}
-        <strong className="capnum">
-          {COIN_TARGET} <CapIcon size={16} />
-        </strong>{' '}
-        to buy it.
-      </p>
-      <ul className="controls" aria-label="Controls">
-        <li>
-          <span>
-            <ArrowIcon dir="left" /> <ArrowIcon dir="right" />
-          </span>
-          swipe to change lane
-        </li>
-        <li>
-          <span>
-            <ArrowIcon dir="up" />
-          </span>
-          swipe up to jump
-        </li>
-        <li>
-          <span>
-            <ArrowIcon dir="down" />
-          </span>
-          swipe down to slide
-        </li>
-      </ul>
-      <p className="game-card__muted">On a computer: arrow keys or W A S D.</p>
-      <button className="btn btn--solid" onClick={() => useGame.setState({ phase: 'select' })}>
-        NEXT
-      </button>
-    </section>
-    </div>
-  );
-}
-
-function SelectRunner(): JSX.Element {
+function Menu(): JSX.Element {
   const runner = useGame((s) => s.runner);
-  const pick = (r: Runner): void => chooseRunner(r);
-  useEffect(() => chooseRunner(useGame.getState().runner), []);
+  const best = useGame((s) => s.best);
   return (
-    <div className="game-center">
-    <section className="game-card game-card--select" aria-label="Choose your runner">
-      <h2 className="game-card__title">CHOOSE YOUR RUNNER</h2>
-      <div className="runners">
-        {(['male', 'female'] as const).map((r) => (
-          <button
-            key={r}
-            className={`runner${runner === r ? ' runner--on' : ''}`}
-            onClick={() => pick(r)}
-            aria-pressed={runner === r}
-            aria-label={r === 'male' ? 'Male runner' : 'Female runner'}
-          >
-            <img src={`/game/thumb-${r}.webp`} alt="" />
-          </button>
-        ))}
+    <>
+      <h1 className="game-title">{TITLE}</h1>
+      <div className="menu-bottom">
+        <div className="runners runners--mini" role="group" aria-label="Choose your runner">
+          {(['male', 'female'] as Runner[]).map((r) => (
+            <button
+              key={r}
+              className={`runner${runner === r ? ' runner--on' : ''}`}
+              onClick={() => chooseRunner(r)}
+              aria-pressed={runner === r}
+              aria-label={r === 'male' ? 'Male runner' : 'Female runner'}
+            >
+              <img src={`/game/thumb-${r}.webp`} alt="" />
+            </button>
+          ))}
+        </div>
+        <p className="tap-to-run">TAP TO POP &amp; RUN</p>
+        <p className="menu-hint">
+          <ArrowIcon dir="left" size={18} />
+          <ArrowIcon dir="up" size={18} />
+          <ArrowIcon dir="down" size={18} />
+          <ArrowIcon dir="right" size={18} />
+          <span>swipe to dodge · double-tap to fizz</span>
+        </p>
+        {best > 0 && <p className="menu-best">Best run: {fmt(best)} m</p>}
       </div>
-      <button className="btn btn--solid" onClick={gameStart}>
-        START
-      </button>
-    </section>
-    </div>
+    </>
   );
 }
 
 function Hud(): JSX.Element {
-  const coins = useGame((s) => s.coins);
-  const best = useGame((s) => s.best);
+  const distance = useGame((s) => s.distance);
+  const caps = useGame((s) => s.caps);
+  const chill = useGame((s) => s.chill);
+  const boosting = useGame((s) => s.boosting);
   const stage = useGame((s) => s.stage);
   const banner = useGame((s) => s.banner);
-  const pct = Math.min(100, (coins / COIN_TARGET) * 100);
+  const full = chill >= 1 && !boosting;
   return (
     <>
-      <div className="hud">
-        <div className="hud__coins">
-          <CapIcon size={22} /> <strong>{coins}</strong> / {COIN_TARGET}
+      <div className="hud2">
+        <div className="hud2__dist">
+          <strong>{fmt(distance)}</strong> m
+          <span className="hud2__meta">SPEED {stage + 1}/{STAGES.length}</span>
         </div>
-        <div className="hud__bar" role="progressbar" aria-valuenow={coins} aria-valuemin={0} aria-valuemax={COIN_TARGET}>
-          <div className="hud__fill" style={{ width: `${pct}%` }} />
-        </div>
-        <div className="hud__meta">
-          SPEED {stage + 1}/{STAGES.length} · BEST {best}
+        <div className="hud2__right">
+          <div className="hud2__caps">
+            <CapIcon size={22} /> <strong>{fmt(caps)}</strong>
+          </div>
+          <div className={`fizz${full ? ' fizz--full' : ''}${boosting ? ' fizz--on' : ''}`} aria-label="Fizz meter">
+            <div className="fizz__fill" style={{ width: `${Math.round((boosting ? 1 : chill) * 100)}%` }} />
+            <span>FIZZ</span>
+          </div>
         </div>
       </div>
+      {full && <p className="fizz-prompt">DOUBLE-TAP TO FIZZ</p>}
       {banner && (
         <p key={banner} className="game-banner">
           {banner}
@@ -122,45 +92,52 @@ function Hud(): JSX.Element {
   );
 }
 
-function CaughtCard(): JSX.Element {
-  const coins = useGame((s) => s.coins);
+function GameOver(): JSX.Element {
+  const distance = useGame((s) => s.distance);
+  const caps = useGame((s) => s.caps);
   const best = useGame((s) => s.best);
+  const share = (): void => {
+    const text = `I dodged the agberos for ${fmt(distance)}m and grabbed ${fmt(caps)} yellow caps with the new yellow-cap Pepsi ${X_HANDLE}! Can you beat my score? ${HASHTAG}`;
+    const url = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(SHARE_URL)}`;
+    track('game_share', { distance, caps });
+    window.open(url, '_blank', 'noopener');
+  };
   return (
-    <div className="game-center">
-    <section className="game-card game-card--caught" aria-label="Caught">
-      <h2 className="game-card__title">AGBEROS DON COLLECT AM!</h2>
-      <p className="game-card__line">
-        You got{' '}
-        <strong className="capnum">
-          {coins} <CapIcon size={16} />
-        </strong>{' '}
-        · Best {best}
-      </p>
-      <p className="game-card__line game-card__muted">You need {COIN_TARGET} to buy the Pepsi.</p>
-      <button className="btn btn--solid" onClick={gameStart}>
-        RUN AM AGAIN
-      </button>
-    </section>
-    </div>
-  );
-}
-
-function WinEnd(): JSX.Element {
-  const coins = useGame((s) => s.coins);
-  return (
-    <div className="game-end">
-      <EndCard
-        onReplay={gameStart}
-        replayLabel="Play again"
-        note={
-          <>
-            You collected <strong className="capnum">{coins} <CapIcon size={14} /></strong> and got the new Pepsi.
-          </>
-        }
-      />
-      <button className="btn btn--ghost game-end__intro" onClick={() => window.location.reload()}>
+    <section className="gameover" aria-label="Game over">
+      <h2 className="gameover__title">AGBEROS DON COLLECT AM!</h2>
+      <div className="gameover__stats">
+        <div>
+          <strong>{fmt(distance)}</strong>
+          <span>metres</span>
+        </div>
+        <div>
+          <strong className="capnum">
+            {fmt(caps)} <CapIcon size={18} />
+          </strong>
+          <span>caps</span>
+        </div>
+        <div>
+          <strong>{fmt(best)}</strong>
+          <span>best</span>
+        </div>
+      </div>
+      <div className="gameover__actions">
+        <button className="btn btn--solid" onClick={gameRunAgain}>
+          RUN AGAIN
+        </button>
+        <button className="btn btn--x" onClick={share}>
+          <XIcon size={16} /> CHALLENGE FRIENDS
+        </button>
+      </div>
+      <div className="gameover__brand">
+        <img src="/logo.svg" alt="Pepsi" width={34} height={34} />
+        <span>
+          STAY ON THE <b>PULSE</b>
+        </span>
+      </div>
+      <button className="linkbtn" onClick={() => window.location.reload()}>
         Watch the intro again
       </button>
-    </div>
+    </section>
   );
 }
