@@ -125,7 +125,9 @@ export function App(): JSX.Element {
     );
   }
 
-  const dpr: number | [number, number] = directorMode ? [2, 2] : tier === 'high' ? [1, 2] : 1.2;
+  // The chase draws far more than the story: cap its resolution (big win on 720p phones).
+  const inChase = step === 'game';
+  const dpr: number | [number, number] = directorMode ? [2, 2] : tier === 'high' ? (inChase ? [1, 1.5] : [1, 2]) : inChase ? 1 : 1.2;
 
   return (
     <main className="app">
@@ -133,7 +135,11 @@ export function App(): JSX.Element {
       <div
         className="stage"
         onPointerDown={(e) => {
-          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          try {
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          } catch {
+            // Pointer already gone (or synthetic): capture is a nicety, never drop the tap over it
+          }
           // Android can suspend page audio (app switch, screen dim); every tap wakes it again.
           if (getState().step !== 'silhouette' && getState().step !== 'loading') unlockAudio();
           lastMove.current = e.timeStamp;
@@ -162,7 +168,7 @@ export function App(): JSX.Element {
           director.pointerMove(e.clientX, e.clientY, e.pointerType, e.buttons > 0, dt);
         }}
         onPointerUp={(e) => {
-          // Double-tap (two quick taps that didn't become swipes, same spot) fires the Fizz Boost.
+          // Double-tap (two quick taps that didn't become swipes, same spot) releases the Pulse.
           const sw = swipe.current;
           if (step === 'game' && sw && !sw.done) {
             const lt = lastTap.current;

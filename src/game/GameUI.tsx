@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { track } from '../analytics/track';
+import { useStore } from '../state/store';
 import { ArrowIcon, CapIcon, XIcon } from '../ui/icons';
 import { HASHTAG, SHARE_URL, STAGES, TITLE, X_HANDLE } from './gameConfig';
 import { chooseRunner, gameRunAgain } from './GameScene';
@@ -49,7 +50,7 @@ function Menu(): JSX.Element {
           <ArrowIcon dir="up" size={18} />
           <ArrowIcon dir="down" size={18} />
           <ArrowIcon dir="right" size={18} />
-          <span>swipe to dodge · double-tap to fizz</span>
+          <span>swipe to dodge · double-tap to pulse</span>
         </p>
         {best > 0 && <p className="menu-best">Best run: {fmt(best)} m</p>}
       </div>
@@ -61,10 +62,15 @@ function Hud(): JSX.Element {
   const distance = useGame((s) => s.distance);
   const caps = useGame((s) => s.caps);
   const chill = useGame((s) => s.chill);
-  const boosting = useGame((s) => s.boosting);
+  const pulse = useGame((s) => s.pulse);
+  const flash = useGame((s) => s.pulseFlash);
   const stage = useGame((s) => s.stage);
   const banner = useGame((s) => s.banner);
-  const full = chill >= 1 && !boosting;
+  const lite = useStore((s) => s.tier) === 'low';
+  const active = pulse === 'activating' || pulse === 'surging' || pulse === 'ending';
+  const ready = pulse === 'charged';
+  // The meter beats faster as it fills (2.2 s → 0.5 s per beat)
+  const rate = `${(2.2 - 1.7 * chill).toFixed(2)}s`;
   return (
     <>
       <div className="hud2">
@@ -76,15 +82,21 @@ function Hud(): JSX.Element {
           <div className="hud2__caps">
             <CapIcon size={22} /> <strong>{fmt(caps)}</strong>
           </div>
-          <div className={`fizz${full ? ' fizz--full' : ''}${boosting ? ' fizz--on' : ''}`} aria-label="Fizz meter">
-            <div className="fizz__fill" style={{ width: `${Math.round((boosting ? 1 : chill) * 100)}%` }} />
-            <span>FIZZ</span>
+          <div
+            className={`pulse-meter${ready ? ' pulse-meter--ready' : ''}${active ? ' pulse-meter--on' : ''}`}
+            style={{ ['--beat' as string]: rate }}
+            aria-label={ready ? 'Pulse ready: double-tap' : `Pulse meter ${Math.round(chill * 100)}%`}
+          >
+            <div className="pulse-meter__fill" style={{ width: `${Math.round((active ? 1 : chill) * 100)}%` }} />
+            <span>{ready ? 'PULSE READY' : 'PULSE'}</span>
           </div>
+          {ready && <span className="pulse-hint">double-tap</span>}
         </div>
       </div>
-      {full && <p className="fizz-prompt">DOUBLE-TAP TO FIZZ</p>}
+      {pulse === 'surging' && <p className="pulse-stay">STAY ON THE PULSE</p>}
+      {flash > 0 && <div key={flash} className={`pulse-flash${lite ? ' pulse-flash--lite' : ''}`} aria-hidden="true" />}
       {banner && (
-        <p key={banner} className="game-banner">
+        <p key={banner} className={`game-banner${banner === 'RELEASE THE PULSE' ? ' game-banner--pulse' : ''}`}>
           {banner}
         </p>
       )}

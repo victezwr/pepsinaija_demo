@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /**
- * Soft cola foam for the Fizz Boost: round, blurry puffs that swell, drift and fade, so the
+ * Soft cola foam for the Pulse surf: round, blurry puffs that swell, drift and fade, so the
  * runner rides a frothing geyser instead of a shower of sparks. One Points draw call with a
  * small shader (per-particle size, age and tint).
  */

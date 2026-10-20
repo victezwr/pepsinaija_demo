@@ -382,12 +382,55 @@ export function catchIt(): void {
   tone('sine', 220, 120, 0.3, 0.1);
 }
 
-/** Fizz Boost kicking in. */
-export function boost(): void {
-  caption('[FIZZ BOOST]');
-  hiss(0.5);
-  tone('sawtooth', 220, 880, 0.12, 0.6);
-  whoosh(0.8, 0.5);
+// ---- Pulse Mode
+
+/** The meter just filled: a short rising fizz + bass swell. */
+export function pulseCharge(): void {
+  caption('[pulse ready]');
+  if (!ctx) return;
+  const src = noiseSource();
+  if (src) {
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 1.2;
+    f.frequency.setValueAtTime(800, ctx.currentTime);
+    f.frequency.exponentialRampToValueAtTime(5200, ctx.currentTime + 0.7);
+    src.connect(f);
+    env(f, 0.28, 0.6, 0.15);
+    src.start();
+    src.stop(ctx.currentTime + 0.8);
+  }
+  tone('sine', 55, 110, 0.4, 0.75);
+}
+
+/** Release: pressure hiss, a deep punchy bass hit, then a bubbling fizz layer. */
+export function pulseRelease(): void {
+  caption('[PULSE]');
+  burst('highpass', 2500, 0.55, 0.003, 0.35);
+  tone('sine', 120, 38, 1.0, 0.6);
+  tone('triangle', 70, 35, 0.35, 0.5);
+  if (!ctx) return;
+  // Bubbles: a scatter of tiny high blips over half a second
+  for (let i = 0; i < 14; i++) {
+    const f = 1400 + Math.random() * 2600;
+    tone('sine', f, f * 1.4, 0.05, 0.05, 0.08 + Math.random() * 0.5);
+  }
+}
+
+/** End of the surf: a descending fizz tail. */
+export function pulseEnd(): void {
+  if (!ctx) return;
+  const src = noiseSource();
+  if (!src) return;
+  const f = ctx.createBiquadFilter();
+  f.type = 'bandpass';
+  f.Q.value = 1;
+  f.frequency.setValueAtTime(4500, ctx.currentTime);
+  f.frequency.exponentialRampToValueAtTime(500, ctx.currentTime + 0.7);
+  src.connect(f);
+  env(f, 0.3, 0.05, 0.7);
+  src.start();
+  src.stop(ctx.currentTime + 0.8);
 }
 
 export function sparkle(): void {

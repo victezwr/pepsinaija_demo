@@ -56,18 +56,30 @@ export const BUBBLE_LINES = ['Hold am!', 'Where you dey go?!', 'Oya drop am!', '
 export const OKADA_EXTRA = 0.55; // extra closing speed as a fraction of yours
 export const HORN_LEAD_S = 1.4;
 
-// Coins (yellow caps) + Fizz Boost
+// Coins (yellow caps) + the Pulse surf
 export const COIN_POOL = 140;
 export const COIN_SPACING = 1.6;
 export const COIN_RADIUS = 0.22;
 export const COIN_PICKUP = 0.9;
-export const CHILL_FULL = 50; // caps to fill the Fizz meter
+export const CHILL_FULL = 50; // caps to fill the Pulse meter
 export const BOOST_S = 8;
 export const BOOST_HEIGHT = 3.2; // above the danfo roofs
 export const BOOST_RISE_S = 0.6;
 export const BOOST_FALL_S = 0.8;
 export const BOOST_GRACE_S = 1;
 export const FOAM_DRAG = 0; // the geyser is anchored to the runner (no road drift)
+
+// Pulse Mode (the upgraded Fizz Boost)
+export const PULSE_IMPACT_S = 0.22; // the shockwave beat before the surf starts rising
+export const PULSE_SHOCK_S = 0.7; // shockwave expansion time
+export const PULSE_SHOCK_DIAMETER = 56; // metres across at full size
+export const PULSE_CLEAR_AHEAD = 32; // obstacles within this far ahead are blown away
+export const PULSE_CLEAR_BEHIND = 6;
+export const PULSE_MAGNET_AHEAD = 36; // caps within this far ahead fly to you on release
+export const SURF_MAGNET_AHEAD = 22; // and during the surf
+export const PULSE_KNOCKBACK = 9; // metres the agberos are blown back
+export const PULSE_BEAT_S = 0.5; // road ring + light pulse cadence during the surf
+export const LANDING_CLEAR_AHEAD = 1.2; // seconds of road cleared under the landing
 
 // Camera
 export const CAM_HEIGHT = 2.9;

@@ -46,4 +46,4 @@ Rebuild the web model: `cd tools && npm install && npm run fix-model`. The model
 
 Game assets (`assets/source/game/` → `public/game/`): `cd tools && npm install && node prep-game.mjs ../assets/source/game ../public/game`.
 
-Walkthrough tests: `npm run build && npx vite preview`, then `node tools/smoke-game.mjs http://localhost:4173 ./shots 390 844` (story + chase, including the win via `?debug&autopilot`).
+Walkthrough tests: `npm run build && npx vite preview`, then `node tools/smoke-game.mjs http://localhost:4173 ./shots 390 844` (story → chase → game over → run again). Pulse Mode acceptance checks: `node tools/test-pulse.mjs http://localhost:4173 ./shots male` (add `lite` as a fourth argument for LITE).

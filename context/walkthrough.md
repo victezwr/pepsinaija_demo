@@ -38,7 +38,7 @@ game-over screen. Unofficial concept by @VOtakpor for @Pepsi_naija.
   - **THE YELLOW CHASE**
   - **Choose your runner:** male or female
   - **TAP TO POP & RUN**
-  - Control hints: swipe to dodge · double-tap to fizz
+  - Control hints: swipe to dodge · double-tap to pulse
   - Your best distance (after your first run)
 
 ### 6. The start
@@ -56,7 +56,7 @@ An endless run down a three-lane Lagos street lined with shops, balconies and el
 | Swipe left / right | ← → or A / D | Change lane (with a swoosh) |
 | Swipe up | ↑, W or Space | Jump |
 | Swipe down | ↓ or S | Slide (body thrown back, feet first). Mid-air, this slams you down into a slide. |
-| Double-tap | B | Fizz Boost (when the meter is full) |
+| Double-tap | B | Release the Pulse (when the meter is full) |
 
 **Obstacles**
 
@@ -73,7 +73,7 @@ Every row of traffic always leaves you a way through.
 
 **Speed:** starts fast and jumps up a stage at **500 m, 1,200 m, 2,000 m and 3,000 m** ("SPEED UP!"). The music speeds up with it.
 
-**On screen during the run:** distance in metres and speed stage (top left), caps and the **FIZZ** meter (top right).
+**On screen during the run:** distance in metres and speed stage (top left), caps and the **PULSE** meter (top right).
 
 ### 8. The agberos
 - They run right behind you, shouting pidgin in speech bubbles: "Hold am!", "Where you dey go?!", "Oya drop am!", "Bring that Pepsi come!", "Stop there!"
@@ -83,10 +83,17 @@ Every row of traffic always leaves you a way through.
 - **Clip the side of something** and you **stumble**. The **Chairman surges right up behind you**, reaching for the Pepsi: **"Oya drop am!"**
 - **A second stumble within 4 seconds**, or **running head-on into anything**, and you're caught.
 
-### 10. Fizz Boost
-- Every cap fills the **FIZZ** meter. At **50 caps** it glows and **DOUBLE-TAP TO FIZZ** appears.
-- **Double-tap:** **FIZZ BOOST!** Your runner rises on a frothing column of cola foam and surfs above the traffic for **8 seconds**. Nothing can hit you, and caps in your lane fly up to you.
-- You then glide back down and get a moment of protection to settle back in.
+### 10. Pulse Mode
+- **Charging:** every cap fills the **PULSE** meter. It throbs faster as it fills. At **50 caps** it turns electric blue and reads **PULSE READY** ("double-tap" underneath), a rising fizz-and-bass sound plays, a blue ring breathes on the road under your runner, and the bottle in their hand glows.
+- **Release (double-tap, or B on a computer):** **RELEASE THE PULSE.**
+  - Concentric electric-blue shockwave rings with a white-hot core race out across the road, with a short camera jolt, a quick blue flash and a deep bass drop with a fizzy release.
+  - The agberos are blown back and stagger.
+  - Traffic and barriers just ahead are flung aside (each one only once).
+  - Caps ahead fly straight to you.
+- **The surf (8 seconds):** your runner rises on a column of cola foam and surfs above the traffic, with blue rings pulsing out from under their feet on the beat. The street light pulses, the music adds a sub-bass thump, caps keep flying in, and **STAY ON THE PULSE** shows under the score. Nothing can hit you, and you can still change lanes.
+- **The landing:** the road where you'll land is cleared, you glide down, the music settles back, and you keep about a second of protection to find your feet.
+- Then the meter starts again from empty. Double-tapping with an empty meter does nothing.
+- On **LITE**, the gameplay is identical, with fewer rings, a softer flash, a lighter foam column and no camera-facing burst.
 
 ### 11. Caught: game over
 - A crash, and the crowd yells: **"We don catch am!"**

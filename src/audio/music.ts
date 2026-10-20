@@ -34,6 +34,8 @@ let step = 0;
 let nextTime = 0;
 let bpm = BASE_BPM;
 let stage = 0;
+let pulse = false;
+let lite = false;
 let custom: HTMLAudioElement | null = null;
 let customChecked: Promise<boolean> | null = null;
 
@@ -78,6 +80,16 @@ export async function start(atStage: number): Promise<void> {
   timer = window.setInterval(schedule, 25);
 }
 
+/** Pulse Mode: a sub-bass thump on every beat and open hats, for the 8-second surf. */
+export function setPulse(on: boolean): void {
+  pulse = on;
+}
+
+/** Lighter arrangement for slow phones (fewer oscillators per step). */
+export function setLite(on: boolean): void {
+  lite = on;
+}
+
 export function setStage(s: number): void {
   stage = s;
   bpm = BASE_BPM + s * BPM_PER_STAGE;
@@ -115,20 +127,21 @@ function playStep(ctx: AudioContext, noise: AudioBuffer, out: AudioNode, i: numb
   const sixteenth = 60 / bpm / 4;
   // Drums
   if (KICK.includes(s)) kick(ctx, noise, out, t);
+  if (pulse && s % 4 === 0) subPulse(ctx, out, t);
   if (SNARE.includes(s)) snare(ctx, noise, out, t, 0.55);
   if (s === 15 && barIdx % 2 === 1) snare(ctx, noise, out, t, 0.18); // ghost fill
   hit(ctx, noise, out, t, 'highpass', 8000, s % 2 ? 0.07 : 0.14, 0.035);
-  if (s % 4 === 2) hit(ctx, noise, out, t, 'highpass', 6500, stage >= 1 ? 0.12 : 0.06, 0.14); // open hat
+  if (s % 4 === 2) hit(ctx, noise, out, t, 'highpass', 6500, stage >= 1 || pulse ? 0.12 : 0.06, 0.14); // open hat
   // Bass: driving 8ths bouncing between root and octave
   if (s % 2 === 0) bass(ctx, out, t, bar.root * (s % 4 === 2 ? 2 : 1), sixteenth * 1.8);
   // Offbeat chord plucks
-  if (PLUCK.includes(s)) bar.chord.forEach((f) => pluck(ctx, out, t, f, 0.035));
+  if (PLUCK.includes(s)) (lite ? bar.chord.slice(0, 1) : bar.chord).forEach((f) => pluck(ctx, out, t, f, lite ? 0.06 : 0.035));
   // Lead hook (doubled an octave up from stage 3)
   const n = HOOK[barIdx][s];
   if (n) {
     const len = HOOK[barIdx][(s + 1) % 16] ? sixteenth * 0.9 : sixteenth * 1.8;
     lead(ctx, out, t, n, len, 0.075);
-    if (stage >= 2) lead(ctx, out, t, n * 2, len, 0.025);
+    if (stage >= 2 && !lite) lead(ctx, out, t, n * 2, len, 0.025);
   }
 }
 
@@ -139,6 +152,15 @@ function envGain(ctx: AudioContext, out: AudioNode, t: number, peak: number, dec
   g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
   g.connect(out);
   return g;
+}
+
+function subPulse(ctx: AudioContext, out: AudioNode, t: number): void {
+  const o = ctx.createOscillator();
+  o.frequency.setValueAtTime(62, t);
+  o.frequency.exponentialRampToValueAtTime(40, t + 0.25);
+  o.connect(envGain(ctx, out, t, 0.7, 0.32, 0.01));
+  o.start(t);
+  o.stop(t + 0.35);
 }
 
 function kick(ctx: AudioContext, noise: AudioBuffer, out: AudioNode, t: number): void {
@@ -194,19 +216,22 @@ function lead(ctx: AudioContext, out: AudioNode, t: number, f: number, len: numb
   o.type = 'square';
   o.frequency.setValueAtTime(f * 0.97, t);
   o.frequency.exponentialRampToValueAtTime(f, t + 0.025); // little scoop, like a brass stab
-  const vib = ctx.createOscillator();
-  const vibAmt = ctx.createGain();
-  vib.frequency.value = 6;
-  vibAmt.gain.value = f * 0.008;
-  vib.connect(vibAmt).connect(o.frequency);
+  if (!lite) {
+    // Vibrato (skipped on slow phones: one oscillator fewer per note)
+    const vib = ctx.createOscillator();
+    const vibAmt = ctx.createGain();
+    vib.frequency.value = 6;
+    vibAmt.gain.value = f * 0.008;
+    vib.connect(vibAmt).connect(o.frequency);
+    vib.start(t);
+    vib.stop(t + len + 0.08);
+  }
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass';
   lp.frequency.value = 4200;
   o.connect(lp).connect(envGain(ctx, out, t, peak, len + 0.06, 0.008));
   o.start(t);
-  vib.start(t);
   o.stop(t + len + 0.08);
-  vib.stop(t + len + 0.08);
 }
 
 function hit(ctx: AudioContext, noise: AudioBuffer, out: AudioNode, t: number, type: BiquadFilterType, f: number, peak: number, decay: number): void {

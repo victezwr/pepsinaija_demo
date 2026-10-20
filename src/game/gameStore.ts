@@ -3,6 +3,8 @@ import { readPref } from '../util/storage';
 
 export type GamePhase = 'loading' | 'reveal' | 'menu' | 'starting' | 'running' | 'caught';
 export type Runner = 'male' | 'female';
+/** Pulse Mode ability states. */
+export type PulseState = 'empty' | 'charged' | 'activating' | 'surging' | 'ending';
 
 export interface GameState {
   phase: GamePhase;
@@ -11,9 +13,11 @@ export interface GameState {
   distance: number; // metres, whole
   best: number; // best distance
   stage: number;
-  chill: number; // 0..1 Fizz meter
-  boosting: boolean;
-  /** Short-lived centre banner (SPEED UP!, FIZZ BOOST!). */
+  chill: number; // 0..1 Pulse meter
+  pulse: PulseState;
+  /** Increments on each activation (drives the one-shot flash). */
+  pulseFlash: number;
+  /** Short-lived centre banner (SPEED UP!, RELEASE THE PULSE). */
   banner: string | null;
 }
 
@@ -25,7 +29,8 @@ export const useGame = create<GameState>()(() => ({
   best: Number(readPref('bestDistance') ?? 0) || 0,
   stage: 0,
   chill: 0,
-  boosting: false,
+  pulse: 'empty',
+  pulseFlash: 0,
   banner: null,
 }));
 
