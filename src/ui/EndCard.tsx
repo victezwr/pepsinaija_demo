@@ -4,10 +4,11 @@ import { HalftoneRing } from './HalftoneRing';
 
 interface Props {
   onReplay?: () => void;
+  replayLabel?: string;
   note?: string;
 }
 
-export function EndCard({ onReplay, note }: Props): JSX.Element {
+export function EndCard({ onReplay, replayLabel = 'Replay', note }: Props): JSX.Element {
   const { w, h } = useViewport();
   const ringSize = Math.round(Math.min(w * 0.92, h * 0.46, 520));
   return (
@@ -23,7 +24,7 @@ export function EndCard({ onReplay, note }: Props): JSX.Element {
       {note && <p className="endcard__note">{note}</p>}
       {onReplay && (
         <button className="btn btn--solid" onClick={onReplay}>
-          Replay
+          {replayLabel}
         </button>
       )}
       <p className="endcard__credit">

@@ -1,6 +1,17 @@
 import { getState } from '../state/store';
 
-type EventName = 'started' | 'shook' | 'launched' | 'peeled' | 'finished' | 'replayed' | 'quality_drop' | 'fallback';
+type EventName =
+  | 'started'
+  | 'shook'
+  | 'launched'
+  | 'peeled'
+  | 'finished'
+  | 'replayed'
+  | 'quality_drop'
+  | 'fallback'
+  | 'game_start'
+  | 'game_caught'
+  | 'game_won';
 
 interface UmamiWindow extends Window {
   umami?: { track: (name: string, data?: Record<string, string | number>) => void };

@@ -61,14 +61,9 @@ for (let i = 0; i < 6 && (await step()) === 'rebel'; i++) {
 }
 await page.waitForTimeout(700);
 await shot('escape');
-await waitStep('end');
-await page.waitForTimeout(2200);
-await shot('end-card');
-
-await page.getByRole('button', { name: 'Replay' }).click();
-await waitStep('warning');
-await page.waitForTimeout(1000);
-await shot('replay-warning');
+await waitStep('game');
+await page.waitForTimeout(1500);
+await shot('handoff-to-game');
 
 console.log(JSON.stringify({ ok: true, tier: await page.evaluate(() => window.__dsm.getState().tier), errors }, null, 1));
 await browser.close();

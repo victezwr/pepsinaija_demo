@@ -4,7 +4,7 @@ An interactive 3D story about a cold Pepsi bottle that really doesn't want to be
 
 > **Unofficial concept / spec project** by [@VOtakpor](https://x.com/VOtakpor) for @PepsiNaija. Not affiliated with or endorsed by PepsiCo.
 
-Wake the bottle → ignore the warning → shake it → watch the new **yellow cap** land → try to catch it → peel its label → **YOU MONSTER.** → STAY ON THE PULSE.
+Wake the bottle → ignore the warning → shake it → watch the new **yellow cap** land → try to catch it → it escapes to a water tower down a Lagos street → **The Chase**: outrun the agberos, collect 1000 yellow caps, get the Pepsi → STAY ON THE PULSE.
 
 ## Run it
 
@@ -44,4 +44,6 @@ Product, architecture, standards and progress are documented in [`/context`](con
 
 Rebuild the web model: `cd tools && npm install && npm run fix-model`. The model script simplifies the mesh, removes the baked lighting from the texture, smooths the crinkled plastic, splits off the cap, wraps the label on its own cylinder, and compresses everything (Draco + WebP).
 
-Walkthrough test: `npm run build && npx vite preview`, then `node tools/smoke.mjs http://localhost:4173 ./shots 390 844`.
+Game assets (`assets/source/game/` → `public/game/`): `cd tools && npm install && node prep-game.mjs ../assets/source/game ../public/game`.
+
+Walkthrough tests: `npm run build && npx vite preview`, then `node tools/smoke-game.mjs http://localhost:4173 ./shots 390 844` (story + chase, including the win via `?debug&autopilot`).

@@ -12,7 +12,8 @@ export type Step =
   | 'peel'
   | 'monster'
   | 'exit'
-  | 'end';
+  | 'end'
+  | 'game';
 
 export type Tier = 'high' | 'low';
 

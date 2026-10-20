@@ -55,10 +55,19 @@ Rule: exactly one unit is `In progress` at a time (see `ai-workflow-rules.md`).
 | 5.3 | Vercel project/domain without "pepsi" | To do | Owner action. |
 | 5.4 | Record 9:16 X clip with `?director` | To do | |
 
-## Phase 6 — Game (decision pending)
-| # | Unit | Status | Notes |
-|---|---|---|---|
-| 6.0 | Choose game: runner vs 1v5 fight | **Next** | The bottle escapes to a far tower; the game is how you get it back. |
+## Phase 6 — The Chase (game)  ✅ v1
+| # | Unit | Status | Date | Notes |
+|---|---|---|---|---|
+| 6.0 | Choose game | Done | 2026-10-20 | Subway Surfers-style runner through a Lagos street, chased by agberos. |
+| 6.1 | Tripo assets: 3 rigged characters + 11 props | Done | 2026-10-20 | Checked frame by frame. No slide clip from Tripo: duck uses the crouch from the jump. |
+| 6.2 | Asset pipeline `tools/prep-game.mjs` | Done | 2026-10-20 | 24 MB → 4.4 MB (Draco + WebP 1K), canonical clip names, root motion locked. Preloads during the story. |
+| 6.3 | Story hand-off + reveal | Done | 2026-10-20 | CATCH ME IF YOU CAN. → camera starts on the bottle atop the water tower and pulls back down the street → agberos: "Na our own be dat!" |
+| 6.4 | Game card → choose runner → start | Done | 2026-10-20 | Thumbnails rendered from the models. |
+| 6.5 | Runner: lanes, jump, duck, stumble, caught | Done | 2026-10-20 | Swipe or arrows/WASD. Side graze = stumble; 2nd within 4 s or head-on = caught → start over from 0. |
+| 6.6 | Coins + 1000 target + speed stages | Done | 2026-10-20 | Yellow caps. Stage speeds 12 → 23 m/s at 0/200/400/600/800 coins. Tower only approaches once 1000 is reached. |
+| 6.7 | Win → STAY ON THE PULSE | Done | 2026-10-20 | Bottle flies down to the runner, cheer, end card with coin count; Play again / Watch the intro again. |
+| 6.8 | Walkthrough test `tools/smoke-game.mjs` | Done | 2026-10-20 | Phone + desktop. `?debug&autopilot` dodges by itself to verify the finish. |
+| 6.9 | Spark 10C tuning (owner) | **Next** | | fps during the chase, difficulty of each speed stage, swipe feel, how long 1000 caps takes. |
 
 ## Backlog (v1.1)
 - Video version for phones below the Spark 10C.

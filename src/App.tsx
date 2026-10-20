@@ -3,6 +3,9 @@ import { Component, Suspense, useEffect, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { track } from './analytics/track';
 import { CAMERA_FOV } from './config';
+import { GameScene, gameInput } from './game/GameScene';
+import { GameUI } from './game/GameUI';
+import type { GameInput } from './game/world';
 import { Experience } from './scene/Experience';
 import { getState, setState, useStore } from './state/store';
 import * as director from './story/director';
@@ -41,7 +44,9 @@ export function App(): JSX.Element {
   const fallback = useStore((s) => s.fallback);
   const tier = useStore((s) => s.tier);
   const directorMode = useStore((s) => s.director);
+  const step = useStore((s) => s.step);
   const lastMove = useRef(0);
+  const swipe = useRef<{ x: number; y: number; done: boolean } | null>(null);
 
   useEffect(() => {
     if (!hasWebGL()) goFallback('webgl');
@@ -66,7 +71,26 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     const isButton = (t: EventTarget | null): boolean => t instanceof HTMLElement && t.closest('button') !== null;
+    const keys: Record<string, GameInput> = {
+      ArrowLeft: 'left',
+      a: 'left',
+      ArrowRight: 'right',
+      d: 'right',
+      ArrowUp: 'up',
+      w: 'up',
+      ' ': 'up',
+      ArrowDown: 'down',
+      s: 'down',
+    };
     const down = (e: KeyboardEvent): void => {
+      if (getState().step === 'game') {
+        const action = keys[e.key];
+        if (action && !isButton(e.target)) {
+          e.preventDefault();
+          gameInput(action);
+        }
+        return;
+      }
       if (isButton(e.target) || (e.key !== ' ' && e.key !== 'Enter')) return;
       e.preventDefault();
       if (getState().step === 'silhouette') director.wake();
@@ -96,21 +120,39 @@ export function App(): JSX.Element {
 
   return (
     <main className="app">
-      <StageRing />
+      {step !== 'game' && <StageRing />}
       <div
         className="stage"
         onPointerDown={(e) => {
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
           lastMove.current = e.timeStamp;
-          director.pointerDown(e.clientX, e.clientY, e.pointerType);
+          if (step === 'game') swipe.current = { x: e.clientX, y: e.clientY, done: false };
+          else director.pointerDown(e.clientX, e.clientY, e.pointerType);
         }}
         onPointerMove={(e) => {
+          if (step === 'game') {
+            // One action per gesture, fired as soon as the finger has clearly moved.
+            const sw = swipe.current;
+            if (!sw || sw.done) return;
+            const dx = e.clientX - sw.x;
+            const dy = e.clientY - sw.y;
+            if (Math.hypot(dx, dy) < 26) return;
+            sw.done = true;
+            gameInput(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down');
+            return;
+          }
           const dt = Math.max(0.001, (e.timeStamp - lastMove.current) / 1000);
           lastMove.current = e.timeStamp;
           director.pointerMove(e.clientX, e.clientY, e.pointerType, e.buttons > 0, dt);
         }}
-        onPointerUp={() => director.pointerUp()}
-        onPointerCancel={() => director.pointerUp()}
+        onPointerUp={() => {
+          swipe.current = null;
+          director.pointerUp();
+        }}
+        onPointerCancel={() => {
+          swipe.current = null;
+          director.pointerUp();
+        }}
       >
         <Canvas
           dpr={dpr}
@@ -123,13 +165,12 @@ export function App(): JSX.Element {
           }}
         >
           <SceneBoundary>
-            <Suspense fallback={null}>
-              <Experience />
-            </Suspense>
+            <Suspense fallback={null}>{step === 'game' ? <GameScene /> : <Experience />}</Suspense>
           </SceneBoundary>
         </Canvas>
       </div>
       <Overlay />
+      {step === 'game' && <GameUI />}
     </main>
   );
 }

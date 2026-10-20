@@ -6,6 +6,7 @@ import { track } from '../analytics/track';
 import { shake } from '../input/shake';
 import { getState, setState, type Headline, type Step } from '../state/store';
 import { writePref } from '../util/storage';
+import { loadGameAssets } from '../game/assets';
 import { cam, dom, fx, getRig, lights, pose, ring, type Rig } from './rig';
 
 // ---------------------------------------------------------------------------
@@ -109,6 +110,8 @@ function enterWarning(): void {
   shake.reset();
   shake.active = true;
   shakeLine = 0;
+  // Warm the chase download while the visitor plays with the bottle.
+  loadGameAssets().catch(() => undefined);
 }
 
 function launch(): void {
@@ -218,7 +221,7 @@ function escape(): void {
   enter('exit');
   headline({ text: 'CATCH ME IF YOU CAN.' });
   const rm = reduced();
-  const tl = newStory(endCard);
+  const tl = newStory(toGame);
   tl.to(pose, { x: 0, duration: 0.5, ease: 'power2.inOut' }, 0.3)
     .to(pose, { sy: 0.85, sx: 1.08, duration: 0.14, ease: 'power2.out' }, 0.8)
     .call(() => {
@@ -346,6 +349,14 @@ function exit(): void {
     .to({}, { duration: 0.75 });
 }
 
+/** The story hands over to the chase (src/game). */
+function toGame(): void {
+  sfx.fizz(0);
+  sfx.silence();
+  track('finished');
+  enter('game');
+}
+
 function endCard(): void {
   enter('end');
   sfx.fizz(0);
@@ -454,6 +465,7 @@ export function pointerDown(x: number, y: number, type: string): void {
     case 'monster':
     case 'exit':
     case 'end':
+    case 'game':
       break;
     default: {
       const never: never = step;

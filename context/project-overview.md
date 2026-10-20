@@ -35,7 +35,8 @@ SILHOUETTE → INTRO → WARNING → SHAKING → LAUNCH → REBEL → PEEL → M
 | 6 | **Peel** | Grabs the label and drags | The label edge flaps as a cue. The label curls off following the drag. Released < 60%: springs back. ≥ 60%: finishes by itself. |
 | 7 | **Monster** | — | The label rolls/flicks away → beat of silence → **"YOU MONSTER."** |
 | 8 | **Exit** | — | The bare bottle springs out of frame, offended. Short pause. |
-| 9 | **End card** | Replay | Logo in the halftone ring, "STAY ON THE **PULSE**", credit line, Replay button. |
+| 9 | **The Chase** | Swipe / arrow keys | Reveal down a Lagos street → game card → choose runner → endless runner chased by agberos; collect 1000 yellow caps to unlock the tower; speed rises in stages; caught = start over. |
+| 10 | **End card** | Play again | Logo in the halftone ring, "STAY ON THE **PULSE**", coin count, credit line. |
 
 ### Helping stuck users
 - Warning: hint pulses at 6 s; at 12 s the bottle starts trembling by itself.

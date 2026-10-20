@@ -227,6 +227,15 @@ export function sting(): void {
   tone('sine', 65, 45, 0.7, 0.6);
 }
 
+let lastCoin = 0;
+export function coin(): void {
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const step = now - lastCoin < 0.25 ? 1.12 : 1; // quick streaks climb in pitch
+  lastCoin = now;
+  tone('square', 1320 * step, 1980 * step, 0.06, 0.09);
+}
+
 export function sparkle(): void {
   caption('[✨ yellow cap]');
   [1318.5, 1760, 2093].forEach((f, i) => tone('sine', f, f, 0.12, 0.35, i * 0.06));
