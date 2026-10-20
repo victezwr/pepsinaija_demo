@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import * as music from '../audio/music';
 import * as sfx from '../audio/sfx';
+import * as voices from '../audio/voices';
 import { track } from '../analytics/track';
 import { writePref } from '../util/storage';
 import type { CharacterAsset, GameAssets } from './assets';
@@ -308,6 +309,7 @@ export class ChaseWorld {
     this.group.visible = true;
     this.phaseT = 0;
     this.landed = false;
+    voices.preloadVoices();
     setPhase('reveal');
   }
 
@@ -356,6 +358,7 @@ export class ChaseWorld {
     useGame.setState({ coins: 0, stage: 0, unlocked: false, banner: null });
     setPhase('running');
     void music.start(0);
+    voices.shout(3, 0.6); // the chase is on
     track('game_start', { runner: useGame.getState().runner });
   }
 
@@ -412,20 +415,26 @@ export class ChaseWorld {
     }
     const d = this.speed * dt;
     this.distance += d;
-    this.scroll(d, phase === 'running');
-
     if (phase === 'running') {
       if (this.autopilot) this.drive();
       this.movePlayer(dt);
-      this.collide();
-      this.collect();
+      // Sub-step the world so a fast frame can't carry a thin obstacle straight past the runner.
+      const steps = Math.max(1, Math.ceil(d / G.MAX_STEP));
+      for (let i = 0; i < steps && useGame.getState().phase === 'running'; i++) {
+        this.scroll(d / steps, true);
+        this.collide();
+        this.collect();
+      }
       this.updateStage();
       const unlocked = useGame.getState().unlocked;
       if (unlocked) {
         this.towerZ += d;
         if (this.towerZ >= -G.FINISH_STOP) this.win();
       }
-    } else if (phase === 'caught') {
+    } else {
+      this.scroll(d, false);
+    }
+    if (phase === 'caught') {
       this.caughtStep(dt);
     } else if (phase === 'won' || phase === 'end') {
       this.wonStep(dt);
@@ -437,7 +446,7 @@ export class ChaseWorld {
     this.lean += (wantLean - this.lean) * Math.min(1, dt * (wantLean > this.lean ? 22 : 12));
     this.runner.root.rotation.x = this.lean;
     this.runner.root.position.set(this.px, this.py - this.lean * 0.12, 0);
-    const runRate = Math.max(0.6, this.speed / 12);
+    const runRate = Math.min(1.75, Math.max(0.6, this.speed / 12));
     if (phase === 'running' && this.runner.currentName === 'run') this.runner.setSpeed(runRate);
     this.runner.update(dt);
     this.updateChasers(dt, phase);
@@ -588,6 +597,7 @@ export class ChaseWorld {
     this.bubbleText = 'We don almost catch am!';
     this.bubbleUntil = this.time + 1.6;
     sfx.crash(false);
+    voices.shout(2, 0.55);
   }
 
   private caught(): void {
@@ -598,6 +608,7 @@ export class ChaseWorld {
     this.bubbleUntil = this.time + 3;
     this.slideT = 0;
     sfx.crash(true);
+    window.setTimeout(() => voices.shout(3, 0.7), 250);
     music.stop(0.4);
     const best = Math.max(useGame.getState().best, this.coins);
     writePref('best', String(best));
@@ -727,8 +738,10 @@ export class ChaseWorld {
 
   private updateCamera(dt: number, phase: GamePhase): void {
     const cam = this.camera;
-    const fov = cam.aspect < 0.8 ? 70 : 55;
-    if (cam.fov !== fov) {
+    // Widen a touch as the pace climbs, for a sense of speed.
+    const boost = phase === 'running' ? Math.max(0, this.speed - G.STAGES[0].speed) * 0.45 : 0;
+    const fov = (cam.aspect < 0.8 ? 70 : 55) + boost;
+    if (Math.abs(cam.fov - fov) > 0.2) {
       cam.fov = fov;
       cam.updateProjectionMatrix();
     }
@@ -757,6 +770,7 @@ export class ChaseWorld {
       cam.lookAt(0, lookY, lookZ);
       if (this.phaseT > G.REVEAL_HOLD_S + G.REVEAL_S * 0.7 && this.agberos[0].currentName !== 'shout') {
         for (const a of this.agberos) a.play('shout');
+        voices.shout(3, 0.6);
         this.bubbleText = 'Na our own be dat!';
         this.bubbleUntil = this.time + 2.6;
       }
@@ -785,6 +799,7 @@ export class ChaseWorld {
     if (phase === 'running' && this.chaseGap < 5 && this.time > this.nextBubbleAt && this.time > this.bubbleUntil) {
       this.bubbleText = G.BUBBLE_LINES[Math.floor(Math.random() * G.BUBBLE_LINES.length)];
       this.bubbleUntil = this.time + 1.8;
+      voices.shout(1, 0.5);
       this.nextBubbleAt = this.time + 3.2;
     }
     const show = this.time < this.bubbleUntil && phase !== 'end';
@@ -807,14 +822,14 @@ export class ChaseWorld {
   }
 
   private drive(): void {
-    const near = this.obstacles.filter((o) => o.active && !o.hit && o.z < 2 && o.z > -16);
+    const near = this.obstacles.filter((o) => o.active && !o.hit && o.z < 2 && o.z > -this.speed * 0.9);
     const blockedIn = (lane: number): boolean => near.some((o) => o.lane === lane && G.OBSTACLES[o.kind].action === 'swerve');
     if (blockedIn(this.lane)) {
       const options = [this.lane - 1, this.lane + 1].filter((l) => l >= -1 && l <= 1 && !blockedIn(l));
       if (options.length) this.input(options[0] < this.lane ? 'left' : 'right');
       return;
     }
-    const front = near.find((o) => o.lane === this.lane && o.z > -7 && o.z < 0);
+    const front = near.find((o) => o.lane === this.lane && o.z > -this.speed * 0.32 && o.z < 0);
     if (!front) return;
     const act = G.OBSTACLES[front.kind].action;
     if (act === 'jump' && this.grounded) this.input('up');

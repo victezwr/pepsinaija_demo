@@ -68,7 +68,8 @@ Rule: exactly one unit is `In progress` at a time (see `ai-workflow-rules.md`).
 | 6.7 | Win → STAY ON THE PULSE | Done | 2026-10-20 | Bottle flies down to the runner, cheer, end card with coin count; Play again / Watch the intro again. |
 | 6.8 | Walkthrough test `tools/smoke-game.mjs` | Done | 2026-10-20 | Phone + desktop. `?debug&autopilot` dodges by itself to verify the finish. |
 | 6.9 | Owner feedback round 1 | Done | 2026-10-20 | Hand-off synced (bottle rockets up → lands on the tower; chase pre-built + shaders pre-compiled during the dodges, assets download from the first tap). Duck → real slide (lean back, scrape). Emojis → SVG icons. Generated Afrobeats music (or `public/audio/game-music.mp3`). SFX: jump, land, slide, crash, caught. Speed: owner OK. |
-| 6.10 | Spark 10C tuning (owner) | **Next** | | fps during the chase, music/SFX levels, slide feel, how long 1000 caps takes. |
+| 6.10 | Owner feedback round 2 | Done | 2026-10-20 | Panned lane-change swoosh. High-energy runner music (120 BPM + 4/stage). Agbero shouts (synth, or owner recordings `public/audio/agbero-N.mp3`) at the reveal, chase start, speech bubbles, stumble and catch. Opening speed = old stage 4 (20 m/s) rising to 29 m/s; collision sub-stepping; FOV widens with speed. |
+| 6.11 | Spark 10C tuning (owner) | **Next** | | fps at the new speeds, music/voice levels, how long 1000 caps takes. |
 
 ## Backlog (v1.1)
 - Video version for phones below the Spark 10C.

@@ -3,13 +3,18 @@
 export const COIN_TARGET = 1000;
 
 /** Speed rises in stages as the coin count grows (Subway Surfers-style pace jumps). */
+/**
+ * Owner direction: the run starts at what used to be stage 4 (20 m/s) and the world only
+ * gets faster from there. Gaps grow with speed so there is always ~1.1 s or more to react.
+ */
 export const STAGES: ReadonlyArray<{ coins: number; speed: number; gap: [number, number]; maxBlocked: number }> = [
-  { coins: 0, speed: 12, gap: [24, 32], maxBlocked: 1 },
-  { coins: 200, speed: 14.5, gap: [21, 28], maxBlocked: 2 },
-  { coins: 400, speed: 17, gap: [19, 25], maxBlocked: 2 },
-  { coins: 600, speed: 20, gap: [18, 23], maxBlocked: 3 },
-  { coins: 800, speed: 23, gap: [17, 22], maxBlocked: 3 },
+  { coins: 0, speed: 20, gap: [28, 36], maxBlocked: 1 },
+  { coins: 200, speed: 22, gap: [27, 34], maxBlocked: 2 },
+  { coins: 400, speed: 24, gap: [27, 33], maxBlocked: 2 },
+  { coins: 600, speed: 26.5, gap: [28, 33], maxBlocked: 3 },
+  { coins: 800, speed: 29, gap: [30, 35], maxBlocked: 3 },
 ];
+export const MAX_STEP = 0.4; // metres per collision sub-step
 export const SPEED_EASE_PER_S = 2.5; // how fast speed blends to a new stage
 
 // Track
@@ -19,7 +24,7 @@ export const ROAD_HALF = LANE_WIDTH * 1.5 + 0.3;
 export const SIDEWALK = 3.2;
 export const SPAWN_HORIZON = 130; // rows are spawned this far ahead
 export const DESPAWN_Z = 12; // behind the camera
-export const START_GRACE = 34; // empty road at the start
+export const START_GRACE = 60; // ~3 s of empty road at the opening speed
 
 // Player
 export const RUNNER_HEIGHT = 1.75;
