@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import type * as THREE from 'three';
+import { unlock as unlockAudio } from '../audio/sfx';
 import { getState as getStory, setState as setStory } from '../state/store';
 import { loadGameAssets } from './assets';
 import { useGame } from './gameStore';
@@ -13,6 +14,7 @@ export function gameInput(action: GameInput): void {
 }
 
 export function gameStart(): void {
+  unlockAudio(); // START / RUN AM AGAIN are taps: make sure audio is awake for the music
   world?.start();
 }
 

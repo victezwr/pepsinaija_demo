@@ -32,7 +32,7 @@ export function unlock(): void {
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       startLoops();
     }
-    void ctx.resume();
+    if (ctx.state !== 'running') void ctx.resume();
   } catch {
     setState({ audioOk: false });
   }

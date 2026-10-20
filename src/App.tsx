@@ -7,6 +7,7 @@ import { GameScene, gameInput } from './game/GameScene';
 import { GameUI } from './game/GameUI';
 import type { GameInput } from './game/world';
 import { Experience } from './scene/Experience';
+import { unlock as unlockAudio } from './audio/sfx';
 import { getState, setState, useStore } from './state/store';
 import * as director from './story/director';
 import { EndCard } from './ui/EndCard';
@@ -125,6 +126,8 @@ export function App(): JSX.Element {
         className="stage"
         onPointerDown={(e) => {
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          // Android can suspend page audio (app switch, screen dim); every tap wakes it again.
+          if (getState().step !== 'silhouette' && getState().step !== 'loading') unlockAudio();
           lastMove.current = e.timeStamp;
           if (step === 'game') swipe.current = { x: e.clientX, y: e.clientY, done: false };
           else director.pointerDown(e.clientX, e.clientY, e.pointerType);
