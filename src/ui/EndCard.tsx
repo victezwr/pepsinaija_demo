@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { BRAND_HANDLE, CREDIT_HANDLE } from '../config';
 import { useViewport } from './useViewport';
 import { HalftoneRing } from './HalftoneRing';
@@ -5,7 +6,7 @@ import { HalftoneRing } from './HalftoneRing';
 interface Props {
   onReplay?: () => void;
   replayLabel?: string;
-  note?: string;
+  note?: ReactNode;
 }
 
 export function EndCard({ onReplay, replayLabel = 'Replay', note }: Props): JSX.Element {

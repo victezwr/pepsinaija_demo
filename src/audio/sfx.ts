@@ -38,6 +38,11 @@ export function unlock(): void {
   }
 }
 
+/** Shared graph for the music module (null until the first tap unlocks audio). */
+export function audioGraph(): { ctx: AudioContext; master: GainNode; noise: AudioBuffer } | null {
+  return ctx && master && noise ? { ctx, master, noise } : null;
+}
+
 export function setMuted(muted: boolean): void {
   if (ctx && master) master.gain.setTargetAtTime(muted ? 0 : 0.9, ctx.currentTime, 0.05);
 }
@@ -236,7 +241,46 @@ export function coin(): void {
   tone('square', 1320 * step, 1980 * step, 0.06, 0.09);
 }
 
+// ---- Chase sounds (no captions on the frequent ones: the visuals carry them)
+
+export function jump(): void {
+  tone('sine', 260, 720, 0.35, 0.16);
+  whoosh(0.22, 0.14);
+}
+
+export function land(): void {
+  tone('sine', 140, 60, 0.4, 0.12);
+  burst('lowpass', 500, 0.18, 0.002, 0.05);
+}
+
+export function slide(): void {
+  if (!ctx) return;
+  const src = noiseSource();
+  if (!src) return;
+  const f = ctx.createBiquadFilter();
+  f.type = 'bandpass';
+  f.Q.value = 0.9;
+  f.frequency.setValueAtTime(900, ctx.currentTime);
+  f.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.5);
+  src.connect(f);
+  env(f, 0.4, 0.03, 0.5);
+  src.start();
+  src.stop(ctx.currentTime + 0.6);
+}
+
+/** Hitting an obstacle: a glancing knock, or (hard) the full smash when you're caught. */
+export function crash(hard: boolean): void {
+  burst('lowpass', hard ? 900 : 1400, hard ? 0.9 : 0.55, 0.002, hard ? 0.35 : 0.16);
+  // Metal panel ring: inharmonic partials like a danfo door
+  [410, 587, 911].forEach((f, i) => tone('triangle', f, f * 0.97, (hard ? 0.16 : 0.1) / (i + 1), hard ? 0.5 : 0.25));
+  tone('sine', hard ? 90 : 130, 40, hard ? 0.9 : 0.5, hard ? 0.5 : 0.22);
+  if (hard) {
+    caption('[CRASH]');
+    burst('bandpass', 750, 0.3, 0.04, 0.5, 1.2); // the crowd's "ehn!"
+  }
+}
+
 export function sparkle(): void {
-  caption('[✨ yellow cap]');
+  caption('[new yellow cap]');
   [1318.5, 1760, 2093].forEach((f, i) => tone('sine', f, f, 0.12, 0.35, i * 0.06));
 }

@@ -52,8 +52,7 @@ export const DODGE_COOLDOWN_MS = 420;
 export const DODGE_PROXIMITY_PX = 60;
 export const DODGE_EDGE_MARGIN = 0.28;
 export const DODGE_LINES = ['', 'TOO SLOW.', 'NOPE.'];
-export const ESCAPE_HEIGHT = 1.0;
-export const ESCAPE_SCALE = 0.06; // shrinks to a speck as it runs off
+export const ESCAPE_HEIGHT = 3.4; // clear of the top of the frame
 
 // Peel
 export const PEEL_COMMIT = 0.6;

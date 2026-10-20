@@ -5,6 +5,7 @@ import * as director from '../story/director';
 import { dom } from '../story/rig';
 import { EndCard } from './EndCard';
 import { HalftoneRing } from './HalftoneRing';
+import { SpeakerIcon } from './icons';
 import { useViewport } from './useViewport';
 
 export function StageRing(): JSX.Element {
@@ -25,7 +26,9 @@ export function Overlay(): JSX.Element {
       {step === 'silhouette' && (
         <div className="prompt">
           <p className="prompt__main">TAP TO WAKE IT</p>
-          <p className="prompt__sub">🔊 best with sound</p>
+          <p className="prompt__sub">
+            <SpeakerIcon size={14} /> best with sound
+          </p>
         </div>
       )}
       <Hint />
@@ -57,7 +60,7 @@ function TopBar(): JSX.Element {
           </button>
         )}
         <button className="btn btn--ghost" onClick={() => director.setMuted(!muted)} aria-label={muted ? 'Unmute' : 'Mute'}>
-          {muted ? '🔇' : '🔊'}
+          <SpeakerIcon muted={muted} />
         </button>
       </div>
     </div>

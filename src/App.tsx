@@ -165,12 +165,14 @@ export function App(): JSX.Element {
           }}
         >
           <SceneBoundary>
-            <Suspense fallback={null}>{step === 'game' ? <GameScene /> : <Experience />}</Suspense>
+            <Suspense fallback={null}>{step !== 'game' && <Experience />}</Suspense>
+            {(step === 'rebel' || step === 'exit' || step === 'game') && <GameScene active={step === 'game'} />}
           </SceneBoundary>
         </Canvas>
       </div>
       <Overlay />
       {step === 'game' && <GameUI />}
+      {step === 'game' && <div className="handoff-flash" aria-hidden="true" />}
     </main>
   );
 }

@@ -96,7 +96,7 @@ body {
 /* Silhouette prompt + loading */
 .prompt { position: absolute; left: 0; right: 0; bottom: 16%; text-align: center; animation: fade 0.6s ease both; }
 .prompt__main { margin: 0; font-stretch: 125%; font-weight: 900; font-size: 18px; letter-spacing: 0.12em; animation: breathe 2.2s ease-in-out infinite; }
-.prompt__sub { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.prompt__sub { margin: 10px 0 0; font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
 .loading {
   position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px;
   border-radius: 50%; background: var(--blue); animation: breathe 1s ease-in-out infinite;
@@ -184,7 +184,7 @@ body {
 
 .controls { list-style: none; margin: 16px 0 4px; padding: 0; display: grid; gap: 8px; text-align: left; }
 .controls li { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--muted); }
-.controls span { flex: none; width: 64px; text-align: center; font-size: 18px; }
+.controls span { flex: none; width: 64px; display: flex; justify-content: center; gap: 4px; }
 
 .runners { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
 .runner {
@@ -201,7 +201,7 @@ body {
   position: absolute; top: calc(max(var(--inset), env(safe-area-inset-top)) + 54px); left: 50%; transform: translateX(-50%);
   width: min(86vw, 380px); text-align: center; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
-.hud__coins { font-size: 18px; font-weight: 600; }
+.hud__coins { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 18px; font-weight: 600; }
 .hud__coins strong { font-size: 24px; font-stretch: 115%; font-weight: 900; }
 .hud__bar { height: 8px; margin: 8px 0 6px; border-radius: 99px; background: rgba(0, 0, 0, 0.35); overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.25); }
 .hud__fill { height: 100%; background: linear-gradient(90deg, #ffc400, #ffe27a); transition: width 0.2s; }
@@ -216,3 +216,10 @@ body {
 
 .game-end { position: absolute; inset: 0; pointer-events: auto; }
 .game-end__intro { position: absolute; left: 50%; bottom: calc(max(var(--inset), env(safe-area-inset-bottom)) + 40px); transform: translateX(-50%); z-index: 3; }
+
+.capnum { display: inline-flex; align-items: center; gap: 4px; vertical-align: -3px; }
+.btn--ghost svg { display: block; }
+
+/* White flash bridging the story's exit into the chase */
+.handoff-flash { position: fixed; inset: 0; background: #fff6df; pointer-events: none; z-index: 5; animation: handoff 0.6s ease-out both; }
+@keyframes handoff { from { opacity: 0.95; } to { opacity: 0; } }

@@ -28,7 +28,8 @@ export const LANE_SWITCH_RATE = 14;
 export const JUMP_VELOCITY = 9.2;
 export const GRAVITY = 27;
 export const FAST_FALL_VELOCITY = -16;
-export const DUCK_TIME = 0.75;
+export const DUCK_TIME = 0.8;
+export const SLIDE_LEAN = 0.9; // rad the runner throws the body back while sliding
 export const STAND_TOP = 1.7;
 export const DUCK_TOP = 1.0;
 export const PLAYER_HALF_W = 0.35;
@@ -57,7 +58,9 @@ export const FINISH_STOP = 11; // runner stops this far in front of the tower
 export const CAM_HEIGHT = 2.9;
 export const CAM_BACK = 5.4;
 export const CAM_LOOK_AHEAD = 9;
-export const REVEAL_S = 3.6;
+export const REVEAL_S = 3.2; // camera pull-back
+export const REVEAL_HOLD_S = 0.9; // hold on the bottle after it lands
+export const BOTTLE_DROP_S = 0.45;
 
 export type PropName =
   | 'danfo'

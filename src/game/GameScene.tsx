@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type * as THREE from 'three';
 import { getState as getStory, setState as setStory } from '../state/store';
 import { loadGameAssets } from './assets';
@@ -28,21 +28,25 @@ export function chooseRunner(r: 'male' | 'female'): void {
   world?.chooseRunner(r);
 }
 
-/** Mounted inside the Canvas once the story hands over to the chase. */
-export function GameScene(): null {
-  const { scene, camera } = useThree();
+/**
+ * Mounted while the bottle is still dodging: builds the chase invisibly and pre-compiles its
+ * shaders, so when `active` flips (the bottle bolts) the street appears with no loading pause.
+ */
+export function GameScene({ active }: { active: boolean }): null {
+  const { scene, camera, gl } = useThree();
+  const activeRef = useRef(active);
+  activeRef.current = active;
 
   useEffect(() => {
     let alive = true;
-    useGame.setState({ phase: 'loading' });
     loadGameAssets()
       .then((assets) => {
         if (!alive) return;
         world = new ChaseWorld(assets, scene, camera as THREE.PerspectiveCamera, getStory().tier === 'low');
-        const params = new URLSearchParams(window.location.search);
-        world.autopilot = params.has('debug') && params.has('autopilot');
+        world.autopilot = new URLSearchParams(window.location.search).has('autopilot');
         scene.add(world.group);
-        world.startReveal();
+        world.prewarm(gl);
+        if (activeRef.current) world.activate();
       })
       .catch(() => setStory({ fallback: true }));
     return () => {
@@ -50,8 +54,16 @@ export function GameScene(): null {
       world?.dispose();
       world = null;
     };
-  }, [scene, camera]);
+  }, [scene, camera, gl]);
 
-  useFrame((_, dt) => world?.update(Math.min(dt, 1 / 20)));
+  useEffect(() => {
+    if (!active) return;
+    if (world) world.activate();
+    else useGame.setState({ phase: 'loading' }); // assets still downloading: activate when built
+  }, [active]);
+
+  useFrame((_, dt) => {
+    if (active) world?.update(Math.min(dt, 1 / 20));
+  });
   return null;
 }

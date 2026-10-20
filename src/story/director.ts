@@ -71,6 +71,8 @@ export function wake(): void {
   if (getState().step !== 'silhouette') return;
   sfx.unlock();
   track('started');
+  // Start the chase download now (about 4 MB); it is needed ~30 s from here.
+  loadGameAssets().catch(() => undefined);
   playIntro();
 }
 
@@ -223,17 +225,17 @@ function escape(): void {
   const rm = reduced();
   const tl = newStory(toGame);
   tl.to(pose, { x: 0, duration: 0.5, ease: 'power2.inOut' }, 0.3)
-    .to(pose, { sy: 0.85, sx: 1.08, duration: 0.14, ease: 'power2.out' }, 0.8)
+    .to(pose, { sy: 0.85, sx: 1.08, duration: 0.16, ease: 'power2.out' }, 1.2)
     .call(() => {
       sfx.boing();
       burstFromCap(getState().tier === 'high' ? 120 : 40);
-    }, [], 0.94)
-    .to(pose, { y: rm ? 0.3 : C.ESCAPE_HEIGHT, duration: 1.3, ease: 'power2.out' }, 0.94)
-    .to(pose, { sx: C.ESCAPE_SCALE, sy: C.ESCAPE_SCALE, duration: 1.3, ease: 'power2.in' }, 0.94)
-    .to(pose, { rz: rm ? 0 : Math.PI * 2, duration: 1.3, ease: 'power1.inOut' }, 0.94)
-    .call(() => headline(null), [], 2.2)
-    .to(ring, { opacity: 0, duration: 0.6 }, 2)
-    .to({}, { duration: 0.8 });
+    }, [], 1.36)
+    // Rockets straight up out of the frame; the chase opens on it landing on the tower.
+    .to(pose, { sy: rm ? 1 : 1.15, sx: rm ? 1 : 0.92, duration: 0.2 }, 1.36)
+    .to(pose, { y: C.ESCAPE_HEIGHT, duration: 0.55, ease: 'power2.in' }, 1.36)
+    .call(() => sfx.whoosh(0.5, 0.45), [], 1.42)
+    .call(() => headline(null), [], 1.7)
+    .to(ring, { opacity: 0, duration: 0.4 }, 1.5);
 }
 
 // ---------------------------------------------------------------------------

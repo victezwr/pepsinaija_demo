@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { EndCard } from '../ui/EndCard';
+import { ArrowIcon, CapIcon } from '../ui/icons';
 import { COIN_TARGET, STAGES } from './gameConfig';
 import { chooseRunner, gameStart } from './GameScene';
 import { gameDom, useGame, type Runner } from './gameStore';
@@ -29,12 +30,31 @@ function IntroCard(): JSX.Element {
       <h2 className="game-card__title">THE CHASE</h2>
       <p className="game-card__line">Avoid all obstacles to get the new Pepsi.</p>
       <p className="game-card__line">
-        Collect as many caps as possible. You need <strong>{COIN_TARGET} 🟡</strong> to buy it.
+        Collect as many caps as possible. You need{' '}
+        <strong className="capnum">
+          {COIN_TARGET} <CapIcon size={16} />
+        </strong>{' '}
+        to buy it.
       </p>
       <ul className="controls" aria-label="Controls">
-        <li><span>⬅️ ➡️</span>swipe to change lane</li>
-        <li><span>⬆️</span>swipe up to jump</li>
-        <li><span>⬇️</span>swipe down to duck</li>
+        <li>
+          <span>
+            <ArrowIcon dir="left" /> <ArrowIcon dir="right" />
+          </span>
+          swipe to change lane
+        </li>
+        <li>
+          <span>
+            <ArrowIcon dir="up" />
+          </span>
+          swipe up to jump
+        </li>
+        <li>
+          <span>
+            <ArrowIcon dir="down" />
+          </span>
+          swipe down to slide
+        </li>
       </ul>
       <p className="game-card__muted">On a computer: arrow keys or W A S D.</p>
       <button className="btn btn--solid" onClick={() => useGame.setState({ phase: 'select' })}>
@@ -84,7 +104,7 @@ function Hud(): JSX.Element {
     <>
       <div className="hud">
         <div className="hud__coins">
-          🟡 <strong>{coins}</strong> / {COIN_TARGET}
+          <CapIcon size={22} /> <strong>{coins}</strong> / {COIN_TARGET}
         </div>
         <div className="hud__bar" role="progressbar" aria-valuenow={coins} aria-valuemin={0} aria-valuemax={COIN_TARGET}>
           <div className="hud__fill" style={{ width: `${pct}%` }} />
@@ -108,9 +128,13 @@ function CaughtCard(): JSX.Element {
   return (
     <div className="game-center">
     <section className="game-card game-card--caught" aria-label="Caught">
-      <h2 className="game-card__title">AGBEROS DON COLLECT AM 😭</h2>
+      <h2 className="game-card__title">AGBEROS DON COLLECT AM!</h2>
       <p className="game-card__line">
-        You got <strong>{coins} 🟡</strong> · Best {best}
+        You got{' '}
+        <strong className="capnum">
+          {coins} <CapIcon size={16} />
+        </strong>{' '}
+        · Best {best}
       </p>
       <p className="game-card__line game-card__muted">You need {COIN_TARGET} to buy the Pepsi.</p>
       <button className="btn btn--solid" onClick={gameStart}>
@@ -125,7 +149,15 @@ function WinEnd(): JSX.Element {
   const coins = useGame((s) => s.coins);
   return (
     <div className="game-end">
-      <EndCard onReplay={gameStart} replayLabel="Play again" note={`You collected ${coins} 🟡 and got the new Pepsi.`} />
+      <EndCard
+        onReplay={gameStart}
+        replayLabel="Play again"
+        note={
+          <>
+            You collected <strong className="capnum">{coins} <CapIcon size={14} /></strong> and got the new Pepsi.
+          </>
+        }
+      />
       <button className="btn btn--ghost game-end__intro" onClick={() => window.location.reload()}>
         Watch the intro again
       </button>

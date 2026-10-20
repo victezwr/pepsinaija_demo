@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import * as music from '../audio/music';
 import * as sfx from '../audio/sfx';
 import { track } from '../analytics/track';
 import { writePref } from '../util/storage';
@@ -99,6 +100,10 @@ export class ChaseWorld {
   private readonly look = new THREE.Vector3();
   private readonly zero = new THREE.Vector3(0, 0, 0);
   private readonly bottleFrom = new THREE.Vector3();
+  private readonly sky: THREE.Texture;
+  private readonly fog: THREE.Fog;
+  private slideT = 0;
+  private lean = 0;
 
   // Run state
   private time = 0;
@@ -124,6 +129,7 @@ export class ChaseWorld {
   private nextBubbleAt = 0;
   private coins = 0;
   private stage = 0;
+  private landed = false;
   /** Test-only (?debug&autopilot): dodges by itself so the finish can be checked headless. */
   autopilot = false;
 
@@ -133,9 +139,9 @@ export class ChaseWorld {
     private readonly camera: THREE.PerspectiveCamera,
     lowTier: boolean,
   ) {
-    scene.background = skyTexture();
-    scene.fog = new THREE.Fog(0xeaa070, 45, lowTier ? 120 : 150);
-    scene.environmentIntensity = 0.35;
+    this.sky = skyTexture();
+    this.fog = new THREE.Fog(0xeaa070, 45, lowTier ? 120 : 150);
+    this.group.visible = false; // built during the story, shown on hand-off
 
     const hemi = new THREE.HemisphereLight(0xffe2bd, 0x5b4636, 1.7);
     const sun = new THREE.DirectionalLight(0xffc58f, 2.2);
@@ -237,7 +243,7 @@ export class ChaseWorld {
       new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffd36b, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }),
     );
     glow.scale.setScalar(7);
-    glow.position.y = G.TOWER_HEIGHT + 1.1;
+    glow.position.set(0, G.TOWER_HEIGHT + 1.1, -0.9); // behind the bottle so it halos instead of washing it out
     this.tower.add(this.bottle, glow);
     this.group.add(this.tower);
 
@@ -261,8 +267,47 @@ export class ChaseWorld {
 
   // ------------------------------------------------------------------ flow
 
-  startReveal(): void {
+  /**
+   * Compiles every shader the chase needs while the story is still playing, with the scene
+   * set up exactly as it will be (story objects hidden, game fog on), so the hand-off has no hitch.
+   */
+  prewarm(gl: THREE.WebGLRenderer): void {
+    const hidden: THREE.Object3D[] = [];
+    for (const child of this.scene.children) {
+      if (child !== this.group && child.visible) {
+        child.visible = false;
+        hidden.push(child);
+      }
+    }
+    const pooled: THREE.Object3D[] = [];
+    this.group.traverse((o) => {
+      if (!o.visible) {
+        o.visible = true;
+        pooled.push(o);
+      }
+    });
+    const prevFog = this.scene.fog;
+    this.group.visible = true;
+    this.scene.fog = this.fog;
+    void gl.compileAsync(this.scene, this.camera);
+    this.scene.fog = prevFog;
+    this.group.visible = false;
+    pooled.forEach((o) => {
+      o.visible = false;
+    });
+    hidden.forEach((o) => {
+      o.visible = true;
+    });
+  }
+
+  /** Hand-off from the story: switch the scene over and start the reveal on the tower. */
+  activate(): void {
+    this.scene.background = this.sky;
+    this.scene.fog = this.fog;
+    this.scene.environmentIntensity = 0.35;
+    this.group.visible = true;
     this.phaseT = 0;
+    this.landed = false;
     setPhase('reveal');
   }
 
@@ -290,6 +335,8 @@ export class ChaseWorld {
     this.px = this.py = this.vy = 0;
     this.grounded = true;
     this.duckT = 0;
+    this.slideT = 0;
+    this.lean = 0;
     this.lockAnimUntil = 0;
     this.lastStumble = -99;
     this.chaseGap = G.CHASE_CLOSE;
@@ -308,6 +355,7 @@ export class ChaseWorld {
     for (const a of this.agberos) a.play('run');
     useGame.setState({ coins: 0, stage: 0, unlocked: false, banner: null });
     setPhase('running');
+    void music.start(0);
     track('game_start', { runner: useGame.getState().runner });
   }
 
@@ -328,15 +376,19 @@ export class ChaseWorld {
         this.vy = G.JUMP_VELOCITY;
         this.grounded = false;
         this.duckT = 0;
+        this.slideT = 0;
         this.runner.play('jump', { loop: false, speed: 1.35, fade: 0.08 });
         this.lockAnimUntil = this.time + 0.7;
-        sfx.whoosh(0.25, 0.15);
+        sfx.jump();
         break;
       case 'down':
+        // Slide: knees bent, body thrown back, feet first under the banner.
         if (!this.grounded) this.vy = G.FAST_FALL_VELOCITY;
         this.duckT = G.DUCK_TIME;
-        this.runner.play('duck', { fade: 0.08 });
+        this.slideT = G.DUCK_TIME;
+        this.runner.play('duck', { fade: 0.06 });
         this.lockAnimUntil = this.time + G.DUCK_TIME;
+        if (this.grounded) sfx.slide();
         break;
       default: {
         const never: never = action;
@@ -380,7 +432,11 @@ export class ChaseWorld {
     }
 
     this.tower.position.z = this.towerZ;
-    this.runner.root.position.set(this.px, this.py, 0);
+    // Slide lean eases in fast and out a little slower; pivot is the feet.
+    const wantLean = this.slideT > 0 && this.grounded ? G.SLIDE_LEAN : 0;
+    this.lean += (wantLean - this.lean) * Math.min(1, dt * (wantLean > this.lean ? 22 : 12));
+    this.runner.root.rotation.x = this.lean;
+    this.runner.root.position.set(this.px, this.py - this.lean * 0.12, 0);
     const runRate = Math.max(0.6, this.speed / 12);
     if (phase === 'running' && this.runner.currentName === 'run') this.runner.setSpeed(runRate);
     this.runner.update(dt);
@@ -490,9 +546,12 @@ export class ChaseWorld {
         this.vy = 0;
         this.grounded = true;
         if (this.duckT <= 0) this.lockAnimUntil = 0;
+        if (this.slideT > 0) sfx.slide();
+        else sfx.land();
       }
     }
     if (this.duckT > 0) this.duckT -= dt;
+    if (this.slideT > 0 && this.grounded) this.slideT -= dt;
     if (this.time >= this.lockAnimUntil && this.grounded && this.duckT <= 0 && this.runner.currentName !== 'run') {
       this.runner.play('run', { fade: 0.12 });
     }
@@ -528,7 +587,7 @@ export class ChaseWorld {
     this.camShake = 0.25;
     this.bubbleText = 'We don almost catch am!';
     this.bubbleUntil = this.time + 1.6;
-    sfx.thud();
+    sfx.crash(false);
   }
 
   private caught(): void {
@@ -537,8 +596,9 @@ export class ChaseWorld {
     this.camShake = 0.45;
     this.bubbleText = 'We don catch am!';
     this.bubbleUntil = this.time + 3;
-    sfx.thud();
-    sfx.monster();
+    this.slideT = 0;
+    sfx.crash(true);
+    music.stop(0.4);
     const best = Math.max(useGame.getState().best, this.coins);
     writePref('best', String(best));
     useGame.setState({ best, banner: null });
@@ -560,7 +620,8 @@ export class ChaseWorld {
     // Move the bottle out of the tower so it can fly to the runner.
     this.bottle.getWorldPosition(this.bottleFrom);
     this.group.attach(this.bottle);
-    useGame.setState({ banner: 'E DON LAND. 🟡' });
+    useGame.setState({ banner: 'E DON LAND.' });
+    music.stop(0.8);
     sfx.sting();
     setPhase('won');
     track('game_won', { coins: this.coins });
@@ -600,7 +661,7 @@ export class ChaseWorld {
     const unlockedNow = this.coins >= G.COIN_TARGET && !useGame.getState().unlocked;
     useGame.setState({ coins: this.coins, ...(unlockedNow ? { unlocked: true } : {}) });
     if (unlockedNow) {
-      this.flashBanner('1000 🟡 THE PEPSI DEY YOUR FRONT. RUN!', 2600);
+      this.flashBanner('1000 CAPS! THE PEPSI DEY YOUR FRONT. RUN!', 2600);
       sfx.sparkle();
     }
   }
@@ -613,6 +674,7 @@ export class ChaseWorld {
     useGame.setState({ stage: s });
     this.flashBanner('SPEED UP!', 1300);
     sfx.whoosh(0.6, 0.4);
+    music.setStage(s);
   }
 
   private flashBanner(text: string, ms: number): void {
@@ -626,7 +688,7 @@ export class ChaseWorld {
     const offs: Array<[number, number]> = [
       [-1.35, 0.2],
       [1.3, 0.7],
-      [0.15, 2.4],
+      [0.75, 2.2],
     ];
     this.agberos.forEach((a, i) => {
       const [ox, oz] = offs[i];
@@ -676,19 +738,29 @@ export class ChaseWorld {
     const restPos = this.v.set(this.px * 0.5 + sx, G.CAM_HEIGHT + this.py * 0.3 + sy, G.CAM_BACK);
     const restLook = this.look.set(this.px * 0.5, 1.2, -G.CAM_LOOK_AHEAD);
     if (phase === 'reveal') {
-      // Start on the bottle atop the far tower and pull back down the street.
-      const t = smooth(Math.min(1, this.phaseT / G.REVEAL_S));
+      // Continue the story's exit: the bottle drops out of the sky onto the tower top,
+      // the camera holds on it, then pulls back down the street.
+      const drop = Math.min(1, this.phaseT / G.BOTTLE_DROP_S);
+      this.bottle.position.y = G.TOWER_HEIGHT + 5 * (1 - drop) * (1 - drop);
+      if (drop >= 1 && !this.landed) {
+        this.landed = true;
+        sfx.land();
+        sfx.sparkle();
+      }
+      const squash = this.landed ? Math.max(0, 1 - (this.phaseT - G.BOTTLE_DROP_S) / 0.35) : 0;
+      this.bottle.scale.set(1 + squash * 0.12, 1 - squash * 0.15, 1 + squash * 0.12).multiplyScalar(G.BOTTLE_ON_TOWER / 0.98);
+      const t = smooth(Math.max(0, Math.min(1, (this.phaseT - G.REVEAL_HOLD_S) / G.REVEAL_S)));
       const fromY = G.TOWER_HEIGHT + 1.4;
       cam.position.set(0, THREE.MathUtils.lerp(fromY, restPos.y, t), THREE.MathUtils.lerp(this.towerZ + 7, restPos.z, t));
       const lookY = THREE.MathUtils.lerp(fromY, restLook.y, t);
       const lookZ = THREE.MathUtils.lerp(this.towerZ, restLook.z, t);
       cam.lookAt(0, lookY, lookZ);
-      if (this.phaseT > G.REVEAL_S * 0.7 && this.agberos[0].currentName !== 'shout') {
+      if (this.phaseT > G.REVEAL_HOLD_S + G.REVEAL_S * 0.7 && this.agberos[0].currentName !== 'shout') {
         for (const a of this.agberos) a.play('shout');
         this.bubbleText = 'Na our own be dat!';
         this.bubbleUntil = this.time + 2.6;
       }
-      if (this.phaseT >= G.REVEAL_S + 0.6) setPhase('card');
+      if (this.phaseT >= G.REVEAL_HOLD_S + G.REVEAL_S + 0.5) setPhase('card');
       return;
     }
     if (phase === 'won' || phase === 'end') {
