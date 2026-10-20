@@ -243,6 +243,36 @@ export function coin(): void {
 
 // ---- Chase sounds (no captions on the frequent ones: the visuals carry them)
 
+/** Lane change: an airy swoosh that sweeps across the stereo field in the swipe direction. */
+export function swoosh(dir: -1 | 1): void {
+  if (!ctx || !master) return;
+  const src = noiseSource();
+  if (!src) return;
+  const t = ctx.currentTime;
+  const f = ctx.createBiquadFilter();
+  f.type = 'bandpass';
+  f.Q.value = 1.1;
+  f.frequency.setValueAtTime(600, t);
+  f.frequency.exponentialRampToValueAtTime(3200, t + 0.12);
+  f.frequency.exponentialRampToValueAtTime(1200, t + 0.26);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.55, t + 0.07);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+  let node: AudioNode = g;
+  if (typeof ctx.createStereoPanner === 'function') {
+    const pan = ctx.createStereoPanner();
+    pan.pan.setValueAtTime(-0.6 * dir, t);
+    pan.pan.linearRampToValueAtTime(0.8 * dir, t + 0.26);
+    g.connect(pan);
+    node = pan;
+  }
+  src.connect(f).connect(g);
+  node.connect(master);
+  src.start(t, Math.random());
+  src.stop(t + 0.32);
+}
+
 export function jump(): void {
   tone('sine', 260, 720, 0.35, 0.16);
   whoosh(0.22, 0.14);

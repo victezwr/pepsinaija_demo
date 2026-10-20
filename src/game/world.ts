@@ -368,7 +368,7 @@ export class ChaseWorld {
         if (next === this.lane) return;
         this.prevLane = this.lane;
         this.lane = next;
-        sfx.whoosh(0.18, 0.12);
+        sfx.swoosh(action === 'left' ? -1 : 1);
         break;
       }
       case 'up':
