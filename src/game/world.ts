@@ -4,7 +4,8 @@ import * as music from '../audio/music';
 import * as sfx from '../audio/sfx';
 import * as voices from '../audio/voices';
 import { track } from '../analytics/track';
-import { Fizz } from '../scene/fizz';
+import { FoamTrail } from './foam';
+import { dressAgbero, type Outfit } from './outfit';
 import { writePref } from '../util/storage';
 import type { CharacterAsset, GameAssets } from './assets';
 import * as G from './gameConfig';
@@ -17,11 +18,16 @@ const rand = (a: number, b: number): number => a + Math.random() * (b - a);
 const smooth = (t: number): number => t * t * (3 - 2 * t);
 const lerp = THREE.MathUtils.lerp;
 const setPhase = (phase: GamePhase): void => useGame.setState({ phase });
+const AXIS_X = new THREE.Vector3(1, 0, 0);
 
 /** A skinned character with cross-faded clips. Models face +Z; the chase runs towards -Z. */
 class Actor {
   readonly root = new THREE.Group();
   readonly hand: THREE.Object3D | null;
+  /** Curl the fingers round whatever is in the right hand (the clips are open-handed). */
+  grip = false;
+  private readonly fingers: THREE.Object3D[] = [];
+  private readonly thumb: THREE.Object3D[] = [];
   private readonly mixer: THREE.AnimationMixer;
   private readonly actions = new Map<string, THREE.AnimationAction>();
   private current: THREE.AnimationAction | null = null;
@@ -36,6 +42,8 @@ class Actor {
     let hand: THREE.Object3D | null = null;
     model.traverse((o) => {
       if (!hand && /RightHand$/.test(o.name)) hand = o;
+      if (/RightHand(Index|Middle|Ring|Pinky)[123]$/.test(o.name)) this.fingers.push(o);
+      if (/RightHandThumb[23]$/.test(o.name)) this.thumb.push(o);
     });
     this.hand = hand;
     this.mixer = new THREE.AnimationMixer(model);
@@ -65,6 +73,11 @@ class Actor {
 
   update(dt: number): void {
     this.mixer.update(dt);
+    if (this.grip) {
+      // Mixamo finger joints bend round their local X axis (checked by render).
+      for (const f of this.fingers) f.rotateOnAxis(AXIS_X, G.GRIP_CURL);
+      for (const t of this.thumb) t.rotateOnAxis(AXIS_X, G.GRIP_CURL * 0.5);
+    }
     this.root.updateMatrixWorld(true);
   }
 }
@@ -100,8 +113,9 @@ export class ChaseWorld {
   private readonly bottle: THREE.Group;
   private readonly heroBottle: THREE.Group;
   private bottleHolder: Actor | null = null;
-  private readonly fizzBlue = new Fizz(320, 0x5a8cff, 0.11);
-  private readonly fizzYellow = new Fizz(320, 0xffd23a, 0.11);
+  private readonly bottleGrip = new THREE.Group(); // pivot at the bottle's middle, parented to a hand
+  private readonly foam = new FoamTrail(700);
+  private boostAt = -99; // time the boost started (smooth rise/fall curve)
   private readonly coinMesh: THREE.InstancedMesh;
   private readonly coinX = new Float32Array(G.COIN_POOL);
   private readonly coinY = new Float32Array(G.COIN_POOL);
@@ -249,7 +263,8 @@ export class ChaseWorld {
 
     // The Pepsi: one held in hand, one big hero copy for the game-over shot
     this.bottle = assets.bottle;
-    this.bottle.scale.setScalar(G.BOTTLE_HELD / 0.98);
+    this.bottle.position.y = -0.49; // grip it round the middle of the label
+    this.bottleGrip.add(this.bottle);
     this.heroBottle = assets.bottle.clone();
     this.heroBottle.scale.setScalar(0.55 / 0.98);
     this.heroBottle.visible = false;
@@ -262,7 +277,7 @@ export class ChaseWorld {
         });
       });
     }
-    this.group.add(this.bottle, this.heroBottle, this.fizzBlue.points, this.fizzYellow.points);
+    this.group.add(this.bottleGrip, this.heroBottle, this.foam.points);
 
     // Characters
     this.runners = { male: new Actor(assets.male, G.RUNNER_HEIGHT), female: new Actor(assets.female, G.RUNNER_HEIGHT) };
@@ -273,8 +288,15 @@ export class ChaseWorld {
       this.group.add(r.root);
     }
     this.runner.root.visible = true;
+    // Three different outfits: the Chairman in yellow (he loves that cap), then red and green.
+    const outfits: Outfit[] = [
+      { singlet: [242, 190, 0] },
+      { singlet: [200, 32, 40], shorts: [52, 66, 92] },
+      { singlet: [34, 140, 64] },
+    ];
     for (let i = 0; i < 3; i++) {
       const a = new Actor(assets.agbero, G.AGBERO_HEIGHT * (i === 0 ? G.CHAIRMAN_SCALE : 0.95 + i * 0.03));
+      dressAgbero(a.root, outfits[i]);
       a.root.add(blobShadow(0.6));
       this.agberos.push(a);
       this.group.add(a.root);
@@ -325,7 +347,7 @@ export class ChaseWorld {
     this.scene.environmentIntensity = 0.35;
     this.group.visible = true;
     this.phaseT = 0;
-    this.bottleHolder = null;
+    this.releaseBottle();
     voices.preloadVoices();
     setPhase('reveal');
   }
@@ -336,7 +358,7 @@ export class ChaseWorld {
     this.runner.root.visible = true;
     this.runner.root.position.set(0, 0, 0);
     this.runner.play('idle', { pingPong: true, speed: 0.4 });
-    if (this.bottleHolder && this.bottleHolder !== this.chairman) this.bottleHolder = this.runner;
+    if (this.bottleHolder && this.bottleHolder !== this.chairman) this.holdBottle(this.runner);
     useGame.setState({ runner: r });
   }
 
@@ -389,8 +411,8 @@ export class ChaseWorld {
       o.obj.visible = false;
     }
     this.coinOn.fill(0);
-    this.fizzBlue.clear();
-    this.fizzYellow.clear();
+    this.foam.clear();
+    this.boostAt = -99;
     this.speed = 0;
     this.distance = 0;
     this.ahead = G.START_GRACE;
@@ -408,7 +430,7 @@ export class ChaseWorld {
     this.invulnerableUntil = 0;
     this.stage = 0;
     this.heroBottle.visible = false;
-    this.bottleHolder = this.runner;
+    this.holdBottle(this.runner);
     this.runner.root.rotation.set(0, 0, 0);
     this.runner.root.visible = true;
     this.agberos.forEach((a) => {
@@ -461,9 +483,10 @@ export class ChaseWorld {
   private startBoost(): void {
     if (this.boostT > 0 || this.chill < G.CHILL_FULL || useGame.getState().phase !== 'running') return;
     this.boostT = G.BOOST_S;
+    this.boostAt = this.time;
     this.chill = 0;
     this.chaseCloseUntil = 0;
-    this.runner.play('duck', { fade: 0.2 }); // surf stance
+    this.runner.play('duck', { fade: 0.25 }); // surf stance
     sfx.boost();
     music.setStage(Math.min(G.STAGES.length - 1, this.stage + 1));
     this.flashBanner('FIZZ BOOST!', 1400);
@@ -517,7 +540,12 @@ export class ChaseWorld {
     const wantLean = this.slideT > 0 && this.grounded && this.boostT <= 0 ? G.SLIDE_LEAN : 0;
     this.lean += (wantLean - this.lean) * Math.min(1, dt * (wantLean > this.lean ? 22 : 12));
     this.runner.root.rotation.x = this.lean;
-    if (phase !== 'caught') this.runner.root.rotation.y = this.boostY > 0.3 ? 0.55 : 0;
+    if (phase !== 'caught') {
+      // Surf stance on the foam: turned slightly side-on, easing in and out with the height
+      const surf = Math.min(1, this.boostY / G.BOOST_HEIGHT);
+      this.runner.root.rotation.y = 0.35 * surf;
+      this.runner.root.rotation.z = Math.sin(this.time * 2.4) * 0.05 * surf;
+    }
     this.runner.root.position.set(this.px, this.py + this.boostY - this.lean * 0.12, 0);
     const runRate = Math.min(1.75, Math.max(0.6, this.speed / 12));
     if (this.runner.currentName === 'run') this.runner.setSpeed(runRate);
@@ -525,8 +553,8 @@ export class ChaseWorld {
     this.updateChasers(dt, phase);
     this.updateBottle(phase);
     this.updateCoins();
-    this.fizzBlue.update(dt);
-    this.fizzYellow.update(dt);
+    this.foam.update(dt, d * G.FOAM_DRAG); // the geyser travels with the runner, trailing a little
+    this.foam.setScale(window.innerHeight, this.camera.fov);
     this.updateCamera(dt, phase);
     this.updateBubble(phase);
   }
@@ -534,7 +562,7 @@ export class ChaseWorld {
   private revealStep(): void {
     // The bottle falls out of the sky into the runner's hand, then the idle menu.
     if (this.phaseT >= G.DROP_S && !this.bottleHolder) {
-      this.bottleHolder = this.runner;
+      this.holdBottle(this.runner);
       sfx.catchIt();
     }
     if (this.phaseT > G.DROP_S + 0.5 && this.chairman.currentName !== 'shout') {
@@ -689,26 +717,49 @@ export class ChaseWorld {
   }
 
   private updateBoost(dt: number): void {
-    if (this.boostT > 0) {
-      this.boostT -= dt;
-      this.boostY += (G.BOOST_HEIGHT - this.boostY) * Math.min(1, dt * 5);
-      // Fizz pouring out under the runner's feet
-      this.v.set(this.px, this.boostY - 0.1, 0.2);
-      this.s.set(0, -0.6, 1);
-      this.fizzBlue.emit(7, this.v, this.s, 3.4, 1.4);
-      this.fizzYellow.emit(6, this.v, this.s, 3.4, 1.4);
-      if (this.boostT <= 0) {
-        this.invulnerableUntil = this.time + G.BOOST_GRACE_S + 0.6;
-        useGame.setState({ boosting: false });
-        music.setStage(this.stage);
-        sfx.whoosh(0.6, 0.35);
+    const e = this.time - this.boostAt;
+    const total = G.BOOST_S + G.BOOST_FALL_S;
+    if (e < 0 || e > total + 0.2) return;
+    // Smooth height curve: eased rise, a gentle bob on the foam, eased glide down.
+    let h: number;
+    if (e < G.BOOST_RISE_S) h = G.BOOST_HEIGHT * smooth(e / G.BOOST_RISE_S);
+    else if (e < G.BOOST_S) h = G.BOOST_HEIGHT + Math.sin((e - G.BOOST_RISE_S) * 3.2) * 0.12;
+    else h = G.BOOST_HEIGHT * (1 - smooth(Math.min(1, (e - G.BOOST_S) / G.BOOST_FALL_S)));
+    this.boostY = h;
+    this.boostT = Math.max(0, G.BOOST_S - e);
+
+    // The foam geyser: puffs all the way from the feet to the road, spraying back and out.
+    if (h > 0.05) {
+      const rate = e < G.BOOST_S ? 150 : 60;
+      const n = Math.max(1, Math.round(rate * dt));
+      for (let i = 0; i < n; i++) {
+        const along = Math.random(); // 0 = at the feet, 1 = at the road
+        const y = h * (1 - along);
+        const side = (Math.random() - 0.5) * 0.7;
+        this.foam.emit(
+          this.px + side,
+          y,
+          Math.random() * 0.5,
+          side * (0.6 + along * 1.4) + (Math.random() - 0.5) * 0.4, // fans out towards the road
+          (Math.random() - 0.5) * 0.5,
+          0.2 + Math.random() * 0.7,
+          0.2 + along * 0.4 + Math.random() * 0.12,
+          0.45 + Math.random() * 0.35,
+        );
       }
-    } else if (this.boostY > 0) {
-      this.boostY = Math.max(0, this.boostY - dt * 6);
-      if (this.boostY === 0) {
-        sfx.land();
-        this.runner.play('run', { fade: 0.15 });
-      }
+    }
+
+    if (e >= G.BOOST_S && useGame.getState().boosting) {
+      this.invulnerableUntil = this.time + G.BOOST_FALL_S + G.BOOST_GRACE_S;
+      useGame.setState({ boosting: false });
+      music.setStage(this.stage);
+      sfx.whoosh(0.6, 0.35);
+    }
+    if (e >= total && this.boostAt > 0) {
+      this.boostAt = -99;
+      this.boostY = 0;
+      sfx.land();
+      this.runner.play('run', { fade: 0.2 });
     }
   }
 
@@ -751,6 +802,7 @@ export class ChaseWorld {
   private caught(): void {
     this.phaseT = 0;
     this.boostT = this.boostY = 0;
+    this.boostAt = -99;
     this.slideT = this.duckT = 0;
     this.runner.play('fall', { loop: false, speed: 1.3, fade: 0.06 });
     this.camShake = 0.45;
@@ -774,7 +826,7 @@ export class ChaseWorld {
   private caughtStep(): void {
     // The Chairman takes the bottle and lifts it like a trophy; the boys celebrate.
     if (this.phaseT > 0.8 && this.bottleHolder !== this.chairman) {
-      this.bottleHolder = this.chairman;
+      this.holdBottle(this.chairman);
       for (const a of this.agberos) a.play('shout');
     }
     this.heroBottle.visible = this.phaseT > 1.2;
@@ -858,28 +910,36 @@ export class ChaseWorld {
     for (const a of this.agberos) a.update(dt);
   }
 
+  /** Put the bottle in an actor's right hand: parented to the hand bone, fingers curled round it. */
+  private holdBottle(actor: Actor): void {
+    for (const a of [...Object.values(this.runners), ...this.agberos]) a.grip = false;
+    this.bottleHolder = actor;
+    if (!actor.hand) return;
+    actor.grip = true;
+    actor.hand.add(this.bottleGrip);
+    actor.hand.getWorldScale(this.s);
+    this.bottleGrip.scale.setScalar(G.BOTTLE_HELD / 0.98 / this.s.x);
+    this.bottleGrip.position.set(G.GRIP_POS[0], G.GRIP_POS[1], G.GRIP_POS[2]); // hand-local (model) units
+    this.bottleGrip.rotation.set(G.GRIP_ROT[0], G.GRIP_ROT[1], G.GRIP_ROT[2]);
+  }
+
+  /** Back into world space (the drop from the sky before the catch). */
+  private releaseBottle(): void {
+    for (const a of [...Object.values(this.runners), ...this.agberos]) a.grip = false;
+    this.bottleHolder = null;
+    this.group.add(this.bottleGrip);
+    this.bottleGrip.scale.setScalar(G.BOTTLE_HELD / 0.98);
+    this.bottleGrip.rotation.set(0, 0, 0);
+  }
+
   private updateBottle(phase: GamePhase): void {
-    const b = this.bottle;
     if (phase === 'reveal' && !this.bottleHolder) {
-      // Falling from where the story's bottle left the frame
+      // Falling from where the story's bottle left the frame, spinning, into the runner's hand
       const t = Math.min(1, this.phaseT / G.DROP_S);
       this.handPos(this.runner, this.v);
-      b.position.set(this.v.x, lerp(this.v.y + 7, this.v.y, t * t), this.v.z);
-      b.rotation.set(0, this.time * 6, 0);
-      return;
+      this.bottleGrip.position.set(this.v.x, lerp(this.v.y + 7, this.v.y, t * t), this.v.z);
+      this.bottleGrip.rotation.set(0, this.time * 6, 0);
     }
-    const holder = this.bottleHolder ?? this.runner;
-    this.handPos(holder, this.v);
-    b.position.copy(this.v);
-    if (phase === 'menu' && holder === this.runner) {
-      // Tossing it and catching it, admiring the yellow cap
-      const toss = Math.max(0, Math.sin(this.time * 2.6));
-      b.position.y += toss * 0.45;
-      b.rotation.set(0, this.time * 2.6 * 2, Math.sin(this.time * 2.6) * 0.3);
-    } else {
-      b.rotation.set(0, 0, holder === this.chairman ? 0.15 : -0.25);
-    }
-    b.position.y += G.BOTTLE_HELD * 0.15;
   }
 
   private handPos(actor: Actor, out: THREE.Vector3): THREE.Vector3 {

@@ -39,7 +39,12 @@ export const DUCK_TOP = 1.0;
 export const PLAYER_HALF_W = 0.35;
 export const PLAYER_HALF_D = 0.35;
 export const STUMBLE_WINDOW = 4; // second stumble while the Chairman is close = caught
-export const BOTTLE_HELD = 0.34; // metres tall in the hand (slightly bigger than life, so it reads)
+export const BOTTLE_HELD = 0.26; // metres tall in the hand (a touch bigger than life, so it reads)
+// Grip in the right hand bone's local space (Mixamo rig, checked by render): fingers curl round
+// local X; the bottle sits across the palm, cap up on the thumb side.
+export const GRIP_CURL = 1.1; // rad per finger joint
+export const GRIP_POS: readonly [number, number, number] = [0, 0.05, 0.02];
+export const GRIP_ROT: readonly [number, number, number] = [0, 0, 1.3 - Math.PI];
 
 // Chasers
 export const CHASE_CLOSE = 1.0;
@@ -58,8 +63,11 @@ export const COIN_RADIUS = 0.22;
 export const COIN_PICKUP = 0.9;
 export const CHILL_FULL = 50; // caps to fill the Fizz meter
 export const BOOST_S = 8;
-export const BOOST_HEIGHT = 3.4; // above the danfo roofs
+export const BOOST_HEIGHT = 3.2; // above the danfo roofs
+export const BOOST_RISE_S = 0.6;
+export const BOOST_FALL_S = 0.8;
 export const BOOST_GRACE_S = 1;
+export const FOAM_DRAG = 0; // the geyser is anchored to the runner (no road drift)
 
 // Camera
 export const CAM_HEIGHT = 2.9;

@@ -70,9 +70,11 @@ Rule: exactly one unit is `In progress` at a time (see `ai-workflow-rules.md`).
 | 6.9 | Owner feedback round 1 | Done | 2026-10-20 | Hand-off synced (bottle rockets up → lands on the tower; chase pre-built + shaders pre-compiled during the dodges, assets download from the first tap). Duck → real slide (lean back, scrape). Emojis → SVG icons. Generated Afrobeats music (or `public/audio/game-music.mp3`). SFX: jump, land, slide, crash, caught. Speed: owner OK. |
 | 6.10 | Owner feedback round 2 | Done | 2026-10-20 | Panned lane-change swoosh. High-energy runner music (120 BPM + 4/stage). Agbero shouts (synth, or owner recordings `public/audio/agbero-N.mp3`) at the reveal, chase start, speech bubbles, stumble and catch. Opening speed = old stage 4 (20 m/s) rising to 29 m/s; collision sub-stepping; FOV widens with speed. |
 | 6.11 | Redesign B: The Yellow Chase (endless) | Done | 2026-10-20 | Owner chose B. Story's bottle lands in the runner's hand at a motor park → idle menu (title, runner pick, TAP TO POP & RUN) → psssht + Chairman "Oya hold am!" + whistle → camera swings behind → endless run scored in metres, speed stages by distance. Okadas ride at you with a panned "pim-pim" horn. Chairman (bigger lead agbero) surges on a stumble: "Oya drop am!". Fizz meter (50 caps) → double-tap / B → 8 s Fizz Boost surfing above traffic, invincible. Caught → trophy shot (Chairman holds the Pepsi, hero bottle spins) + RUN AGAIN / CHALLENGE FRIENDS ON X (@Pepsi_naija, #PepsiYellowChase). 1000-cap target, tower and win flow removed. |
-| 6.12 | Bus-roof running via ramps | To do | | Last in the owner's order. |
-| 6.13 | Voice-over | Waiting on owner | | Drop `public/audio/agbero-1..6.mp3`; placeholders until then. |
-| 6.14 | Spark 10C tuning (owner) | **Next** | | fps, difficulty curve, double-tap feel, share post text. |
+| 6.12 | Owner feedback: grip, outfits, fizz | Done | 2026-10-20 | Bottle parented to the right-hand bone with fingers curled round it (Mixamo finger bones, local-X curl; no re-rig needed). Agberos dressed differently: Chairman yellow, red with denim shorts, green. Fizz Boost rebuilt: eased rise/bob/glide, soft foam-puff column (custom point shader) anchored under the runner instead of sparks. |
+| 6.13 | Agbero hand props | Waiting on owner | | Owner asked for planks of wood; flagged brand risk, alternatives offered. |
+| 6.14 | Bus-roof running via ramps | To do | | Last in the owner's order. |
+| 6.15 | Voice-over | Waiting on owner | | Drop `public/audio/agbero-1..6.mp3`; placeholders until then. |
+| 6.16 | Spark 10C tuning (owner) | **Next** | | fps, difficulty curve, double-tap feel, share post text. |
 
 ## Backlog (v1.1)
 - Video version for phones below the Spark 10C.

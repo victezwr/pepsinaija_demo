@@ -65,7 +65,7 @@ await page.evaluate(() => window.__dsm.gameDebugChill());
 await page.waitForTimeout(300);
 await shot('fizz-full');
 await page.keyboard.press('b');
-await page.waitForTimeout(1200);
+await page.waitForTimeout(2500);
 await shot('fizz-boost');
 await page.waitForTimeout(4000);
 await shot('fizz-boost-later');
