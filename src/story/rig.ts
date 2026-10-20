@@ -1,5 +1,4 @@
 import type * as THREE from 'three';
-import type { LabelPeel } from '../scene/labelPeel';
 import type { Fizz } from '../scene/fizz';
 import type { Droplets } from '../scene/condensation';
 
@@ -21,10 +20,7 @@ export interface Rig {
   cap: THREE.Mesh;
   capMat: THREE.MeshStandardMaterial;
   yellowMap: THREE.Texture;
-  blueMap: THREE.Texture;
   label: THREE.Mesh;
-  labelParent: THREE.Object3D;
-  peel: LabelPeel;
   fizz: Fizz;
   droplets: Droplets | null;
   key: THREE.DirectionalLight;
@@ -39,7 +35,6 @@ export const pose: Pose = { x: 0, y: 0, ry: 0, rz: 0, sx: 1, sy: 1 };
 export const cam = { dolly: 1, shake: 0 };
 export const lights = { key: 0, rimL: 0, rimR: 0, env: 0 };
 export const ring = { opacity: 0, scale: 0.85, pulse: 0, flash: 0 };
-export const fx = { tremble: 0 };
 /** DOM nodes the director drives directly (no React re-render per frame). */
 export const dom: { ring: HTMLElement | null } = { ring: null };
 

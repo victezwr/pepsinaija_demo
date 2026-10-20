@@ -54,3 +54,11 @@ export function XIcon({ size = 16 }: IconProps): JSX.Element {
     </svg>
   );
 }
+
+export function PlayIcon({ size = 16, className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.4-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" fill="currentColor" />
+    </svg>
+  );
+}

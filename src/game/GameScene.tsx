@@ -10,6 +10,10 @@ import { useGame, type Runner } from './gameStore';
 import { ChaseWorld, type GameInput } from './world';
 
 let world: ChaseWorld | null = null;
+// Longest world step per frame when the song is the clock. Test hook: ?debug&clockcap=N lets a
+// headless browser (about 1 fps) keep pace with the song, so beat sync can be measured.
+const query = new URLSearchParams(window.location.search);
+const STEP_CAP = query.has('debug') && query.has('clockcap') ? Number(query.get('clockcap')) || 0.2 : 0.2;
 
 export function gameInput(action: GameInput): void {
   world?.input(action);
@@ -85,9 +89,16 @@ export function GameScene({ active }: { active: boolean }): null {
   // frame rate sags below 40 fps for ~3 s while running, drop to LITE (lower resolution,
   // lighter music, fewer foam puffs) unless the visitor picked a tier themselves.
   const perf = useRef({ frames: 0, time: 0 });
+  const lastBeat = useRef<number | null>(null);
   useFrame((_, dt) => {
     if (!active || !world) return;
-    world.update(Math.min(dt, 1 / 20));
+    // The theme is the clock: with it playing, the world advances by song time, so rows keep
+    // landing on the beat even when frames are slow. Without it, frame time (capped).
+    const b = music.beat();
+    let step = Math.min(dt, 1 / 20);
+    if (b !== null && lastBeat.current !== null) step = Math.min(STEP_CAP, Math.max(0, (b - lastBeat.current) * music.BEAT_S));
+    lastBeat.current = b;
+    world.update(step);
     const story = getStory();
     if (useGame.getState().phase !== 'running' || story.tier !== 'high' || story.tierLocked) return;
     const p = perf.current;

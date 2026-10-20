@@ -1,5 +1,7 @@
 # Project Overview — Pepsi Naija "DON'T SHAKE ME"
 
+> **Update 2026-10-20:** the shake / dodge / peel story below was replaced by a single intro (SAME TASTE. NEW LOOK. + a live, spinnable fridge-cold bottle + PLAY) that starts the theme song and opens The Yellow Chase, which is timed to the song's beat. See `walkthrough.md` for the current flow and `progress-tracker.md` 6.19–6.21. Story-only files (`input/shake.ts`, `scene/labelPeel.ts`) are gone.
+
 ## Summary
 A cinematic, browser-based, interactive 3D story starring a cold 50 cl Pepsi bottle. The visitor wakes the bottle, is warned not to shake it, shakes it anyway, and triggers a fizzy launch that reveals Pepsi's **new yellow cap**. The bottle turns mischievous and dodges the visitor. Once caught, the visitor peels off its label; the label rolls away and the screen says **"YOU MONSTER."** The bare bottle storms off and a Pepsi end card closes with **"STAY ON THE PULSE."**
 

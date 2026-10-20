@@ -1,5 +1,7 @@
 # Architecture
 
+> **Update 2026-10-20:** the shake / dodge / peel story below was replaced by a single intro (SAME TASTE. NEW LOOK. + a live, spinnable fridge-cold bottle + PLAY) that starts the theme song and opens The Yellow Chase, which is timed to the song's beat. See `walkthrough.md` for the current flow and `progress-tracker.md` 6.19–6.21. Story-only files (`input/shake.ts`, `scene/labelPeel.ts`) are gone.
+
 ## System boundary
 The product is a **static single-page site**. There is no server code, no database and no user data at rest.
 

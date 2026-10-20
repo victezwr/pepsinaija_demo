@@ -8,6 +8,7 @@ import { useGame } from './game/gameStore';
 import { GameUI } from './game/GameUI';
 import type { GameInput } from './game/world';
 import { Experience } from './scene/Experience';
+import { preloadTheme } from './audio/music';
 import { unlock as unlockAudio } from './audio/sfx';
 import { getState, setState, useStore } from './state/store';
 import * as director from './story/director';
@@ -53,23 +54,7 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     if (!hasWebGL()) goFallback('webgl');
-  }, []);
-
-  // Android: physical shaking also counts. iOS needs a permission prompt, which we never show.
-  useEffect(() => {
-    const needsPermission = typeof (DeviceMotionEvent as unknown as { requestPermission?: unknown }).requestPermission === 'function';
-    if (needsPermission) return;
-    const onMotion = (e: DeviceMotionEvent): void => {
-      const a = e.acceleration;
-      if (a && a.x !== null && a.y !== null && a.z !== null) {
-        director.motion(Math.hypot(a.x, a.y, a.z));
-      } else if (e.accelerationIncludingGravity?.x != null) {
-        const g = e.accelerationIncludingGravity;
-        director.motion(Math.abs(Math.hypot(g.x ?? 0, g.y ?? 0, g.z ?? 0) - 9.81));
-      }
-    };
-    window.addEventListener('devicemotion', onMotion);
-    return () => window.removeEventListener('devicemotion', onMotion);
+    void preloadTheme();
   }, []);
 
   useEffect(() => {
@@ -100,20 +85,15 @@ export function App(): JSX.Element {
         }
         return;
       }
-      if (isButton(e.target) || (e.key !== ' ' && e.key !== 'Enter')) return;
-      e.preventDefault();
-      if (getState().step === 'silhouette') director.wake();
-      else director.keyShake(true);
-    };
-    const up = (e: KeyboardEvent): void => {
-      if (e.key === ' ' || e.key === 'Enter') director.keyShake(false);
+      if (getState().step !== 'intro' || isButton(e.target)) return;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') director.nudge(e.key === 'ArrowLeft' ? -1 : 1);
+      else if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        director.play();
+      }
     };
     window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
-    return () => {
-      window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
-    };
+    return () => window.removeEventListener('keydown', down);
   }, []);
 
   if (fallback) {
@@ -141,7 +121,7 @@ export function App(): JSX.Element {
             // Pointer already gone (or synthetic): capture is a nicety, never drop the tap over it
           }
           // Android can suspend page audio (app switch, screen dim); every tap wakes it again.
-          if (getState().step !== 'silhouette' && getState().step !== 'loading') unlockAudio();
+          if (getState().step === 'game') unlockAudio();
           lastMove.current = e.timeStamp;
           if (step === 'game') {
             swipe.current = { x: e.clientX, y: e.clientY, done: false };
@@ -149,7 +129,7 @@ export function App(): JSX.Element {
               gameTapToRun();
               return;
             }
-          } else director.pointerDown(e.clientX, e.clientY, e.pointerType);
+          } else director.pointerDown(e.clientX, e.clientY);
         }}
         onPointerMove={(e) => {
           if (step === 'game') {
@@ -165,7 +145,7 @@ export function App(): JSX.Element {
           }
           const dt = Math.max(0.001, (e.timeStamp - lastMove.current) / 1000);
           lastMove.current = e.timeStamp;
-          director.pointerMove(e.clientX, e.clientY, e.pointerType, e.buttons > 0, dt);
+          director.pointerMove(e.clientX, e.clientY, dt);
         }}
         onPointerUp={(e) => {
           // Double-tap (two quick taps that didn't become swipes, same spot) releases the Pulse.
@@ -197,7 +177,8 @@ export function App(): JSX.Element {
         >
           <SceneBoundary>
             <Suspense fallback={null}>{step !== 'game' && <Experience />}</Suspense>
-            {(step === 'rebel' || step === 'exit' || step === 'game') && <GameScene active={step === 'game'} />}
+            {/* The chase builds (and pre-compiles) behind the intro, so PLAY opens it with no wait */}
+            {step !== 'loading' && <GameScene active={step === 'game'} />}
           </SceneBoundary>
         </Canvas>
       </div>

@@ -1,4 +1,4 @@
-// Plays the story into The Yellow Chase and screenshots every game state.
+// Plays the intro (spin, PLAY) into The Yellow Chase and screenshots every game state.
 // Usage: node tools/smoke-game.mjs <baseUrl> <outDir> [width] [height] [query]
 import { chromium } from 'playwright';
 import fs from 'fs';
@@ -17,27 +17,24 @@ const step = () => page.evaluate(() => window.__dsm.getState().step);
 const phase = () => page.evaluate(() => window.__dsm.game().phase);
 const waitStep = (s, timeout = 90000) => page.waitForFunction((s) => window.__dsm?.getState().step === s, s, { timeout });
 const waitPhase = (p, timeout = 120000) => page.waitForFunction((p) => window.__dsm?.game().phase === p, p, { timeout });
-const box = () => page.evaluate(() => window.__dsm.bottleScreenBox());
 let n = 0;
 const shot = (name) => page.screenshot({ path: `${out}/${String(++n).padStart(2, '0')}-${name}.png` });
 
 await page.goto(`${base}/?debug${q ? '&' + q : ''}`);
-await waitStep('silhouette');
-let b = await box();
-await page.mouse.click(b.cx, (b.top + b.bottom) / 2);
-await waitStep('warning');
-b = await box();
-const cy = (b.top + b.bottom) / 2;
-await page.mouse.move(b.cx, cy);
+await waitStep('intro');
+await page.waitForTimeout(6000);
+await shot('intro');
+// Drag to spin the bottle
+const spin0 = await page.evaluate(() => window.__dsm.debugSpin());
+await page.mouse.move(+w * 0.3, +h * 0.5);
 await page.mouse.down();
-for (let i = 0; i < 80 && (await step()) !== 'launch'; i++) await page.mouse.move(b.cx, cy + (i % 2 ? -90 : 90), { steps: 4 });
+await page.mouse.move(+w * 0.8, +h * 0.52, { steps: 8 });
 await page.mouse.up();
-await waitStep('rebel');
-for (let i = 0; i < 8 && (await step()) === 'rebel'; i++) {
-  b = await box();
-  await page.mouse.click(b.cx + 5, (b.top + b.bottom) / 2);
-  await page.waitForTimeout(900);
-}
+const spin1 = await page.evaluate(() => window.__dsm.debugSpin());
+console.log(JSON.stringify({ spun: +(spin1 - spin0).toFixed(2) }));
+await page.getByRole('button', { name: 'PLAY' }).click();
+await page.waitForTimeout(500);
+await shot('play-launch');
 await waitStep('game');
 await page.waitForTimeout(700);
 await shot('reveal-drop');
@@ -54,21 +51,19 @@ await shot('start-whistle');
 await page.waitForTimeout(900);
 await shot('start-swing');
 await waitPhase('running', 60000);
-await page.waitForTimeout(1500);
-await shot('running');
+// Release the Pulse straight away, before the first row arrives (the game runs in real time)
+await page.evaluate(() => window.__dsm.gameDebugChill());
+await page.waitForTimeout(200);
+await shot('pulse-ready');
+await page.keyboard.press('b');
+await page.waitForTimeout(400);
+await shot('pulse');
 await page.keyboard.press('ArrowLeft');
-await page.waitForTimeout(300);
+await page.waitForTimeout(1500);
+await shot('pulse-later');
 await page.keyboard.press('ArrowUp');
 await page.waitForTimeout(250);
 await shot('jump');
-await page.evaluate(() => window.__dsm.gameDebugChill());
-await page.waitForTimeout(300);
-await shot('fizz-full');
-await page.keyboard.press('b');
-await page.waitForTimeout(2500);
-await shot('fizz-boost');
-await page.waitForTimeout(4000);
-await shot('fizz-boost-later');
 let caught = true;
 try {
   await waitPhase('caught', 45000);
@@ -92,5 +87,5 @@ try {
   console.log(JSON.stringify({ shareVisible }));
 }
 const s = await page.evaluate(() => window.__dsm.game());
-console.log(JSON.stringify({ ok: true, caught, distance: s.distance, caps: s.caps, best: s.best, errors }, null, 1));
+console.log(JSON.stringify({ ok: true, caught, synced: (await page.evaluate(() => window.__dsm.gameDebugPulse())).synced, distance: s.distance, caps: s.caps, best: s.best, errors }, null, 1));
 await browser.close();

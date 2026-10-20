@@ -5,13 +5,12 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import * as C from '../config';
-import { shake } from '../input/shake';
 import { useStore } from '../state/store';
 import * as director from '../story/director';
 import { getRig, setRig, type Rig } from '../story/rig';
+import { addMist, mistTexture, wetLabel } from './chill';
 import { Droplets, dropletNormalMap } from './condensation';
 import { Fizz } from './fizz';
-import { LabelPeel } from './labelPeel';
 
 export function Experience(): null {
   const { scene, camera, gl, size } = useThree();
@@ -28,7 +27,6 @@ export function Experience(): null {
     setRig(rig);
     rig.viewport.w = size.width;
     rig.viewport.h = size.height;
-    shake.setViewport(size.width, size.height);
     director.ready();
     return () => {
       rig.root.removeFromParent();
@@ -44,7 +42,6 @@ export function Experience(): null {
     if (!rig) return;
     rig.viewport.w = size.width;
     rig.viewport.h = size.height;
-    shake.setViewport(size.width, size.height);
   }, [size]);
 
   useEffect(() => {
@@ -88,6 +85,11 @@ function buildRig(
   scene.add(root);
 
   const drops = dropletNormalMap();
+  // Fresh from the fridge: misted plastic, a fogged label with drip trails
+  const mistLabel = mistTexture(true);
+  mistLabel.repeat.set(2, 1);
+  const mistBottle = mistTexture(true, 512);
+  let bottleMesh: THREE.Mesh | null = null;
   let cap: THREE.Mesh | null = null;
   let label: THREE.Mesh | null = null;
   model.traverse((o) => {
@@ -107,32 +109,30 @@ function buildRig(
       const back = new THREE.Mesh(o.geometry, backMat);
       back.renderOrder = 1;
       o.parent?.add(back);
+      bottleMesh = o;
     } else if (o.name === 'Cap') {
       cap = o;
     } else if (o.name === 'Label') {
       label = o;
-      // Front prints the artwork; the back is plain label stock, so the peel never shows a mirrored logo.
       mat.side = THREE.FrontSide;
-      const back = new THREE.Mesh(o.geometry, new THREE.MeshStandardMaterial({ color: 0xe4e9f2, roughness: 0.55, side: THREE.BackSide }));
-      back.frustumCulled = false;
-      o.add(back);
       mat.roughness = 0.28;
       const ln = drops.clone();
       ln.repeat.set(4, 1.4);
       ln.needsUpdate = true;
       mat.normalMap = ln;
       mat.normalScale.set(0.45, 0.45);
+      if (withDroplets) o.material = wetLabel(mat, ln);
     }
   });
+  if (bottleMesh) addMist(bottleMesh, mistBottle, 0.45, 3);
   if (!cap || !label) throw new Error('Model is missing Cap or Label');
   const capMesh = cap as THREE.Mesh;
   const labelMesh = label as THREE.Mesh;
   labelMesh.frustumCulled = false;
+  addMist(labelMesh, mistLabel, 0.62, 5);
 
   const capMat = capMesh.material as THREE.MeshStandardMaterial;
-  const yellowMap = capMat.map as THREE.Texture;
-  const blueMap = makeBlueCap(yellowMap);
-  capMat.map = blueMap;
+  const yellowMap = capMat.map as THREE.Texture; // the new yellow cap, from the start
   capMat.roughness = 0.4;
 
   const capFlash = new THREE.PointLight(0xffc400, 0, 1.2, 2);
@@ -164,10 +164,7 @@ function buildRig(
     cap: capMesh,
     capMat,
     yellowMap,
-    blueMap,
     label: labelMesh,
-    labelParent: labelMesh.parent ?? model,
-    peel: new LabelPeel(labelMesh.geometry),
     fizz,
     droplets,
     key,
@@ -177,37 +174,6 @@ function buildRig(
     glow,
     viewport: { w: 1, h: 1, halfWidth: 0.5, pxPerWorld: 400 },
   };
-}
-
-/** The old blue cap, derived from the yellow texture so shape and shading match exactly. */
-function makeBlueCap(yellow: THREE.Texture): THREE.Texture {
-  const img = yellow.image as CanvasImageSource & { width: number; height: number };
-  const c = document.createElement('canvas');
-  c.width = img.width;
-  c.height = img.height;
-  const g = c.getContext('2d');
-  if (!g) return yellow;
-  g.drawImage(img, 0, 0);
-  const data = g.getImageData(0, 0, c.width, c.height);
-  const d = data.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const r = d[i], gr = d[i + 1], b = d[i + 2];
-    const mx = Math.max(r, gr, b);
-    const sat = mx ? (mx - Math.min(r, gr, b)) / mx : 0;
-    if (sat > 0.35 && r > gr * 0.7 && b < gr * 0.75) {
-      const l = mx / 255;
-      const hi = Math.max(0, l - 0.85) * 4; // keep specular highlights bright
-      d[i] = Math.min(255, 18 * l + 200 * hi);
-      d[i + 1] = Math.min(255, 52 * l + 200 * hi);
-      d[i + 2] = Math.min(255, 215 * l + 120 * hi);
-    }
-  }
-  g.putImageData(data, 0, 0);
-  const t = new THREE.CanvasTexture(c);
-  t.flipY = yellow.flipY;
-  t.colorSpace = yellow.colorSpace;
-  t.channel = yellow.channel;
-  return t;
 }
 
 function glowTexture(): THREE.Texture {

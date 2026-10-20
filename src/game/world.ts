@@ -4,9 +4,7 @@ import * as music from '../audio/music';
 import * as sfx from '../audio/sfx';
 import * as voices from '../audio/voices';
 import { track } from '../analytics/track';
-import { FoamTrail } from './foam';
 import { dressAgbero, type Outfit } from './outfit';
-import { getState as getStoryState } from '../state/store';
 import { writePref } from '../util/storage';
 import type { CharacterAsset, GameAssets } from './assets';
 import * as G from './gameConfig';
@@ -16,7 +14,6 @@ import { PulseFX } from './pulse';
 export type GameInput = 'left' | 'right' | 'up' | 'down' | 'boost';
 
 const laneX = (lane: number): number => lane * G.LANE_WIDTH;
-const rand = (a: number, b: number): number => a + Math.random() * (b - a);
 const smooth = (t: number): number => t * t * (3 - 2 * t);
 const lerp = THREE.MathUtils.lerp;
 const setPhase = (phase: GamePhase): void => useGame.setState({ phase });
@@ -39,7 +36,6 @@ const MENU_SPOTS: ReadonlyArray<readonly [number, number, number]> = [
   [-0.4, 5.8, -0.1],
 ];
 const isLive = (p: GamePhase): boolean => p === 'running' || p === 'starting';
-const getTier = (): string => getStoryState().tier;
 
 /** A skinned character with cross-faded clips. Models face +Z; the chase runs towards -Z. */
 class Actor {
@@ -115,6 +111,7 @@ interface Obstacle {
   cleared: boolean;
   clearT: number;
   flingX: number;
+  beat: number; // the theme beat its front edge is due to reach the runner on
 }
 
 interface Slot {
@@ -139,14 +136,17 @@ export class ChaseWorld {
   private readonly heroBottle: THREE.Group;
   private bottleHolder: Actor | null = null;
   private readonly bottleGrip = new THREE.Group(); // pivot at the bottle's middle, parented to a hand
-  private readonly foam = new FoamTrail(700);
-  private boostAt = -99; // time the surf starts rising (smooth rise/fall curve)
   private readonly pulseFx: PulseFX;
   private pulseState: PulseState = 'empty';
   private readonly coinMag = new Uint8Array(G.COIN_POOL); // caps flying to the runner
   private magnetUntil = 0;
   private magnetAhead = 0;
-  private nextBeatAt = 0;
+  private pulseBeat = 0; // next beat the Pulse fires a ring on (theme grid)
+  private pulseEndBeat = 0;
+  private pulseEndsAt = 0; // world time the post-pulse grace ends
+  private pulseStartedAt = 0;
+  private nextRowBeat = NaN; // the beat the next obstacle row reaches the runner on
+  private frameBeat = 0; // beat the world was last stepped to
   private beatGlow = 0;
   private knock = 0; // agbero knock-back, 1 → 0
   private fovKick = 0;
@@ -154,7 +154,6 @@ export class ChaseWorld {
   private readonly hemiColor = new THREE.Color(0xffe2bd);
   private readonly heldMats: THREE.MeshStandardMaterial[] = [];
   private readonly runnerPos = new THREE.Vector3();
-  private readonly lite: boolean;
   private pulseCleared = 0; // debug counters
   private pulseCaps = 0;
   private readonly coinMesh: THREE.InstancedMesh;
@@ -181,7 +180,6 @@ export class ChaseWorld {
   private phaseT = 0;
   private speed = 0;
   private distance = 0;
-  private ahead = G.START_GRACE;
   private lane = 0;
   private prevLane = 0;
   private px = 0;
@@ -202,8 +200,6 @@ export class ChaseWorld {
   private nextBubbleAt = 0;
   private caps = 0;
   private chill = 0;
-  private boostT = 0;
-  private boostY = 0;
   private invulnerableUntil = 0;
   private stage = 0;
   private storeTick = 0;
@@ -221,7 +217,6 @@ export class ChaseWorld {
     this.fog = new THREE.Fog(0xeaa070, 45, lowTier ? 120 : 150);
     this.group.visible = false; // built during the story, shown on hand-off
 
-    this.lite = lowTier;
     this.hemi = new THREE.HemisphereLight(0xffe2bd, 0x5b4636, 1.7);
     const sun = new THREE.DirectionalLight(0xffc58f, 2.2);
     sun.position.set(-15, 20, 18);
@@ -293,7 +288,7 @@ export class ChaseWorld {
         obj.rotation.y = def.rotY;
         obj.visible = false;
         this.group.add(obj);
-        this.obstacles.push({ kind, obj, lane: 0, z: 0, active: false, hit: false, horned: false, cleared: false, clearT: 0, flingX: 1 });
+        this.obstacles.push({ kind, obj, lane: 0, z: 0, active: false, hit: false, horned: false, cleared: false, clearT: 0, flingX: 1, beat: 0 });
       }
     }
 
@@ -326,7 +321,7 @@ export class ChaseWorld {
         if (b === this.bottle) this.heldMats.push(m);
       });
     }
-    this.group.add(this.bottleGrip, this.heroBottle, this.foam.points);
+    this.group.add(this.bottleGrip, this.heroBottle);
 
     // Characters
     this.runners = { male: new Actor(assets.male, G.RUNNER_HEIGHT), female: new Actor(assets.female, G.RUNNER_HEIGHT) };
@@ -456,12 +451,10 @@ export class ChaseWorld {
     }
     this.coinOn.fill(0);
     this.coinMag.fill(0);
-    this.foam.clear();
-    this.boostAt = -99;
     this.resetPulse();
     this.speed = 0;
     this.distance = 0;
-    this.ahead = G.START_GRACE;
+    this.nextRowBeat = NaN;
     this.lane = this.prevLane = 0;
     this.px = this.py = this.vy = 0;
     this.grounded = true;
@@ -472,7 +465,6 @@ export class ChaseWorld {
     this.chairmanLunge = 0;
     this.bubbleUntil = 0;
     this.caps = this.chill = 0;
-    this.boostT = this.boostY = 0;
     this.invulnerableUntil = 0;
     this.stage = 0;
     this.heroBottle.visible = false;
@@ -488,7 +480,6 @@ export class ChaseWorld {
   input(action: GameInput): void {
     const phase = useGame.getState().phase;
     if (phase !== 'running' && phase !== 'starting') return;
-    const boosting = this.pulseState !== 'empty' && this.pulseState !== 'charged';
     switch (action) {
       case 'left':
       case 'right': {
@@ -500,7 +491,7 @@ export class ChaseWorld {
         break;
       }
       case 'up':
-        if (!this.grounded || boosting) return;
+        if (!this.grounded) return;
         this.vy = G.JUMP_VELOCITY;
         this.grounded = false;
         this.duckT = this.slideT = 0;
@@ -509,7 +500,6 @@ export class ChaseWorld {
         sfx.jump();
         break;
       case 'down':
-        if (boosting) return;
         if (!this.grounded) this.vy = G.FAST_FALL_VELOCITY;
         this.duckT = this.slideT = G.DUCK_TIME;
         this.runner.play('duck', { fade: 0.06 });
@@ -533,15 +523,17 @@ export class ChaseWorld {
     useGame.setState({ pulse: state });
   }
 
-  /** Double-tap / B: shockwave now, then the 8-second carbonated surf. Charge is spent once. */
+  /**
+   * Double-tap / B: the shockwave fires now, then the runner keeps running and pulses on
+   * every beat of the theme for PULSE_BEATS beats, clearing the road ahead. Charge is spent once.
+   */
   private activatePulse(): void {
     if (this.pulseState !== 'charged' || useGame.getState().phase !== 'running') return;
     this.setPulse('activating');
     this.chill = 0;
-    this.boostAt = this.time + G.PULSE_IMPACT_S; // the impact lands first, then the rise
-    this.boostT = G.BOOST_S;
-    this.invulnerableUntil = this.boostAt + G.BOOST_S + G.BOOST_FALL_S + G.BOOST_GRACE_S;
-    this.duckT = this.slideT = 0;
+    this.pulseStartedAt = this.time;
+    this.pulseBeat = Math.ceil(this.beatNow() + 0.3); // the first ring lands on the next beat
+    this.pulseEndBeat = this.pulseBeat + G.PULSE_BEATS;
     this.chaseCloseUntil = 0;
     this.chairmanLunge = 0;
     // The shockwave: rings racing out across the asphalt from the runner
@@ -556,11 +548,9 @@ export class ChaseWorld {
     this.knock = 1;
     this.chaseGap += G.PULSE_KNOCKBACK;
     for (const a of this.agberos) a.play('shout', { fade: 0.08 });
-    this.runner.play('duck', { fade: 0.25 }); // surf stance
     this.setGlow(0);
     sfx.pulseRelease();
     music.setPulse(true);
-    music.setStage(Math.min(G.STAGES.length - 1, this.stage + 1));
     this.flashBanner('RELEASE THE PULSE', 900);
     useGame.setState({ chill: 0, pulseFlash: useGame.getState().pulseFlash + 1 });
   }
@@ -617,6 +607,7 @@ export class ChaseWorld {
     const phase = useGame.getState().phase;
     this.time += dt;
     this.phaseT += dt;
+    this.frameBeat = this.beatNow();
 
     if (phase === 'starting' || phase === 'running') {
       const target = phase === 'starting' && this.phaseT < 0.55 ? 0 : G.STAGES[this.stage].speed;
@@ -636,16 +627,17 @@ export class ChaseWorld {
       this.scrollScenery(d);
       const steps = Math.max(1, Math.ceil(d / G.MAX_STEP));
       for (let i = 0; i < steps && isLive(useGame.getState().phase); i++) {
-        this.scrollActors(d / steps, true);
+        this.scrollActors(d / steps);
         if (phase === 'running') {
           this.collide();
           this.collect();
         }
       }
+      this.spawnOnBeat();
       this.updateMagnet(dt);
       this.distance += d;
       if (phase === 'running') this.updateStage();
-      this.updateBoost(dt);
+      this.updatePulse(dt);
       this.storeTick -= dt;
       if (this.storeTick <= 0) {
         this.storeTick = 0.1;
@@ -653,31 +645,23 @@ export class ChaseWorld {
       }
     } else {
       this.scrollScenery(d);
-      this.scrollActors(d, false);
+      this.scrollActors(d);
     }
     this.updateCleared(dt);
     if (phase === 'caught') this.caughtStep();
 
-    // Runner transform: slide lean (pivot at the feet), boost height, surf stance
-    const wantLean = this.slideT > 0 && this.grounded && this.boostY <= 0.05 ? G.SLIDE_LEAN : 0;
+    // Runner transform: slide lean (pivot at the feet)
+    const wantLean = this.slideT > 0 && this.grounded ? G.SLIDE_LEAN : 0;
     this.lean += (wantLean - this.lean) * Math.min(1, dt * (wantLean > this.lean ? 22 : 12));
     this.runner.root.rotation.x = this.lean;
-    if (phase !== 'caught') {
-      // Surf stance on the foam: turned slightly side-on, easing in and out with the height
-      const surf = Math.min(1, this.boostY / G.BOOST_HEIGHT);
-      this.runner.root.rotation.y = 0.35 * surf;
-      this.runner.root.rotation.z = Math.sin(this.time * 2.4) * 0.05 * surf;
-    }
-    this.runner.root.position.set(this.px, this.py + this.boostY - this.lean * 0.12, 0);
+    this.runner.root.position.set(this.px, this.py - this.lean * 0.12, 0);
     const runRate = Math.min(1.75, Math.max(0.6, this.speed / 12));
     if (this.runner.currentName === 'run') this.runner.setSpeed(runRate);
     this.runner.update(dt);
     this.updateChasers(dt, phase);
     this.updateBottle(phase);
     this.updateCoins();
-    this.foam.update(dt, d * G.FOAM_DRAG); // the geyser travels with the runner, trailing a little
-    this.foam.setScale(window.innerHeight, this.camera.fov);
-    this.runnerPos.set(this.px, this.py + this.boostY, 0);
+    this.runnerPos.set(this.px, this.py, 0);
     this.pulseFx.update(this.time, this.runnerPos, this.camera, d);
     if (this.pulseState === 'charged') this.setGlow(0.35 + 0.3 * Math.sin(this.time * 6));
     this.updateCamera(dt, phase);
@@ -748,7 +732,7 @@ export class ChaseWorld {
   }
 
   /** Obstacles, caps and spawning: per collision sub-step. */
-  private scrollActors(d: number, spawn: boolean): void {
+  private scrollActors(d: number): void {
     for (const o of this.obstacles) {
       if (!o.active) continue;
       // Okadas ride at you; you hear them before you see them.
@@ -768,12 +752,31 @@ export class ChaseWorld {
       this.coinZ[i] += d;
       if (this.coinZ[i] > G.DESPAWN_Z) this.coinOn[i] = 0;
     }
-    if (!spawn) return;
-    this.ahead -= d;
-    while (this.ahead < G.SPAWN_HORIZON) {
-      this.spawnRow(-this.ahead);
-      const [a, b] = G.STAGES[this.stage].gap;
-      this.ahead += rand(a, b);
+  }
+
+  /** Song position in beats (the theme's grid), or the world's own clock at the same tempo. */
+  private beatNow(): number {
+    return music.beat() ?? this.time / music.BEAT_S;
+  }
+
+  /**
+   * Rows are placed so they reach the runner exactly on a beat of the theme: each one goes
+   * (beats to go) × (beat length) × (stage speed) up the road, every `beats` beats.
+   */
+  private spawnOnBeat(): void {
+    const st = G.STAGES[this.stage];
+    // Rows are placed for full speed: wait until the runner is up to it (run start)
+    if (Number.isNaN(this.nextRowBeat) && this.speed < st.speed * 0.97) return;
+    const b = this.beatNow();
+    if (Number.isNaN(this.nextRowBeat) || this.nextRowBeat < b || this.nextRowBeat > b + 64) {
+      // Run start (or the clock jumped): first row after the grace, on a bar line
+      this.nextRowBeat = Math.ceil((b + G.START_GRACE_BEATS) / 4) * 4;
+    }
+    for (;;) {
+      const dist = (this.nextRowBeat - b) * music.BEAT_S * st.speed;
+      if (dist > G.SPAWN_HORIZON) break;
+      this.spawnRow(-dist);
+      this.nextRowBeat += st.beats;
     }
   }
 
@@ -795,10 +798,12 @@ export class ChaseWorld {
       o.hit = false;
       o.horned = false;
       o.cleared = false;
+      o.beat = this.nextRowBeat;
       o.obj.scale.set(1, 1, 1);
       o.obj.rotation.set(0, def.rotY, 0);
       o.lane = lanes[i];
-      o.z = z - def.length / 2;
+      // Okadas close faster, so they start further out to arrive on the same beat
+      o.z = (kind === 'okada' ? z * (1 + G.OKADA_EXTRA) : z) - def.length / 2;
       o.obj.position.set(laneX(o.lane), 0, o.z);
       o.obj.visible = true;
       if (def.action === 'swerve') swerveLanes.add(o.lane);
@@ -811,8 +816,11 @@ export class ChaseWorld {
     const cl = open[Math.floor(Math.random() * open.length)];
     const action = actionByLane.get(cl);
     const n = 7 + Math.floor(Math.random() * 4);
+    // One cap per 16th note: the pickup chimes fall on the theme's grid
+    const sp = st.speed * music.BEAT_S / 4;
+    const first = action ? z + Math.round(5.5 / sp) * sp : z - Math.round(4 / sp) * sp;
     for (let i = 0; i < n; i++) {
-      const cz = action ? z + 5.5 - i * G.COIN_SPACING : z - 4 - i * G.COIN_SPACING;
+      const cz = first - i * sp;
       let cy = 0.75;
       if (action === 'jump') cy = 0.75 + 1.25 * Math.sin((Math.PI * i) / (n - 1));
       else if (action === 'duck') cy = 0.55;
@@ -846,80 +854,44 @@ export class ChaseWorld {
     }
     if (this.duckT > 0) this.duckT -= dt;
     if (this.slideT > 0 && this.grounded) this.slideT -= dt;
-    const free = this.time >= this.lockAnimUntil && this.grounded && this.duckT <= 0 && this.boostT <= 0;
+    const free = this.time >= this.lockAnimUntil && this.grounded && this.duckT <= 0;
     if (free && this.whistled && this.runner.currentName !== 'run') this.runner.play('run', { fade: 0.12 });
   }
 
-  /** The carbonated surf: eased rise, bob on the foam, beats on the road, eased glide down. */
-  private updateBoost(dt: number): void {
+  /** The Pulse on the ground: a ring from the runner's feet on every beat, clearing the road ahead. */
+  private updatePulse(dt: number): void {
     this.knock = Math.max(0, this.knock - dt * 1.4);
     this.fovKick = Math.max(0, this.fovKick - dt * 14);
     this.beatGlow = Math.max(0, this.beatGlow - dt * 3);
     this.hemi.intensity = 1.7 + this.beatGlow * 0.6;
     this.hemi.color.copy(this.hemiColor).lerp(CYAN, this.beatGlow * 0.35);
     if (this.pulseState === 'empty' || this.pulseState === 'charged') return;
-    const e = this.time - this.boostAt;
-    const total = G.BOOST_S + G.BOOST_FALL_S;
-    if (e < 0) return; // the impact beat
-    if (this.pulseState === 'activating') {
-      this.setPulse('surging');
-      this.nextBeatAt = this.time;
-      this.pulseFx.setPad('feet');
+    if (this.pulseState === 'ending') {
+      if (this.time >= this.pulseEndsAt) this.setPulse('empty');
+      return;
     }
-    let h: number;
-    if (e < G.BOOST_RISE_S) h = G.BOOST_HEIGHT * smooth(e / G.BOOST_RISE_S);
-    else if (e < G.BOOST_S) h = G.BOOST_HEIGHT + Math.sin((e - G.BOOST_RISE_S) * 3.2) * 0.12;
-    else h = G.BOOST_HEIGHT * (1 - smooth(Math.min(1, (e - G.BOOST_S) / G.BOOST_FALL_S)));
-    this.boostY = h;
-    this.boostT = Math.max(0, G.BOOST_S - e);
-
-    if (this.pulseState === 'surging') {
-      // Caps fly to you; the road pulses on the beat
-      this.startMagnet(G.SURF_MAGNET_AHEAD, this.time + 0.1);
-      if (this.time >= this.nextBeatAt) {
-        this.nextBeatAt += G.PULSE_BEAT_S;
-        this.pulseFx.beat(this.time);
-        this.beatGlow = 1;
+    const b = this.beatNow();
+    if (this.pulseBeat < b - 2) this.pulseBeat = Math.ceil(b); // the clock jumped (tab was hidden)
+    // Caps keep flying to you while it pulses
+    this.startMagnet(G.SURF_MAGNET_AHEAD, this.time + 0.1);
+    while (b >= this.pulseBeat && this.pulseBeat < this.pulseEndBeat) {
+      if (this.pulseState === 'activating') {
+        this.setPulse('pulsing');
+        this.pulseFx.setPad('feet');
       }
+      this.pulseFx.beat(this.time);
+      this.pulseCleared += this.clearObstacles(-G.PULSE_BEAT_CLEAR, G.PULSE_CLEAR_BEHIND);
+      this.beatGlow = 1;
+      this.fovKick = Math.max(this.fovKick, 2.5);
+      this.pulseBeat++;
     }
-
-    // The foam geyser: puffs from the feet to the road, fanning out towards the road.
-    if (h > 0.05) {
-      const lite = this.lite || getTier() === 'low';
-      const rate = (e < G.BOOST_S ? 150 : 60) * (lite ? 0.5 : 1);
-      const n = Math.max(1, Math.round(rate * dt));
-      for (let i = 0; i < n; i++) {
-        const along = Math.pow(Math.random(), 1.5); // 0 = at the feet, 1 = at the road (denser at the feet)
-        const side = (Math.random() - 0.5) * 0.7;
-        this.foam.emit(
-          this.px + side,
-          h * (1 - along),
-          Math.random() * 0.5,
-          side * (0.6 + along * 1.4) + (Math.random() - 0.5) * 0.4,
-          (Math.random() - 0.5) * 0.5,
-          0.2 + Math.random() * 0.7,
-          0.2 + along * 0.4 + Math.random() * 0.12,
-          0.45 + Math.random() * 0.35,
-        );
-      }
-    }
-
-    if (e >= G.BOOST_S && this.pulseState === 'surging') {
-      // Descent: clear the landing zone so re-entry can never land on a danfo
+    const overdue = this.time - this.pulseStartedAt > (G.PULSE_BEATS + 4) * music.BEAT_S;
+    if (this.pulseBeat >= this.pulseEndBeat || overdue) {
       this.setPulse('ending');
+      this.pulseEndsAt = this.time + G.PULSE_GRACE_S;
       this.pulseFx.setPad('off');
-      this.pulseCleared += this.clearObstacles(-this.speed * G.LANDING_CLEAR_AHEAD - 4, 3);
       music.setPulse(false);
-      music.setStage(this.stage);
       sfx.pulseEnd();
-    }
-    if (e >= total) {
-      this.boostAt = -99;
-      this.boostY = 0;
-      this.boostT = 0;
-      this.setPulse('empty');
-      sfx.land();
-      this.runner.play('run', { fade: 0.2 });
     }
   }
 
@@ -945,7 +917,7 @@ export class ChaseWorld {
   private updateMagnet(dt: number): void {
     const on = this.time < this.magnetUntil;
     const tx = this.px;
-    const ty = this.py + this.boostY + 1.1;
+    const ty = this.py + 1.1;
     let got = 0;
     for (let i = 0; i < G.COIN_POOL; i++) {
       if (!this.coinOn[i]) continue;
@@ -973,8 +945,8 @@ export class ChaseWorld {
 
   private collide(): void {
     // Pulse protection is real: no stumbles or catches until safely back on the road.
-    if (this.pulseState === 'activating' || this.pulseState === 'surging' || this.pulseState === 'ending') return;
-    if (this.boostY > 0.4 || this.time < this.invulnerableUntil) return;
+    if (this.pulseState === 'activating' || this.pulseState === 'pulsing' || this.pulseState === 'ending') return;
+    if (this.time < this.invulnerableUntil) return;
     const top = this.py + (this.duckT > 0 && this.grounded ? G.DUCK_TOP : G.STAND_TOP);
     for (const o of this.obstacles) {
       if (!o.active || o.hit || o.cleared) continue;
@@ -1011,11 +983,15 @@ export class ChaseWorld {
 
   private caught(): void {
     this.phaseT = 0;
-    this.boostT = this.boostY = 0;
-    this.boostAt = -99;
     this.resetPulse();
-    // Keep the trophy shot's foreground clear: the camera ends up a few metres ahead of the runner
+    // Keep the trophy shot clear: the camera ends up a few metres ahead of the runner, so caps
+    // and traffic around there (even the danfo that caught you) are swept off the set
     for (let i = 0; i < G.COIN_POOL; i++) if (this.coinOn[i] && this.coinZ[i] > -7) this.coinOn[i] = 0;
+    for (const o of this.obstacles) {
+      if (!o.active || o.z < -12 || o.z > 8) continue;
+      o.active = false;
+      o.obj.visible = false;
+    }
     this.slideT = this.duckT = 0;
     this.runner.play('fall', { loop: false, speed: 1.3, fade: 0.06 });
     this.camShake = 0.45;
@@ -1053,19 +1029,18 @@ export class ChaseWorld {
     useGame.setState({ stage: s });
     this.flashBanner('SPEED UP!', 1300);
     sfx.whoosh(0.6, 0.4);
-    if (this.boostT <= 0) music.setStage(s);
+    music.setStage(s);
   }
 
   private collect(): void {
-    const boosting = this.boostT > 0 || this.boostY > 0.4;
-    const top = this.py + this.boostY + G.STAND_TOP;
+    const top = this.py + G.STAND_TOP;
     let got = 0;
     for (let i = 0; i < G.COIN_POOL; i++) {
       if (!this.coinOn[i]) continue;
       if (Math.abs(this.coinZ[i]) > G.COIN_PICKUP) continue;
       if (Math.abs(this.coinX[i] - this.px) > 0.9) continue;
       if (this.coinMag[i]) continue; // flying to the hand: counted by updateMagnet
-      if (!boosting && (this.coinY[i] < this.py - 0.3 || this.coinY[i] > top + 0.2)) continue;
+      if (this.coinY[i] < this.py - 0.3 || this.coinY[i] > top + 0.2) continue;
       this.coinOn[i] = 0;
       got++;
     }
@@ -1106,8 +1081,8 @@ export class ChaseWorld {
         a.root.rotation.y += (yaw - a.root.rotation.y) * Math.min(1, dt * 5);
       });
     } else {
-      const surfing = this.pulseState === 'activating' || this.pulseState === 'surging';
-      const want = surfing ? G.CHASE_FAR + 4 : this.time < this.chaseCloseUntil ? G.CHASE_CLOSE : G.CHASE_FAR;
+      const pulsing = this.pulseState === 'activating' || this.pulseState === 'pulsing';
+      const want = pulsing ? G.CHASE_FAR + 4 : this.time < this.chaseCloseUntil ? G.CHASE_CLOSE : G.CHASE_FAR;
       const rate = phase === 'starting' ? 1.2 : want > this.chaseGap ? 0.6 : 2;
       this.chaseGap += (want - this.chaseGap) * Math.min(1, dt * rate);
       this.chairmanLunge = Math.max(0, this.chairmanLunge - dt * 0.6);
@@ -1183,7 +1158,7 @@ export class ChaseWorld {
 
   private updateCamera(dt: number, phase: GamePhase): void {
     const cam = this.camera;
-    const boost = phase === 'running' ? Math.max(0, this.speed - G.STAGES[0].speed) * 0.45 + (this.boostY > 0.3 ? 6 : 0) : 0;
+    const boost = phase === 'running' ? Math.max(0, this.speed - G.STAGES[0].speed) * 0.45 + (this.pulseState === 'pulsing' ? 3 : 0) : 0;
     const fov = (cam.aspect < 0.8 ? 70 : 55) + boost + this.fovKick;
     if (Math.abs(cam.fov - fov) > 0.2) {
       cam.fov += (fov - cam.fov) * Math.min(1, dt * 4);
@@ -1192,8 +1167,8 @@ export class ChaseWorld {
     this.camShake *= Math.pow(0.02, dt);
     const sx = (Math.random() - 0.5) * this.camShake;
     const sy = (Math.random() - 0.5) * this.camShake;
-    const chasePos = this.v.set(this.px * 0.5 + sx, G.CAM_HEIGHT + (this.py + this.boostY) * 0.45 + sy, G.CAM_BACK);
-    const chaseLook = this.look.set(this.px * 0.5, 1.2 + this.boostY * 0.6, -G.CAM_LOOK_AHEAD);
+    const chasePos = this.v.set(this.px * 0.5 + sx, G.CAM_HEIGHT + this.py * 0.45 + sy, G.CAM_BACK);
+    const chaseLook = this.look.set(this.px * 0.5, 1.2, -G.CAM_LOOK_AHEAD);
     // Menu: in front of the runner, looking back at them and the agberos behind
     const menuPos = this.s.set(1.35 + Math.sin(this.time * 0.4) * 0.15, 1.5, -3.5);
     const menuLook = { x: 0.2, y: 1.15, z: 1.5 };
@@ -1298,7 +1273,25 @@ export class ChaseWorld {
   debugPulse(): Record<string, unknown> {
     let ahead = 0;
     for (const o of this.obstacles) if (o.active && !o.cleared && o.z >= -G.PULSE_CLEAR_AHEAD && o.z <= G.PULSE_CLEAR_BEHIND) ahead++;
-    return { state: this.pulseState, cleared: this.pulseCleared, magnetCaps: this.pulseCaps, boostY: this.boostY, chill: this.chill, lane: this.lane, caps: this.caps, ahead };
+    return { state: this.pulseState, cleared: this.pulseCleared, magnetCaps: this.pulseCaps, py: this.py, chill: this.chill, lane: this.lane, caps: this.caps, ahead, beat: this.beatNow(), synced: music.beat() !== null, rowSync: this.debugRowSync() };
+  }
+
+  /**
+   * Debug: for each row on the road, (beat it will actually reach the runner on, from where it
+   * is and how fast it moves) minus (beat it was aimed at). 0 = dead on the beat.
+   */
+  private debugRowSync(): number[] {
+    const b = this.frameBeat; // where the road was last moved to (not the song's position now)
+    const out: number[] = [];
+    for (const o of this.obstacles) {
+      if (!o.active || o.cleared) continue;
+      const front = -(o.z + G.OBSTACLES[o.kind].length / 2);
+      if (front < 2) continue;
+      const v = this.speed * (o.kind === 'okada' ? 1 + G.OKADA_EXTRA : 1);
+      if (v < 1) continue;
+      out.push(+(b + front / v / music.BEAT_S - o.beat).toFixed(3));
+    }
+    return out;
   }
 
   dispose(): void {

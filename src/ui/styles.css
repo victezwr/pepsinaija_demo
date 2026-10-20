@@ -93,22 +93,70 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Silhouette prompt + loading */
-.prompt { position: absolute; left: 0; right: 0; bottom: 16%; text-align: center; animation: fade 0.6s ease both; }
-.prompt__main { margin: 0; font-stretch: 125%; font-weight: 900; font-size: 18px; letter-spacing: 0.12em; animation: breathe 2.2s ease-in-out infinite; }
-.prompt__sub { margin: 10px 0 0; font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+/* Loading */
 .loading {
   position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px;
   border-radius: 50%; background: var(--blue); animation: breathe 1s ease-in-out infinite;
 }
 
-/* Hint + captions: bottom zone */
-.hint {
-  position: absolute; left: 0; right: 0; bottom: calc(max(var(--inset), env(safe-area-inset-bottom)) + 52px);
-  margin: 0; text-align: center; font-weight: 600; font-size: 15px; letter-spacing: 0.06em;
-  color: var(--muted); animation: fade 0.5s ease both;
+/* Intro: title above the bottle, PLAY beneath it */
+.intro-title {
+  position: absolute;
+  top: calc(max(var(--inset), env(safe-area-inset-top)) + 60px);
+  left: var(--inset);
+  right: var(--inset);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-stretch: 125%;
+  font-weight: 900;
+  font-size: clamp(32px, min(10vw, 6.4vh), 84px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-align: center;
 }
-.hint--urgent { animation: fade 0.5s ease both, pulse 1.2s ease-in-out 0.5s infinite; }
+.intro-title span { animation: rise 0.7s 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.intro-title .intro-title__accent {
+  color: #ffc400;
+  text-shadow: 0 0 22px rgba(255, 196, 0, 0.45);
+  animation-delay: 0.75s;
+}
+.intro-play {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(max(var(--inset), env(safe-area-inset-bottom)) + 44px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: rise 0.7s 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.btn--play {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+  min-height: 58px;
+  justify-content: center;
+  border: 0;
+  background: var(--blue);
+  font-size: 18px;
+  font-weight: 900;
+  font-stretch: 125%;
+  letter-spacing: 0.14em;
+  box-shadow: 0 0 0 0 rgba(0, 51, 255, 0.6);
+  animation: playGlow 2.2s ease-in-out 1.8s infinite;
+}
+.btn--play:hover { background: #1a4bff; }
+.intro-play__sub { margin: 0; font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+@keyframes playGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 51, 255, 0.55); }
+  50% { box-shadow: 0 0 0 14px rgba(0, 51, 255, 0); }
+}
+
+/* Captions: bottom zone */
 .caption {
   position: absolute; left: 0; right: 0; bottom: calc(max(var(--inset), env(safe-area-inset-bottom)) + 84px);
   margin: 0; text-align: center; font-style: italic; font-size: 13px; color: var(--muted);
@@ -149,7 +197,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .headline, .endcard__ring, .endcard__logo, .endcard__top, .endcard__accent { animation-duration: 0.01s; }
-  .prompt__main, .hint--urgent, .loading { animation: none; }
+  .loading, .btn--play { animation: none; }
+  .intro-title span, .intro-play { animation-duration: 0.01s; animation-delay: 0s; }
 }
 
 /* ---------------------------------------------------------------- Chase game */

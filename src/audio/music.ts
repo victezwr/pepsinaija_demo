@@ -1,10 +1,21 @@
-// Chase music. Uses public/audio/game-music.mp3 when the owner adds one; otherwise plays a
-// generated, high-energy endless-runner loop (original, in the spirit of the genre): punchy
-// hip-hop drums, busy hats, a driving octave bass, offbeat chord plucks and a bright lead hook.
-// Tempo rises with each speed stage.
+// Music. The theme song (public/audio/theme.mp3) starts on PLAY and runs under the whole
+// experience; everything rhythmic in the game (obstacle rows, cap chimes, the Pulse) is timed
+// to its beat grid via beat(). If the song can't load, a generated high-energy loop plays
+// instead and the game keeps its own clock at the same tempo.
 import { audioGraph } from './sfx';
 
-const CUSTOM_URL = '/audio/game-music.mp3';
+// Theme beat grid, measured from the file: 155.76 BPM, first beat 0.320 s in.
+const THEME_URL = '/audio/theme.mp3';
+export const THEME_BPM = 155.76;
+export const BEAT_S = 60 / THEME_BPM;
+const FIRST_BEAT_S = 0.32;
+// Loop a whole number of 16-beat phrases (from beat 3 to just before the fade-out),
+// so the grid never slips when it wraps.
+const LOOP_START = FIRST_BEAT_S + 3 * BEAT_S;
+const LOOP_END = LOOP_START + 21 * 16 * BEAT_S;
+const THEME_LEVEL = 0.8;
+const DUCK_LEVEL = 0.3;
+
 const BASE_BPM = 120;
 const BPM_PER_STAGE = 4;
 const LEVEL = 0.42;
@@ -36,14 +47,83 @@ let bpm = BASE_BPM;
 let stage = 0;
 let pulse = false;
 let lite = false;
-let custom: HTMLAudioElement | null = null;
-let customChecked: Promise<boolean> | null = null;
 
-function hasCustomTrack(): Promise<boolean> {
-  customChecked ??= fetch(CUSTOM_URL, { method: 'HEAD' })
-    .then((r) => r.ok && (r.headers.get('content-type') ?? '').startsWith('audio'))
-    .catch(() => false);
-  return customChecked;
+// Theme playback
+let themeData: Promise<AudioBuffer | null> | null = null;
+let themeBus: GainNode | null = null;
+let themeSrc: AudioBufferSourceNode | null = null;
+let themeStart = 0; // ctx time the song's 0:00 played at
+let pulseTimer = 0;
+let nextPulseBeat = 0;
+
+/**
+ * Fetch and decode the theme early (before any tap: an offline context needs no gesture),
+ * so PLAY can start it instantly.
+ */
+export function preloadTheme(): Promise<AudioBuffer | null> {
+  themeData ??= fetch(THEME_URL)
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+    .then((buf) => {
+      const OAC = window.OfflineAudioContext ?? (window as unknown as { webkitOfflineAudioContext: typeof OfflineAudioContext }).webkitOfflineAudioContext;
+      return new OAC(1, 1, 44100).decodeAudioData(buf);
+    })
+    .catch(() => null);
+  return themeData;
+}
+
+/** PLAY: the theme from the top. Call inside the tap, after sfx.unlock(). */
+export async function startTheme(): Promise<boolean> {
+  const g = audioGraph();
+  if (!g) return false;
+  const buffer = await preloadTheme();
+  if (!buffer) return false;
+  stopGenerated();
+  themeSrc?.stop();
+  if (!themeBus) {
+    themeBus = g.ctx.createGain();
+    themeBus.connect(g.master);
+  }
+  themeBus.gain.cancelScheduledValues(g.ctx.currentTime);
+  themeBus.gain.setValueAtTime(THEME_LEVEL, g.ctx.currentTime);
+  const src = g.ctx.createBufferSource();
+  src.buffer = buffer;
+  src.loop = true;
+  src.loopStart = LOOP_START;
+  src.loopEnd = Math.min(LOOP_END, buffer.duration);
+  src.connect(themeBus);
+  themeStart = g.ctx.currentTime + 0.03;
+  src.start(themeStart);
+  themeSrc = src;
+  return true;
+}
+
+export function themePlaying(): boolean {
+  return themeSrc !== null;
+}
+
+/**
+ * Where the theme is right now, in beats since its first beat (continuous across loops,
+ * corrected for output latency so visuals land on what you hear). Null without the theme.
+ */
+export function beat(): number | null {
+  const g = audioGraph();
+  if (!g || !themeSrc) return null;
+  const heard = g.ctx.currentTime - (g.ctx.outputLatency || g.ctx.baseLatency || 0);
+  return (heard - themeStart - FIRST_BEAT_S) / BEAT_S;
+}
+
+/** Seconds from now until the theme reaches beat `n` (null without the theme). */
+export function secondsToBeat(n: number): number | null {
+  const b = beat();
+  return b === null ? null : (n - b) * BEAT_S;
+}
+
+/** Game over: the song sinks under the crowd; RUN AGAIN brings it back. */
+export function duck(on: boolean): void {
+  const g = audioGraph();
+  if (!g || !themeBus) return;
+  themeBus.gain.cancelScheduledValues(g.ctx.currentTime);
+  themeBus.gain.setTargetAtTime(on ? DUCK_LEVEL : THEME_LEVEL, g.ctx.currentTime, on ? 0.25 : 0.1);
 }
 
 function ensureBus(): GainNode | null {
@@ -57,32 +137,45 @@ function ensureBus(): GainNode | null {
   return bus;
 }
 
-export async function start(atStage: number): Promise<void> {
+/** Run start. With the theme already playing it just keeps going (un-ducked). */
+export function start(atStage: number): void {
+  setStage(atStage);
+  if (themeSrc) {
+    duck(false);
+    return;
+  }
   const g = audioGraph();
   const out = ensureBus();
   if (!g || !out) return;
-  stop(0);
-  setStage(atStage);
+  stopGenerated();
   out.gain.cancelScheduledValues(g.ctx.currentTime);
   out.gain.setTargetAtTime(LEVEL, g.ctx.currentTime, 0.15);
-  if (await hasCustomTrack()) {
-    if (!custom) {
-      custom = new Audio(CUSTOM_URL);
-      custom.loop = true;
-      g.ctx.createMediaElementSource(custom).connect(out);
-    }
-    custom.currentTime = 0;
-    void custom.play().catch(() => undefined);
-    return;
-  }
   step = 0;
   nextTime = g.ctx.currentTime + 0.05;
   timer = window.setInterval(schedule, 25);
 }
 
-/** Pulse Mode: a sub-bass thump on every beat and open hats, for the 8-second surf. */
+/** Pulse Mode: a sub-bass thump on every beat (locked to the theme's grid) and open hats. */
 export function setPulse(on: boolean): void {
   pulse = on;
+  window.clearInterval(pulseTimer);
+  pulseTimer = 0;
+  const b = beat();
+  if (!on || b === null) return;
+  nextPulseBeat = Math.ceil(b);
+  pulseTimer = window.setInterval(schedulePulse, 25);
+}
+
+function schedulePulse(): void {
+  const g = audioGraph();
+  const b = beat();
+  if (!g || !themeBus || b === null) return;
+  // Schedule thumps up to 0.12 s ahead, on the theme's own beat times.
+  while ((nextPulseBeat - b) * BEAT_S < 0.12) {
+    const at = themeStart + FIRST_BEAT_S + nextPulseBeat * BEAT_S + (g.ctx.outputLatency || g.ctx.baseLatency || 0);
+    if (at > g.ctx.currentTime) subPulse(g.ctx, themeBus, at);
+    nextPulseBeat++;
+  }
 }
 
 /** Lighter arrangement for slow phones (fewer oscillators per step). */
@@ -93,10 +186,14 @@ export function setLite(on: boolean): void {
 export function setStage(s: number): void {
   stage = s;
   bpm = BASE_BPM + s * BPM_PER_STAGE;
-  if (custom) custom.playbackRate = 1 + s * 0.03;
 }
 
+/** Game over without the theme: fade the generated loop out. */
 export function stop(fade: number): void {
+  if (themeSrc) {
+    duck(true);
+    return;
+  }
   const g = audioGraph();
   window.clearInterval(timer);
   timer = 0;
@@ -104,10 +201,13 @@ export function stop(fade: number): void {
     bus.gain.cancelScheduledValues(g.ctx.currentTime);
     bus.gain.setTargetAtTime(0, g.ctx.currentTime, Math.max(0.01, fade / 3));
   }
-  if (custom) {
-    const c = custom;
-    window.setTimeout(() => c.pause(), fade * 1000);
-  }
+}
+
+function stopGenerated(): void {
+  window.clearInterval(timer);
+  timer = 0;
+  const g = audioGraph();
+  if (g && bus) bus.gain.setTargetAtTime(0, g.ctx.currentTime, 0.05);
 }
 
 function schedule(): void {

@@ -4,10 +4,11 @@ import { createRoot } from 'react-dom/client';
 import { loadAnalyticsProvider } from './analytics/track';
 import { App } from './App';
 import { getState } from './state/store';
-import { bottleScreenBox } from './story/director';
+import { debugSpin, play } from './story/director';
 import { gameDebugCatch, gameDebugChill, gameDebugPulse, gameDebugState, gameInput } from './game/GameScene';
 import { useGame } from './game/gameStore';
 import { audioGraph } from './audio/sfx';
+import { beat } from './audio/music';
 import { shout } from './audio/voices';
 import './ui/styles.css';
 
@@ -15,7 +16,7 @@ inject();
 
 // Test hook for the Playwright walkthrough (tools/smoke.mjs); only with ?debug.
 if (new URLSearchParams(window.location.search).has('debug')) {
-  Object.assign(window, { __dsm: { getState, bottleScreenBox, game: useGame.getState, gameInput, gameDebugChill, gameDebugCatch, gameDebugPulse, gameDebugState, audioGraph, shout } });
+  Object.assign(window, { __dsm: { getState, play, debugSpin, beat, game: useGame.getState, gameInput, gameDebugChill, gameDebugCatch, gameDebugPulse, gameDebugState, audioGraph, shout } });
 }
 loadAnalyticsProvider();
 

@@ -67,7 +67,7 @@ function Hud(): JSX.Element {
   const stage = useGame((s) => s.stage);
   const banner = useGame((s) => s.banner);
   const lite = useStore((s) => s.tier) === 'low';
-  const active = pulse === 'activating' || pulse === 'surging' || pulse === 'ending';
+  const active = pulse === 'activating' || pulse === 'pulsing' || pulse === 'ending';
   const ready = pulse === 'charged';
   // The meter beats faster as it fills (2.2 s → 0.5 s per beat)
   const rate = `${(2.2 - 1.7 * chill).toFixed(2)}s`;
@@ -93,7 +93,7 @@ function Hud(): JSX.Element {
           {ready && <span className="pulse-hint">double-tap</span>}
         </div>
       </div>
-      {pulse === 'surging' && <p className="pulse-stay">STAY ON THE PULSE</p>}
+      {pulse === 'pulsing' && <p className="pulse-stay">STAY ON THE PULSE</p>}
       {flash > 0 && <div key={flash} className={`pulse-flash${lite ? ' pulse-flash--lite' : ''}`} aria-hidden="true" />}
       {banner && (
         <p key={banner} className={`game-banner${banner === 'RELEASE THE PULSE' ? ' game-banner--pulse' : ''}`}>

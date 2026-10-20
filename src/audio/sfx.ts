@@ -1,13 +1,10 @@
-// Placeholder sound design, generated with the Web Audio API (no files to download).
-// Every cue also posts a caption so the story survives with the sound off.
+// Sound effects, generated with the Web Audio API (no files to download). Every cue also posts
+// a caption so the game still reads with the sound off.
 import { getState, setState } from '../state/store';
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let noise: AudioBuffer | null = null;
-let fizzGain: GainNode | null = null;
-let rumbleGain: GainNode | null = null;
-let peelGain: GainNode | null = null;
 let captionTimer = 0;
 
 export function caption(text: string, ms = 1400): void {
@@ -30,7 +27,6 @@ export function unlock(): void {
       noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
       const d = noise.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      startLoops();
     }
     if (ctx.state !== 'running') void ctx.resume();
   } catch {
@@ -54,73 +50,6 @@ function noiseSource(loop = false): AudioBufferSourceNode | null {
   src.loop = loop;
   if (loop) src.loopStart = Math.random();
   return src;
-}
-
-function startLoops(): void {
-  if (!ctx || !master) return;
-  // Fizz bed: high-passed noise, level driven by the story.
-  const fz = noiseSource(true);
-  const hp = ctx.createBiquadFilter();
-  hp.type = 'highpass';
-  hp.frequency.value = 3200;
-  fizzGain = ctx.createGain();
-  fizzGain.gain.value = 0;
-  fz?.connect(hp).connect(fizzGain).connect(master);
-  fz?.start();
-
-  // Rumble bed: low sine + low-passed noise.
-  rumbleGain = ctx.createGain();
-  rumbleGain.gain.value = 0;
-  const osc = ctx.createOscillator();
-  osc.frequency.value = 42;
-  const rn = noiseSource(true);
-  const lp = ctx.createBiquadFilter();
-  lp.type = 'lowpass';
-  lp.frequency.value = 110;
-  osc.connect(rumbleGain);
-  rn?.connect(lp).connect(rumbleGain);
-  rumbleGain.connect(master);
-  osc.start();
-  rn?.start();
-
-  // Peel crackle: band-passed noise, gain jittered per frame while dragging.
-  const pn = noiseSource(true);
-  const bp = ctx.createBiquadFilter();
-  bp.type = 'bandpass';
-  bp.frequency.value = 2200;
-  bp.Q.value = 2.5;
-  peelGain = ctx.createGain();
-  peelGain.gain.value = 0;
-  pn?.connect(bp).connect(peelGain).connect(master);
-  pn?.start();
-}
-
-export function fizz(level: number): void {
-  if (ctx && fizzGain) fizzGain.gain.setTargetAtTime(Math.min(0.5, level), ctx.currentTime, 0.08);
-}
-
-export function rumble(seconds: number): void {
-  if (!ctx || !rumbleGain) return;
-  const g = rumbleGain.gain;
-  const t = ctx.currentTime;
-  g.cancelScheduledValues(t);
-  g.setValueAtTime(g.value, t);
-  g.linearRampToValueAtTime(0.55, t + seconds * 0.6);
-  g.linearRampToValueAtTime(0.06, t + seconds);
-}
-
-export function silence(): void {
-  if (!ctx) return;
-  const t = ctx.currentTime;
-  rumbleGain?.gain.setTargetAtTime(0, t, 0.05);
-  fizzGain?.gain.setTargetAtTime(0, t, 0.05);
-  peelGain?.gain.setTargetAtTime(0, t, 0.03);
-}
-
-export function peelCrackle(speed: number): void {
-  if (!ctx || !peelGain) return;
-  const level = Math.min(0.6, speed) * (0.5 + Math.random() * 0.8);
-  peelGain.gain.setTargetAtTime(level, ctx.currentTime, 0.02);
 }
 
 function env(node: AudioNode, peak: number, attack: number, decay: number, at = 0): GainNode | null {
@@ -175,12 +104,6 @@ export function hiss(seconds: number): void {
   src.stop(ctx.currentTime + seconds + 0.2);
 }
 
-export function pop(): void {
-  caption('[POP!]');
-  burst('highpass', 900, 0.9, 0.003, 0.09);
-  tone('sine', 520, 70, 0.8, 0.14);
-}
-
 export function whoosh(seconds = 0.35, peak = 0.35): void {
   if (!ctx) return;
   const src = noiseSource();
@@ -194,42 +117,6 @@ export function whoosh(seconds = 0.35, peak = 0.35): void {
   env(f, peak, seconds * 0.45, seconds * 0.55);
   src.start();
   src.stop(ctx.currentTime + seconds + 0.1);
-}
-
-export function thud(): void {
-  caption('[THUD]');
-  tone('sine', 120, 42, 0.95, 0.4);
-  burst('lowpass', 260, 0.6, 0.002, 0.12);
-  tone('triangle', 1900, 1700, 0.06, 0.5, 0.01); // faint plastic ring
-}
-
-export function slam(): void {
-  tone('sine', 90, 50, 0.5, 0.25);
-  burst('lowpass', 600, 0.25, 0.002, 0.08);
-}
-
-export function flick(): void {
-  caption('[label flies off]');
-  whoosh(0.45, 0.5);
-  burst('bandpass', 3500, 0.3, 0.002, 0.05, 3);
-}
-
-export function monster(): void {
-  tone('sine', 70, 38, 0.9, 0.9);
-  tone('sawtooth', 110, 55, 0.08, 0.7);
-}
-
-export function boing(): void {
-  caption('[storms off]');
-  tone('triangle', 180, 520, 0.35, 0.28);
-  whoosh(0.4, 0.4);
-}
-
-export function sting(): void {
-  caption('[sting]', 1800);
-  // Bright, short major chord over a sub hit.
-  [523.25, 659.25, 783.99].forEach((f, i) => tone('triangle', f, f * 0.995, 0.18, 1.1, i * 0.03));
-  tone('sine', 65, 45, 0.7, 0.6);
 }
 
 let lastCoin = 0;
@@ -433,7 +320,3 @@ export function pulseEnd(): void {
   src.stop(ctx.currentTime + 0.8);
 }
 
-export function sparkle(): void {
-  caption('[new yellow cap]');
-  [1318.5, 1760, 2093].forEach((f, i) => tone('sine', f, f, 0.12, 0.35, i * 0.06));
-}

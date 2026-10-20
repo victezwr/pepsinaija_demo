@@ -41,7 +41,7 @@ export function dropletNormalMap(size = 512, count = 420): THREE.CanvasTexture {
   return tex;
 }
 
-/** A handful of beads that slowly slide down the front of the label (High tier only). */
+/** Beads that slowly slide down the label, all the way round (High tier only). */
 export class Droplets {
   readonly mesh: THREE.InstancedMesh;
   private readonly angle: Float32Array;
@@ -74,7 +74,7 @@ export class Droplets {
   }
 
   private respawn(i: number, anywhere: boolean): void {
-    this.angle[i] = (Math.random() - 0.5) * 2.4; // front hemisphere
+    this.angle[i] = Math.random() * Math.PI * 2; // the bottle turns: beads all round
     this.yPos[i] = anywhere ? this.yMin + Math.random() * (this.yMax - this.yMin) : this.yMax;
     this.speed[i] = 0;
     this.size[i] = 0.0035 + Math.random() * 0.004;

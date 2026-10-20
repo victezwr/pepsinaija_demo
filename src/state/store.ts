@@ -1,19 +1,7 @@
 import { create } from 'zustand';
 import { readPref } from '../util/storage';
 
-export type Step =
-  | 'loading'
-  | 'silhouette'
-  | 'intro'
-  | 'warning'
-  | 'shaking'
-  | 'launch'
-  | 'rebel'
-  | 'peel'
-  | 'monster'
-  | 'exit'
-  | 'end'
-  | 'game';
+export type Step = 'loading' | 'intro' | 'launch' | 'game';
 
 export type Tier = 'high' | 'low';
 
@@ -30,8 +18,6 @@ export interface AppState {
   muted: boolean;
   audioOk: boolean;
   headline: Headline | null;
-  hint: string | null;
-  hintUrgent: boolean;
   caption: string | null;
   fallback: boolean;
   reducedMotion: boolean;
@@ -50,8 +36,6 @@ export const useStore = create<AppState>()(() => ({
   muted: readPref('muted') === '1',
   audioOk: true,
   headline: null,
-  hint: null,
-  hintUrgent: false,
   caption: null,
   fallback: false,
   reducedMotion: reduced,

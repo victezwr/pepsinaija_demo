@@ -1,10 +1,10 @@
-# DON'T SHAKE ME
+# THE YELLOW CHASE
 
-An interactive 3D story about a cold Pepsi bottle that really doesn't want to be shaken.
+SAME TASTE. NEW LOOK. A cold Pepsi bottle with the new yellow cap you can spin in 3D, then an endless runner through a Lagos street set to the theme song.
 
 > **Unofficial concept / spec project** by [@VOtakpor](https://x.com/VOtakpor) for @Pepsi_naija. Not affiliated with or endorsed by PepsiCo.
 
-Wake the bottle → ignore the warning → shake it → watch the new **yellow cap** land → try to catch it → it escapes to a water tower down a Lagos street → **The Chase**: outrun the agberos, collect 1000 yellow caps, get the Pepsi → STAY ON THE PULSE.
+**SAME TASTE. NEW LOOK.** over the fridge-cold bottle (drag to spin it) → **PLAY** starts the theme song and the bottle rockets off on its beat → it lands in your runner's hand at a Lagos motor park → **The Yellow Chase**: outrun the agberos, grab yellow caps, release the Pulse → STAY ON THE PULSE.
 
 ## Run it
 
@@ -22,14 +22,13 @@ URL flags: `?fps` (frame counter), `?lite` (force low quality), `?director` (for
 | | |
 |---|---|
 | Stack | Vite · React 18 · TypeScript · Three.js via React Three Fiber · GSAP · Zustand |
-| Audio | Placeholder sounds generated with the Web Audio API (no audio files) |
+| Audio | Theme song `public/audio/theme.mp3` (the clock the game is timed to) + sound effects generated with the Web Audio API |
 | Hosting | Static, Vercel. No backend. |
 | First load | ~1.8 MB (JS 323 KB gz + 1.17 MB model + Draco decoder) |
 
-- **The story** lives in `src/story/director.ts`: one step at a time, each with its own GSAP timeline. `resetScene()` restores everything for replay.
-- **Shake detection** (`src/input/shake.ts`) only rewards back-and-forth drags. Android phone-shake and press-and-hold also count.
-- **The peel** (`src/scene/labelPeel.ts`) is an authored deformation: the label leaves the bottle tangentially and curls into a roll. No physics solver.
-- **Quality tiers:** the intro doubles as a speed test and drops weaker phones to a lighter tier without anyone noticing.
+- **The intro** lives in `src/story/director.ts`: the spin-in, drag-to-spin with inertia, and the PLAY launch timed to the song. The cold look (mist, drip trails, beads, wet clear-coat) is `src/scene/chill.ts` + `condensation.ts`.
+- **Beat sync** (`src/audio/music.ts`): the theme is decoded before the first tap, starts on PLAY and loops on whole 16-beat phrases. `beat()` gives the song position in beats (155.76 BPM); the chase world is stepped by song time, obstacle rows are placed to reach the runner exactly on a beat, caps fall on 16th notes and the Pulse rings fire on the beat.
+- **Quality tiers:** the intro doubles as a speed test and drops weaker phones to a lighter tier; the chase keeps measuring and drops to LITE if it sags.
 
 Product, architecture, standards and progress are documented in [`/context`](context/).
 
@@ -46,4 +45,4 @@ Rebuild the web model: `cd tools && npm install && npm run fix-model`. The model
 
 Game assets (`assets/source/game/` → `public/game/`): `cd tools && npm install && node prep-game.mjs ../assets/source/game ../public/game`.
 
-Walkthrough tests: `npm run build && npx vite preview`, then `node tools/smoke-game.mjs http://localhost:4173 ./shots 390 844` (story → chase → game over → run again). Pulse Mode acceptance checks: `node tools/test-pulse.mjs http://localhost:4173 ./shots male` (add `lite` as a fourth argument for LITE).
+Walkthrough tests: `npm run build && npx vite preview`, then `node tools/smoke-game.mjs http://localhost:4173 ./shots 390 844` (intro → spin → PLAY → chase → Pulse → game over → run again). Pulse Mode acceptance checks: `node tools/test-pulse.mjs http://localhost:4173 ./shots male` (add `lite` for LITE). Beat sync: `node tools/test-pulse.mjs http://localhost:4173 ./shots male sync`.

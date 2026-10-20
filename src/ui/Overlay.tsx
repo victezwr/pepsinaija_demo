@@ -3,9 +3,8 @@ import { CREDIT_HANDLE } from '../config';
 import { useStore } from '../state/store';
 import * as director from '../story/director';
 import { dom } from '../story/rig';
-import { EndCard } from './EndCard';
 import { HalftoneRing } from './HalftoneRing';
-import { SpeakerIcon } from './icons';
+import { PlayIcon, SpeakerIcon } from './icons';
 import { useViewport } from './useViewport';
 
 export function StageRing(): JSX.Element {
@@ -23,25 +22,35 @@ export function Overlay(): JSX.Element {
       <TopBar />
       <Headline />
       {step === 'loading' && <div className="loading" aria-label="Loading" />}
-      {step === 'silhouette' && (
-        <div className="prompt">
-          <p className="prompt__main">TAP TO WAKE IT</p>
-          <p className="prompt__sub">
-            <SpeakerIcon size={14} /> best with sound
-          </p>
-        </div>
-      )}
-      <Hint />
+      {step === 'intro' && <IntroCard />}
       <Caption />
-      {step === 'end' && <EndCard onReplay={director.replay} />}
       <p className="credit">Unofficial concept by {CREDIT_HANDLE}</p>
       <FpsCounter />
     </div>
   );
 }
 
+/** SAME TASTE. NEW LOOK. above the bottle, PLAY beneath it. */
+function IntroCard(): JSX.Element {
+  return (
+    <>
+      <h1 className="intro-title">
+        <span>SAME TASTE.</span>
+        <span className="intro-title__accent">NEW LOOK.</span>
+      </h1>
+      <div className="intro-play">
+        <button className="btn btn--play" onClick={director.play}>
+          <PlayIcon /> PLAY
+        </button>
+        <p className="intro-play__sub">
+          <SpeakerIcon size={14} /> best with sound
+        </p>
+      </div>
+    </>
+  );
+}
+
 function TopBar(): JSX.Element {
-  const step = useStore((s) => s.step);
   const muted = useStore((s) => s.muted);
   const tier = useStore((s) => s.tier);
   return (
@@ -54,11 +63,6 @@ function TopBar(): JSX.Element {
         {tier === 'high' ? 'LITE' : 'HD'}
       </button>
       <div className="topbar__right">
-        {step === 'intro' && (
-          <button className="btn btn--ghost" onClick={director.skipIntro}>
-            SKIP
-          </button>
-        )}
         <button className="btn btn--ghost" onClick={() => director.setMuted(!muted)} aria-label={muted ? 'Unmute' : 'Mute'}>
           <SpeakerIcon muted={muted} />
         </button>
@@ -74,17 +78,6 @@ function Headline(): JSX.Element | null {
     <h1 key={h.text} className={`headline${h.accent ? ' headline--accent' : ''}${h.size === 'md' ? ' headline--md' : ''}`} aria-live="polite">
       {h.text}
     </h1>
-  );
-}
-
-function Hint(): JSX.Element | null {
-  const hint = useStore((s) => s.hint);
-  const urgent = useStore((s) => s.hintUrgent);
-  if (!hint) return null;
-  return (
-    <p key={hint} className={`hint${urgent ? ' hint--urgent' : ''}`}>
-      {hint}
-    </p>
   );
 }
 

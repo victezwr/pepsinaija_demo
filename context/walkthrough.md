@@ -1,37 +1,28 @@
-# Walkthrough: DON'T SHAKE ME → THE YELLOW CHASE
+# Walkthrough: THE YELLOW CHASE
 
 What a visitor experiences today on https://dontshakeme.vercel.app, from the first screen to the
 game-over screen. Unofficial concept by @VOtakpor for @Pepsi_naija.
 
 ---
 
-## Part 1: The bottle story (about 30 seconds)
+## Part 1: The intro
 
-### 1. Wake it up
-- Black screen. A Pepsi bottle stands in the dark, lit only by a faint blue rim light.
-- On screen: **TAP TO WAKE IT**, with a small speaker icon and "best with sound".
-- **Tap.** Sound switches on with a low rumble. Light slowly fills the bottle, the camera pushes in, and the blue halftone ring fades up behind it. (A **SKIP** button is available.)
+### 1. Same taste, new look
+- Black screen. The Pepsi bottle with the **new yellow cap** spins in as the light comes up, with the blue halftone ring behind it.
+- On screen: **SAME TASTE.** (white) / **NEW LOOK.** (yellow) above the bottle.
+- The bottle looks **straight out of the fridge**: misted plastic, a fogged label with clear trails where drops have run down, water beads all round, and (on HD) a wet gloss and beads slowly sliding down.
+- It's a **live 3D model**: drag anywhere to spin it (flick it and it coasts), drag up or down to tip it a little. Left it alone, it turns slowly on its own. Arrow keys spin it on a computer.
 
-### 2. The warning
-- **DON'T SHAKE ME.** The bottle is cold and sweating, with droplets sliding down the label, and it fizzes quietly. The cap is the **old blue cap**.
-- There are no instructions. If nobody touches it, it starts trembling by itself after a while.
-
-### 3. Shake it
-- **Drag up and down** on the bottle (on Android, physically shaking the phone also counts).
-- The bottle wobbles harder and the fizz gets louder: **EASY…** → **I'M WARNING YOU.**
-- Pressure builds, then **POP**. The bottle shoots into the air, spins and lands with a thud. The blue cap flashes into the **new yellow cap**.
-
-### 4. The rebel
-- **HUMANS CAN'T BE TRUSTED.**
-- Reach for it and it dodges: **TOO SLOW.** → **NOPE.**
-- After the third dodge: **CATCH ME IF YOU CAN.** The bottle rockets straight up out of the screen.
+### 2. PLAY
+- **PLAY** sits beneath the bottle, with "best with sound".
+- **Tap PLAY** (or Enter / Space): the **theme song starts**. The bottle squats and spins up to face you, and **on the song's beat** it rockets up out of the frame with a burst of fizz.
 
 ---
 
 ## Part 2: The Yellow Chase (the game)
 
 ### 5. Motor park (main menu)
-- A warm flash, then a Lagos motor park at sunset. The bottle falls out of the sky and **lands in your runner's hand**.
+- A warm flash, then a Lagos motor park at sunset. The bottle falls out of the sky and **lands in your runner's hand**, two beats later. The theme keeps playing.
 - Your runner stands beside a parked yellow **danfo**, holding the Pepsi.
 - Behind them, three **agberos** stare at the yellow cap: the **Chairman** (biggest, yellow singlet) and his boys (red, green). The Chairman says **"Ah-ah! Yellow cap?!"**
 - On screen:
@@ -44,7 +35,7 @@ game-over screen. Unofficial concept by @VOtakpor for @Pepsi_naija.
 ### 6. The start
 - **Tap.** *Psssht*: the cap twists open.
 - The Chairman shouts **"Oya hold am!"** and blows his **whistle**. The boys shout and give chase.
-- The camera swings round behind your runner and the chase begins. The music kicks in.
+- The camera swings round behind your runner and the chase begins, to the theme song.
 
 ### 7. The run
 An endless run down a three-lane Lagos street lined with shops, balconies and electric poles.
@@ -67,11 +58,11 @@ An endless run down a three-lane Lagos street lined with shops, balconies and el
 | Concrete barrier with cones, sachet-water table | Jump |
 | Banner on poles | Slide under |
 
-Every row of traffic always leaves you a way through.
+Every row of traffic always leaves you a way through. **Rows reach you on the beat of the theme song**: one every 4 beats at first, every 3 beats from 2,000 m.
 
-**Collectibles:** lines of **yellow Pepsi caps**, some arcing over the jumps. Each cap chimes, and quick streaks climb in pitch.
+**Collectibles:** lines of **yellow Pepsi caps**, some arcing over the jumps. They're spaced one per 16th note of the song, so a streak of chimes runs in time with it, climbing in pitch.
 
-**Speed:** starts fast and jumps up a stage at **500 m, 1,200 m, 2,000 m and 3,000 m** ("SPEED UP!"). The music speeds up with it.
+**Speed:** 17 m/s, stepping up at **500 m, 1,200 m, 2,000 m and 3,000 m** ("SPEED UP!") to 24 m/s. The song keeps its own tempo.
 
 **On screen during the run:** distance in metres and speed stage (top left), caps and the **PULSE** meter (top right).
 
@@ -90,24 +81,23 @@ Every row of traffic always leaves you a way through.
   - The agberos are blown back and stagger.
   - Traffic and barriers just ahead are flung aside (each one only once).
   - Caps ahead fly straight to you.
-- **The surf (8 seconds):** your runner rises on a column of cola foam and surfs above the traffic, with blue rings pulsing out from under their feet on the beat. The street light pulses, the music adds a sub-bass thump, caps keep flying in, and **STAY ON THE PULSE** shows under the score. Nothing can hit you, and you can still change lanes.
-- **The landing:** the road where you'll land is cleared, you glide down, the music settles back, and you keep about a second of protection to find your feet.
-- Then the meter starts again from empty. Double-tapping with an empty meter does nothing.
-- On **LITE**, the gameplay is identical, with fewer rings, a softer flash, a lighter foam column and no camera-facing burst.
+- **Then you keep running.** No floating, no foam: for **16 beats** (one phrase of the song, about 6 seconds) a ring pulses out from your feet **on every beat**, flinging away anything within about 26 m ahead, while caps keep flying to you and the street light pulses with it. A sub-bass thump joins the song on each beat. **STAY ON THE PULSE** shows under the score. Nothing can hit you, and you can still change lanes, jump and slide.
+- After the last ring you get half a second of protection and the meter starts again from empty. Double-tapping with an empty meter does nothing.
+- On **LITE**, the gameplay is identical, with fewer rings, a softer flash and no camera-facing burst.
 
 ### 11. Caught: game over
-- A crash, and the crowd yells: **"We don catch am!"**
+- A crash, and the crowd yells: **"We don catch am!"** The theme drops low under them.
 - The camera swings round to the front for the **trophy shot**: your runner sits defeated on the road while the Chairman **holds up your Pepsi** and the boys gather round. A big **Pepsi bottle with the yellow cap** spins in the corner.
 - The game-over panel shows:
   - **AGBEROS DON COLLECT AM!**
   - Your **metres**, **caps** and **best** distance
-  - **RUN AGAIN**: straight back into the chase (whistle, swing, go)
+  - **RUN AGAIN**: straight back into the chase (whistle, swing, go); the song comes back up
   - **CHALLENGE FRIENDS**: opens X with a ready-made post:
     > I dodged the agberos for 1,234m and grabbed 87 yellow caps with the new yellow-cap Pepsi @Pepsi_naija! Can you beat my score? #PepsiYellowChase
     >
     > https://dontshakeme.vercel.app
   - **STAY ON THE PULSE** with the Pepsi logo
-  - **Watch the intro again**: back to the bottle story
+  - **Watch the intro again**: back to SAME TASTE. NEW LOOK.
 
 ---
 
@@ -118,6 +108,6 @@ Every row of traffic always leaves you a way through.
 
 ## Placeholders, to be replaced
 - **Agbero voices:** generated in code until the voice-over is recorded (`public/audio/agbero-1.mp3` … `agbero-6.mp3`).
-- **Music:** an original generated track until a licensed one is added (`public/audio/game-music.mp3`).
+- **Music:** the owner's theme song (`public/audio/theme.mp3`). Swapping it means re-measuring the beat grid in `src/audio/music.ts`.
 - **Agbero hand props:** pending a decision.
 - **Running on the danfo roofs via ramps:** planned, not built yet.

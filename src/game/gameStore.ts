@@ -4,7 +4,7 @@ import { readPref } from '../util/storage';
 export type GamePhase = 'loading' | 'reveal' | 'menu' | 'starting' | 'running' | 'caught';
 export type Runner = 'male' | 'female';
 /** Pulse Mode ability states. */
-export type PulseState = 'empty' | 'charged' | 'activating' | 'surging' | 'ending';
+export type PulseState = 'empty' | 'charged' | 'activating' | 'pulsing' | 'ending';
 
 export interface GameState {
   phase: GamePhase;

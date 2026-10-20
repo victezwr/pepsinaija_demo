@@ -1,8 +1,13 @@
-// Pulse Mode acceptance checks (headless). Usage: node tools/test-pulse.mjs <baseUrl> <outDir> <male|female> [lite]
+// Pulse Mode acceptance checks (headless). Usage: node tools/test-pulse.mjs <baseUrl> <outDir> <male|female> [lite] [sync]
+// `sync` instead checks beat sync only: it lifts the world's per-frame step cap (?clockcap) so the
+// ~1 fps headless browser keeps pace with the song, lets ?autopilot dodge, and requires every row
+// on the road to be due on the beat it was aimed at.
 import { chromium } from 'playwright';
 import fs from 'fs';
 
-const [base, out, runner = 'male', lite = ''] = process.argv.slice(2);
+const [base, out, runner = 'male', ...flags] = process.argv.slice(2);
+const lite = flags.includes('lite');
+const sync = flags.includes('sync');
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
@@ -17,7 +22,6 @@ const phase = () => page.evaluate(() => window.__dsm.game().phase);
 const P = () => page.evaluate(() => window.__dsm.gameDebugPulse());
 const waitStep = (s) => page.waitForFunction((s) => window.__dsm?.getState().step === s, s, { timeout: 120000 });
 const waitPhase = (p, t = 120000) => page.waitForFunction((p) => window.__dsm?.game().phase === p, p, { timeout: t });
-const box = () => page.evaluate(() => window.__dsm.bottleScreenBox());
 let n = 0;
 const shot = (name) => page.screenshot({ path: `${out}/${String(++n).padStart(2, '0')}-${name}.png` });
 // Headless frames are so slow that Playwright's two touchscreen taps land >1 s apart, outside the
@@ -38,22 +42,10 @@ const touchDoubleTap = async () => {
 };
 
 try {
-await page.goto(`${base}/?debug${lite ? '&lite' : ''}`);
-await waitStep('silhouette');
-let b = await box();
-await page.mouse.click(b.cx, (b.top + b.bottom) / 2);
-await waitStep('warning');
-b = await box();
-await page.mouse.move(b.cx, (b.top + b.bottom) / 2);
-await page.mouse.down();
-for (let i = 0; i < 80 && (await step()) !== 'launch'; i++) await page.mouse.move(b.cx, (b.top + b.bottom) / 2 + (i % 2 ? -90 : 90), { steps: 4 });
-await page.mouse.up();
-await waitStep('rebel');
-for (let i = 0; i < 8 && (await step()) === 'rebel'; i++) {
-  b = await box();
-  await page.mouse.click(b.cx + 5, (b.top + b.bottom) / 2);
-  await page.waitForTimeout(900);
-}
+await page.goto(`${base}/?debug${lite ? '&lite' : ''}${sync ? '&clockcap=2&autopilot' : ''}`);
+await waitStep('intro');
+await page.getByRole('button', { name: 'PLAY' }).click();
+await waitStep('game');
 await waitPhase('menu');
 await page.waitForTimeout(1500);
 await shot('menu-grip');
@@ -61,6 +53,35 @@ if (runner === 'female') await page.getByRole('button', { name: 'Female runner' 
 await page.touchscreen.tap(195, 380);
 await waitPhase('running');
 await page.waitForTimeout(800);
+
+if (sync) {
+  // Sample the road often while each run is live (at ~2 fps the autopilot can't dodge for long),
+  // over several runs
+  let worst = 0;
+  let rows = 0;
+  let live = 0;
+  const seen = [];
+  for (let run = 0; run < 4; run++) {
+    if (run > 0) {
+      await waitPhase('caught', 120000).catch(() => page.evaluate(() => window.__dsm.gameDebugCatch()));
+      await page.waitForTimeout(2500);
+      await page.getByRole('button', { name: 'RUN AGAIN' }).click();
+      await waitPhase('running');
+    }
+    for (let i = 0; i < 20 && (await phase()) === 'running'; i++) {
+      const s = await P();
+      if ((await phase()) === 'running' && s.synced && s.rowSync.length) {
+        live++;
+        rows += s.rowSync.length;
+        for (const x of s.rowSync) worst = Math.max(worst, Math.abs(x));
+        seen.push(s.rowSync);
+      }
+      await page.waitForTimeout(400);
+    }
+  }
+  check('sync: rows due on the beat they were aimed at', live >= 3 && rows >= 6 && worst < 0.1, `${live} live samples, ${rows} rows, worst ${worst.toFixed(3)} beats (${((worst * 60000) / 155.76).toFixed(0)} ms) ${JSON.stringify(seen)}`);
+  throw new Error('sync-only run done');
+}
 
 // 2. Insufficient charge does nothing (both inputs)
 await doubleTap();
@@ -88,9 +109,9 @@ await page.waitForFunction(() => window.__dsm.gameDebugPulse().ahead > 0, null, 
 const aheadAtFire = (await P()).ahead;
 const capsBefore = (await P()).caps;
 await doubleTap();
-await page.waitForFunction(() => ['activating', 'surging'].includes(window.__dsm.gameDebugPulse().state), null, { timeout: 10000 }).catch(() => {});
+await page.waitForFunction(() => ['activating', 'pulsing'].includes(window.__dsm.gameDebugPulse().state), null, { timeout: 10000 }).catch(() => {});
 let p1 = await P();
-check('3 double-tap activates', ['activating', 'surging'].includes(p1.state), p1.state);
+check('3 double-tap activates', ['activating', 'pulsing'].includes(p1.state), p1.state);
 await shot('impact');
 await doubleTap(); // repeated taps must not re-trigger or re-spend
 const laneBefore = (await P()).lane;
@@ -101,38 +122,44 @@ await page.mouse.up();
 await page.waitForTimeout(300);
 check('3b swipe still changes lane during pulse', (await P()).lane !== laneBefore, `lane ${laneBefore} → ${(await P()).lane}`);
 
-// 8/9. Surf above the road, protected, for the whole ability
+// 8/9. Pulses on the ground (no surf), protected, for the whole ability
 let maxY = 0;
+let sawPulsing = false;
 let leftRunning = false;
 let shots = 0;
 while (true) {
   const s = await P();
   const ph = await phase();
   if (ph !== 'running') leftRunning = true;
-  maxY = Math.max(maxY, s.boostY);
-  if (s.state === 'surging' && shots < 2 && s.boostY > 2.5) {
-    await shot(`surf-${++shots}`);
+  maxY = Math.max(maxY, s.py);
+  if (s.state === 'pulsing') sawPulsing = true;
+  if (s.state === 'pulsing' && shots < 2) {
+    await shot(`pulsing-${++shots}`);
   }
   if (s.state === 'empty') break;
   await page.waitForTimeout(500);
 }
 const p2 = await P();
-check('8 runner surfs above traffic', maxY > 3, `max height ${maxY.toFixed(2)} m`);
+check('8 runner keeps running on the road (no float), pulses on the beat', maxY < 0.01 && sawPulsing, `max height ${maxY.toFixed(2)} m, pulsing seen: ${sawPulsing}`);
 check('9 no stumble/catch during the pulse', !leftRunning);
 check('6 nearby obstacles neutralised', p2.cleared >= aheadAtFire && (aheadAtFire > 0 || p2.cleared >= 0), `${aheadAtFire} in range at release, ${p2.cleared} cleared in total (incl. landing zone)`);
 check('7 caps attracted and counted', p2.magnetCaps >= 0 && p2.caps >= capsBefore + p2.magnetCaps - 1, `${p2.magnetCaps} pulled in, caps ${capsBefore} → ${p2.caps}`);
 check('charge spent once', p2.chill === 0 && p2.state === 'empty', JSON.stringify(p2));
 
-// 10. Safe landing: still running a moment later
-await page.waitForTimeout(3000);
-check('10 lands safely', (await phase()) === 'running');
+// 10. Safe re-entry: the road the last ring cleared + the grace keep you safe for a moment
+await page.waitForTimeout(1000);
+check('10 safe right after the pulse ends', (await phase()) === 'running');
 
-// 4. Desktop B activates the same ability
+// 4. Desktop B activates the same ability (on a live run)
+if ((await phase()) === 'caught') {
+  await page.getByRole('button', { name: 'RUN AGAIN' }).click();
+  await waitPhase('running');
+}
 await page.evaluate(() => window.__dsm.gameDebugChill());
 await page.keyboard.press('b');
-await page.waitForFunction(() => ['activating', 'surging'].includes(window.__dsm.gameDebugPulse().state), null, { timeout: 10000 }).catch(() => {});
+await page.waitForFunction(() => ['activating', 'pulsing'].includes(window.__dsm.gameDebugPulse().state), null, { timeout: 10000 }).catch(() => {});
 const p4 = await P();
-check('4 B key activates', ['activating', 'surging'].includes(p4.state), JSON.stringify(p4));
+check('4 B key activates', ['activating', 'pulsing'].includes(p4.state), JSON.stringify(p4));
 await page.waitForFunction(() => window.__dsm.gameDebugPulse().state === 'empty', null, { timeout: 180000 });
 
 // 11. Normal rules resume: running straight with no input gets you caught eventually
@@ -151,10 +178,10 @@ await shot('gameover');
 await page.getByRole('button', { name: 'RUN AGAIN' }).click();
 await waitPhase('running');
 const p3 = await P();
-check('13 restart clears pulse state', p3.state === 'empty' && p3.chill === 0 && p3.boostY === 0, JSON.stringify(p3));
+check('13 restart clears pulse state', p3.state === 'empty' && p3.chill === 0, JSON.stringify(p3));
 
 } catch (e) {
-  check('script', false, e.message.split('\n')[0] + ' | pulse=' + JSON.stringify(await P().catch(() => null)) + ' phase=' + (await phase().catch(() => '?')));
+  if (!e.message.includes('sync-only run done')) check('script', false, e.message.split('\n')[0] + ' | pulse=' + JSON.stringify(await P().catch(() => null)) + ' phase=' + (await phase().catch(() => '?')));
 }
 console.log(JSON.stringify({ runner, lite: !!lite, results, errors }, null, 1));
 const failed = results.filter((r) => !r.ok);

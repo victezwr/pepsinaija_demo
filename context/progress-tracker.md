@@ -50,7 +50,7 @@ Rule: exactly one unit is `In progress` at a time (see `ai-workflow-rules.md`).
 ## Phase 5 — QA & publish
 | # | Unit | Status | Notes |
 |---|---|---|---|
-| 5.1 | Playwright walkthrough of every step | Done | `tools/smoke.mjs`: phone 390×844, desktop 1280×800, Lite 360×800 all pass. |
+| 5.1 | Playwright walkthrough of every step | Done | Story test retired with the story (6.19); `tools/smoke-game.mjs` covers intro → game. |
 | 5.2 | Spark 10C tuning pass (owner) | **Next** | Open the site with `?fps`. Report: fps during idle/shake/peel, shake difficulty, dodge feel, peel feel, text size. |
 | 5.3 | Vercel project/domain without "pepsi" | To do | Owner action. |
 | 5.4 | Record 9:16 X clip with `?director` | To do | |
@@ -74,9 +74,12 @@ Rule: exactly one unit is `In progress` at a time (see `ai-workflow-rules.md`).
 | 6.13 | Agbero hand props | Waiting on owner | | Owner asked for planks of wood; flagged brand risk, alternatives offered. |
 | 6.14 | Bus-roof running via ramps | To do | | Last in the owner's order. |
 | 6.15 | Voice-over | Waiting on owner | | Drop `public/audio/agbero-1..6.mp3`; placeholders until then. |
-| 6.16 | Spark 10C tuning (owner) | **Next** | | fps, difficulty curve, double-tap feel, share post text. Re-test after 6.17/6.18. |
+| 6.16 | Spark 10C tuning (owner) | **Next** | | Owner: lag steady after 6.17, double-tap OK. Next: re-test the new intro, song sync and pace. |
 | 6.17 | Lag + bottle-in-hand glitch | Done | 2026-10-20 | Scenery scrolls once per frame (was every collision sub-step); no per-frame allocations; chase resolution capped (HD 1.5×, LITE 1×); mid-chase guard drops to LITE if fps < 40 for 3 s; lighter music arrangement on LITE. Menu idle is now a still frame (the looping idle made the hand twitch); the held bottle draws opaque (no transparency sorting flicker). Needs owner re-test on the Spark 10C. |
 | 6.18 | Pulse Mode (replaces Fizz Boost) | Done | 2026-10-20 | States EMPTY → CHARGED → ACTIVATING → SURGING → ENDING. 50-cap meter, PULSE READY + glow + charge sound. Double-tap / B → shockwave rings (`src/game/pulse.ts`, pooled additive shader), camera jolt, flash, bass + fizz; agberos knocked back; obstacles within 32 m cleared once; caps pulled in. 8 s surf with rings at the feet, foam, magnet, beat lighting, sub-bass music layer; landing zone cleared + 1 s grace. LITE: fewer rings, no burst, half foam. Headless acceptance test: `tools/test-pulse.mjs`. |
+| 6.19 | New intro: SAME TASTE. NEW LOOK. | Done | 2026-10-20 | Owner: replace the shake story. Title + live 3D bottle (yellow cap, drag to spin with inertia, tip, slow auto-turn) with a fridge-cold look (`src/scene/chill.ts`: mist + drip trails + beads; wet clear-coat on HD) + PLAY beneath. PLAY starts the theme; the bottle rockets up on its beat into the motor park. Shake/dodge/peel code removed. The chase builds behind the intro. |
+| 6.20 | Theme song + beat sync | Done | 2026-10-20 | Owner's theme (`public/audio/theme.mp3`): 155.76 BPM, first beat 0.320 s, loops on 16-beat phrases. Chase stepped by song time; rows reach the runner on the beat (every 4 beats, 3 from 2,000 m); caps on 16th notes; Pulse rings on the beat; theme ducks on game over. Speed lowered (owner: "a bit fast"): 17 → 24 m/s. Headless sync check: every row due exactly on its beat. |
+| 6.21 | Pulse on the ground | Done | 2026-10-20 | Owner: no foam, no floating; just pulse, clear and keep running. Release shockwave, then a ring from the feet on each of 16 beats clearing 26 m ahead. Foam trail removed. |
 
 ## Backlog (v1.1)
 - Video version for phones below the Spark 10C.
