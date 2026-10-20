@@ -1,14 +1,14 @@
 import { create } from 'zustand';
 import { readPref } from '../util/storage';
 
-export type Step = 'loading' | 'intro' | 'launch' | 'game';
+export type Step = 'loading' | 'intro' | 'cinematic' | 'game';
 
 export type Tier = 'high' | 'low';
 
 export interface Headline {
   text: string;
   accent?: boolean;
-  size?: 'xl' | 'md';
+  size?: 'xl' | 'md' | 'cine';
 }
 
 export interface AppState {
@@ -20,6 +20,9 @@ export interface AppState {
   headline: Headline | null;
   caption: string | null;
   fallback: boolean;
+  /** Blue energy ripple out of the bottle in the cinematic: bumps per ripple. */
+  ripple: number;
+  rippleBig: boolean;
   reducedMotion: boolean;
   showFps: boolean;
   director: boolean;
@@ -38,6 +41,8 @@ export const useStore = create<AppState>()(() => ({
   headline: null,
   caption: null,
   fallback: false,
+  ripple: 0,
+  rippleBig: false,
   reducedMotion: reduced,
   showFps: params.has('fps'),
   director: params.has('director'),

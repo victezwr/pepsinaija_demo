@@ -1,16 +1,19 @@
 import gsap from 'gsap';
 import * as THREE from 'three';
 import * as C from '../config';
-import * as music from '../audio/music';
+import * as score from '../audio/score';
 import * as sfx from '../audio/sfx';
 import { track } from '../analytics/track';
-import { getState, setState, type Step } from '../state/store';
+import { gameSkipCinematic } from '../game/GameScene';
+import { useGame } from '../game/gameStore';
+import { getState, setState, type Headline, type Step } from '../state/store';
 import { writePref } from '../util/storage';
 import { cam, dom, getRig, lights, pose, ring, type Rig } from './rig';
 
 // ---------------------------------------------------------------------------
 // The intro: SAME TASTE. NEW LOOK. over the cold bottle, which you can spin, and PLAY.
-// PLAY starts the theme song; the bottle rockets off on its beat and lands in the chase.
+// PLAY runs the opening cinematic, beats A–C here (the Golden Cap wakes, DON'T SHAKE ME, the
+// pop), then hands over to the motor park (beats D–E, src/game/world.ts). SKIP works throughout.
 // Every step change goes through enter(); nothing else sets `step`.
 
 let story: gsap.core.Timeline | null = null;
@@ -20,6 +23,8 @@ let probe = { frames: 0, time: 0, done: false };
 
 /** Drag-to-spin state (radians, radians per second). */
 const turn = { vel: 0, dragging: false, lastX: 0, lastY: 0, tilt: 0, releasedAt: -99 };
+/** Pressure building in the bottle (jitter amplitude). */
+const fx = { tremble: 0 };
 
 const tmp = new THREE.Vector3();
 const tmp2 = new THREE.Vector3();
@@ -27,6 +32,15 @@ const tmp2 = new THREE.Vector3();
 function enter(step: Step): void {
   setState({ step });
   stepStart = clock;
+}
+
+function headline(h: Headline | null): void {
+  setState({ headline: h });
+}
+
+/** A blue energy ripple out of the bottle (DOM rings; `big` for the pop's shockwave). */
+function ripple(big: boolean): void {
+  setState({ ripple: getState().ripple + 1, rippleBig: big });
 }
 
 function newStory(onComplete?: () => void): gsap.core.Timeline {
@@ -58,41 +72,99 @@ export function ready(): void {
     .to(ring, { opacity: 1, scale: 1, duration: 1.4, ease: 'power2.out' }, 0.5);
 }
 
-/** PLAY: theme song from the top; the bottle rockets up on its beat and the chase opens. */
+/**
+ * PLAY: the opening cinematic, beats A–C (about 9 s), timed against the dùndún groove.
+ * A 0–3 s  lights out, a blue rim finds the can: SOME THINGS SHOULD STAY CLOSED. + three trumpet notes
+ * B 3–7 s  the camera circles, the yellow cap glows gold, a blue ripple: DON'T SHAKE ME. The music stops.
+ * C 7–9 s  pressure builds, POP: cap flash, blue shockwave, and the bottle rockets off to the motor park.
+ */
 export function play(): void {
   if (getState().step !== 'intro') return;
   sfx.unlock();
   track('started');
   writePref('played', '1');
-  enter('launch');
+  enter('cinematic');
+  useGame.setState({ cinematic: true });
   turn.dragging = false;
   gsap.killTweensOf(pose);
-  void music.startTheme().then((ok) => {
-    // Lift-off lands on the song's third beat (about a second in); without the song, same feel.
-    const lift = ok ? Math.max(0.35, music.secondsToBeat(2) ?? 0.9) : 0.9;
-    launch(lift);
-  });
+  const rm = reduced();
+  const front = Math.round(pose.ry / (Math.PI * 2)) * Math.PI * 2;
+  const tl = newStory(toGame);
+  // Beat A: the awakening
+  tl.to(lights, { key: 0, env: 0, rimL: 0, rimR: 0, duration: 0.5, ease: 'power2.out' }, 0)
+    .to(ring, { opacity: 0, duration: 0.4 }, 0)
+    .to(pose, { ry: front, duration: 0.6, ease: 'power2.inOut' }, 0)
+    .to(turn, { tilt: 0, duration: 0.4 }, 0)
+    .call(() => {
+      sfx.reveal();
+      score.startGroove(0.7);
+    }, [], 0.5)
+    .to(lights, { rimL: C.RIM_L_INTENSITY, rimR: C.RIM_R_INTENSITY, duration: 1.0, ease: 'power1.in' }, 0.8)
+    .fromTo(cam, { dolly: rm ? 1.05 : 1.3 }, { dolly: 1.05, duration: 6.2, ease: 'sine.inOut', immediateRender: false }, 0.5)
+    .call(() => headline({ text: 'SOME THINGS SHOULD STAY CLOSED.', size: 'cine' }), [], 1.1)
+    .call(() => score.suspiciousTrumpet(), [], 1.8)
+    // Beat B: the Golden Cap
+    .call(() => headline(null), [], 3.1)
+    .to(lights, { key: C.KEY_INTENSITY * 0.5, env: C.ENV_INTENSITY * 0.6, duration: 1.2 }, 3.1)
+    .to(cam, { orbit: rm ? 0 : 0.75, duration: 3.6, ease: 'sine.inOut' }, 3.1)
+    .call(goldenGlow, [], 3.9)
+    .call(() => ripple(false), [], 4.5)
+    .to(ring, { opacity: 0.7, scale: 1, duration: 0.8 }, 4.5)
+    .call(() => headline({ text: "DON'T SHAKE ME.", accent: true }), [], 5.1)
+    .call(() => score.stopGroove(0.25), [], 5.9) // the music holds its breath
+    // Beat C: the pop
+    .call(() => {
+      headline(null);
+      sfx.hiss(1.6);
+    }, [], 7.0)
+    .to(cam, { orbit: 0, duration: 1.4, ease: 'sine.inOut' }, 6.9)
+    .to(fx, { tremble: rm ? 0.004 : 0.03, duration: 1.6, ease: 'power2.in' }, 7.0)
+    .to(ring, { pulse: 1, duration: 1.6 }, 7.0)
+    .call(popOpen, [], 8.6)
+    .to(pose, { sy: rm ? 1 : 1.15, sx: rm ? 1 : 0.92, duration: 0.12 }, 8.65)
+    .to(pose, { y: C.ESCAPE_HEIGHT, duration: 0.45, ease: 'power2.in' }, 8.7)
+    .call(() => sfx.whoosh(0.5, 0.45), [], 8.7)
+    .to(ring, { opacity: 0, duration: 0.4 }, 8.8);
 }
 
-function launch(lift: number): void {
-  const rm = reduced();
-  const tl = newStory(toGame);
-  const beat = music.BEAT_S;
-  sfx.hiss(lift);
-  // Anticipation: the bottle squats and spins up to face you
-  tl.to(pose, { ry: Math.round(pose.ry / (Math.PI * 2)) * Math.PI * 2 + Math.PI * 2, duration: lift, ease: 'power2.in' }, 0)
-    .to(pose, { sy: 0.86, sx: 1.07, duration: lift, ease: 'power2.in' }, 0)
-    .to(ring, { pulse: 1, duration: lift }, 0)
-    .call(() => {
-      sfx.whoosh(0.5, 0.45);
-      burstFromCap(getState().tier === 'high' ? 160 : 50);
-      ring.flash = 1;
-      cam.shake = rm ? 0 : 0.02;
-    }, [], lift)
-    .to(pose, { sy: rm ? 1 : 1.15, sx: rm ? 1 : 0.92, duration: 0.12 }, lift)
-    // Up and out of the frame within one beat
-    .to(pose, { y: C.ESCAPE_HEIGHT, duration: beat, ease: 'power2.in' }, lift)
-    .to(ring, { opacity: 0, duration: beat }, lift);
+/** Beat B: the yellow cap glows gold for a moment. */
+function goldenGlow(): void {
+  const r = rigOrNull();
+  if (!r) return;
+  sfx.goldGlint();
+  r.capMat.emissive.set(0xffb000);
+  gsap.fromTo(r.capMat, { emissiveIntensity: 0 }, { emissiveIntensity: 1.3, duration: 0.3, ease: 'power2.out', yoyo: true, repeat: 1, repeatDelay: 0.5 });
+  gsap.fromTo(r.capFlash, { intensity: 0 }, { intensity: 2.5, duration: 0.3, yoyo: true, repeat: 1, repeatDelay: 0.5 });
+}
+
+/** Beat C: the can opens: pop, cap flash, the blue shockwave (a taste of PULSE MODE). */
+function popOpen(): void {
+  const r = rigOrNull();
+  fx.tremble = 0;
+  sfx.pop();
+  sfx.capOpen();
+  ripple(true);
+  ring.flash = 1;
+  cam.shake = reduced() ? 0 : 0.035;
+  burstFromCap(getState().tier === 'high' ? 160 : 50);
+  if (!r) return;
+  r.capMat.emissive.set(0xfff0b0);
+  gsap.fromTo(r.capMat, { emissiveIntensity: 2.5 }, { emissiveIntensity: 0, duration: 0.8, ease: 'power2.out' });
+  gsap.fromTo(r.capFlash, { intensity: 4 }, { intensity: 0, duration: 0.8, ease: 'power2.out' });
+}
+
+/** SKIP (cinematic only): straight into a correctly set-up run. Safe to press repeatedly. */
+export function skipCinematic(): void {
+  const step = getState().step;
+  if (step === 'cinematic') {
+    story?.kill();
+    story = null;
+    score.stopGroove(0.1);
+    fx.tremble = 0;
+    headline(null);
+    enter('game');
+  }
+  if (getState().step === 'game' && useGame.getState().cinematic) gameSkipCinematic();
 }
 
 function burstFromCap(count: number): void {
@@ -100,7 +172,7 @@ function burstFromCap(count: number): void {
   if (!r) return;
   r.cap.getWorldPosition(tmp);
   tmp.y += 0.04;
-  tmp2.set(0, -1, 0); // the fizz sprays down as it takes off
+  tmp2.set(0, 1, 0); // the fizz erupts out of the open neck
   r.fizz.emit(count, tmp, tmp2, 2.2, 1.4);
 }
 
@@ -114,14 +186,21 @@ function toGame(): void {
 function resetScene(): void {
   story?.kill();
   story = null;
-  gsap.killTweensOf([pose, cam, lights, ring]);
+  gsap.killTweensOf([pose, cam, lights, ring, fx, turn]);
   Object.assign(pose, { x: 0, y: 0, ry: 0, rz: 0, sx: 1, sy: 1 });
   Object.assign(ring, { opacity: 0, scale: 0.85, pulse: 0, flash: 0 });
   Object.assign(lights, { key: C.KEY_INTENSITY, rimL: C.RIM_L_INTENSITY, rimR: C.RIM_R_INTENSITY, env: C.ENV_INTENSITY });
   Object.assign(turn, { vel: 0, dragging: false, tilt: 0, releasedAt: -99 });
+  fx.tremble = 0;
   cam.shake = 0;
+  cam.orbit = 0;
   setState({ headline: null, caption: null });
-  rigOrNull()?.fizz.clear();
+  const r = rigOrNull();
+  if (!r) return;
+  r.fizz.clear();
+  gsap.killTweensOf([r.capMat, r.capFlash]);
+  r.capMat.emissiveIntensity = 0;
+  r.capFlash.intensity = 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -184,11 +263,13 @@ export function update(dt: number): void {
     }
   }
 
-  // Bottle transform
+  // Bottle transform (+ pressure jitter in the cinematic)
   const sway = step === 'intro' && !reduced() ? Math.sin(clock * 1.3) * 0.015 : 0;
-  r.root.position.set(pose.x, pose.y, 0);
+  const jx = fx.tremble ? (Math.random() - 0.5) * fx.tremble * 2 : 0;
+  const jr = fx.tremble ? (Math.random() - 0.5) * fx.tremble * 6 : 0;
+  r.root.position.set(pose.x + jx, pose.y, 0);
   r.root.scale.set(pose.sx, pose.sy, pose.sx);
-  r.spin.rotation.set(turn.tilt, pose.ry, pose.rz + sway);
+  r.spin.rotation.set(turn.tilt, pose.ry, pose.rz + sway + jr);
 
   // Lights / environment
   r.key.intensity = lights.key;
@@ -204,7 +285,9 @@ export function update(dt: number): void {
   cam.shake *= Math.pow(0.02, dt);
   const sx = cam.shake ? (Math.random() - 0.5) * cam.shake : 0;
   const sy = cam.shake ? (Math.random() - 0.5) * cam.shake : 0;
-  r.camera.position.set(sx, C.LOOK_Y + sy, dist * cam.dolly);
+  // The cinematic circles the bottle (cam.orbit, radians round the bottle's axis)
+  const d = dist * cam.dolly;
+  r.camera.position.set(Math.sin(cam.orbit) * d + sx, C.LOOK_Y + sy, Math.cos(cam.orbit) * d);
   r.camera.lookAt(sx * 0.5, C.LOOK_Y, 0);
   r.viewport.halfWidth = (vh * aspect * cam.dolly) / 2;
   r.viewport.pxPerWorld = r.viewport.h / (vh * cam.dolly);
@@ -221,6 +304,7 @@ export function update(dt: number): void {
     dom.ring.style.top = `${((-tmp.y * 0.5 + 0.5) * r.viewport.h).toFixed(1)}px`;
     dom.ring.style.opacity = String(Math.min(1, ring.opacity * (0.85 + ring.flash * 0.6)));
     dom.ring.style.transform = `translate(-50%, -50%) scale(${s.toFixed(4)})`;
+    if (dom.ripple) dom.ripple.style.top = dom.ring.style.top;
   }
 }
 

@@ -320,3 +320,77 @@ export function pulseEnd(): void {
   src.stop(ctx.currentTime + 0.8);
 }
 
+
+// ---- Cinematic and story cues
+
+/** Beat A: the bottle appears out of the dark (deep boom + cold shimmer). */
+export function reveal(): void {
+  caption('[low drum, cold shimmer]');
+  tone('sine', 70, 38, 0.6, 1.2);
+  burst('highpass', 7000, 0.06, 0.4, 1.2);
+}
+
+/** The yellow cap's golden glint: a bright cluster of chimes. */
+export function goldGlint(): void {
+  caption('[golden shimmer]', 1200);
+  [1567.98, 2093, 2637, 3135.96].forEach((f, i) => tone('sine', f, f * 1.01, 0.07, 0.6, i * 0.05));
+}
+
+/** The can opening: a sharp pop with a pressure hiss behind it. */
+export function pop(): void {
+  caption('[POP]');
+  burst('bandpass', 1100, 0.9, 0.001, 0.09, 1.2);
+  tone('sine', 420, 90, 0.5, 0.12);
+  burst('highpass', 4000, 0.35, 0.01, 0.7);
+}
+
+let lastNear = 0;
+/** Near miss: a tight air zip past the ear. */
+export function nearMiss(dir: -1 | 1): void {
+  if (!ctx || !master || ctx.currentTime - lastNear < 0.4) return;
+  lastNear = ctx.currentTime;
+  const src = noiseSource();
+  if (!src) return;
+  const f = ctx.createBiquadFilter();
+  f.type = 'bandpass';
+  f.Q.value = 3;
+  f.frequency.setValueAtTime(5200, ctx.currentTime);
+  f.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.22);
+  const pan = ctx.createStereoPanner();
+  pan.pan.setValueAtTime(dir * 0.8, ctx.currentTime);
+  pan.pan.linearRampToValueAtTime(-dir * 0.2, ctx.currentTime + 0.22);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+  src.connect(f).connect(pan).connect(g).connect(master);
+  src.start();
+  src.stop(ctx.currentTime + 0.3);
+}
+
+/** Pulse anticipation: a short intake swell before the shockwave. */
+export function pulseWindup(): void {
+  if (!ctx) return;
+  tone('sine', 55, 140, 0.35, 0.16);
+  const src = noiseSource();
+  if (!src) return;
+  const f = ctx.createBiquadFilter();
+  f.type = 'bandpass';
+  f.frequency.setValueAtTime(600, ctx.currentTime);
+  f.frequency.exponentialRampToValueAtTime(3500, ctx.currentTime + 0.16);
+  src.connect(f);
+  env(f, 0.3, 0.15, 0.03);
+  src.start();
+  src.stop(ctx.currentTime + 0.22);
+}
+
+/** Game over: the Golden Cap rattles and sparks in the Chairman's hand. */
+export function capRattle(): void {
+  caption('[the cap rattles and sparks]', 1600);
+  for (let i = 0; i < 7; i++) {
+    const f = 2400 + Math.random() * 1800;
+    tone('triangle', f, f * 0.9, 0.08, 0.04, i * 0.045 + Math.random() * 0.015);
+  }
+  tone('sawtooth', 90, 60, 0.12, 0.25, 0.32); // the zap
+  burst('highpass', 5000, 0.25, 0.005, 0.18);
+}

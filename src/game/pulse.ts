@@ -5,7 +5,8 @@ import * as THREE from 'three';
  * - flat rings: concentric electric-blue rings racing across the asphalt (the shockwave), or
  *   pulsing out from under the runner's feet on the beat while they surf
  * - a camera-facing ring for the initial sonic impact (HD only)
- * - a pad ring: breathing on the road while the pulse is ready, under the feet during the surf
+ * - a pad ring: breathing on the road while the pulse is ready, under the feet while it pulses
+ * - bubbles: a pooled burst of carbonation bubbles blown out of the shockwave
  * All share one additive ring shader: a thin white-hot core inside a blue/cyan glow.
  */
 const ringVertex = /* glsl */ `
@@ -13,6 +14,28 @@ const ringVertex = /* glsl */ `
   void main() {
     vUv = uv;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }`;
+const bubbleVertex = /* glsl */ `
+  attribute float aAge;
+  uniform float uScale;
+  varying float vAge;
+  void main() {
+    vAge = aAge;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = aAge >= 1.0 ? 0.0 : min(48.0, (0.09 + 0.06 * aAge) * uScale / -mv.z);
+  }`;
+const bubbleFragment = /* glsl */ `
+  varying float vAge;
+  void main() {
+    vec2 p = gl_PointCoord * 2.0 - 1.0;
+    float r = length(p);
+    if (r > 1.0) discard;
+    // A bubble: bright rim, clear middle, a glint
+    float rim = smoothstep(0.62, 0.92, r) * (1.0 - smoothstep(0.92, 1.0, r));
+    float glint = smoothstep(0.28, 0.0, length(p - vec2(-0.35, -0.35)));
+    float a = (rim * 0.9 + glint) * (1.0 - vAge);
+    gl_FragColor = vec4(vec3(0.55, 0.85, 1.0) * a + glint * a, a);
   }`;
 const ringFragment = /* glsl */ `
   uniform float uRadius;
@@ -65,8 +88,34 @@ export class PulseFX {
   private readonly impact: Ring;
   private readonly pad: Ring;
   private next = 0;
+  private readonly bubblePts: THREE.Points;
+  private readonly bPos: Float32Array;
+  private readonly bVel: Float32Array;
+  private readonly bAge: Float32Array;
+  private readonly bubbleMat: THREE.ShaderMaterial;
+  private bubblesAlive = false;
+  private lastNow = 0;
 
   constructor(private readonly lite: boolean) {
+    const nb = lite ? 18 : 48;
+    this.bPos = new Float32Array(nb * 3);
+    this.bVel = new Float32Array(nb * 3);
+    this.bAge = new Float32Array(nb).fill(1);
+    const bgeo = new THREE.BufferGeometry();
+    bgeo.setAttribute('position', new THREE.BufferAttribute(this.bPos, 3).setUsage(THREE.DynamicDrawUsage));
+    bgeo.setAttribute('aAge', new THREE.BufferAttribute(this.bAge, 1).setUsage(THREE.DynamicDrawUsage));
+    this.bubbleMat = new THREE.ShaderMaterial({
+      vertexShader: bubbleVertex,
+      fragmentShader: bubbleFragment,
+      uniforms: { uScale: { value: 400 } },
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    this.bubblePts = new THREE.Points(bgeo, this.bubbleMat);
+    this.bubblePts.frustumCulled = false;
+    this.bubblePts.renderOrder = 9;
+    this.group.add(this.bubblePts);
     const geo = new THREE.PlaneGeometry(1, 1);
     for (let i = 0; i < (lite ? 4 : 8); i++) {
       const mat = ringMaterial(i % 2 ? 0x2ee6ff : 0x1f5bff);
@@ -115,6 +164,24 @@ export class PulseFX {
   }
 
   /** Pad ring: 'ground' while charged (on the road), 'feet' during the surf, or off. */
+  /** Carbonation bubbles blown out of the shockwave from (x, y, z). Reuses the pool. */
+  bubbles(now: number, x: number, y: number, z: number): void {
+    const n = this.bAge.length;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 3 + Math.random() * 6;
+      this.bPos[i * 3] = x;
+      this.bPos[i * 3 + 1] = y + (Math.random() - 0.5) * 0.6;
+      this.bPos[i * 3 + 2] = z;
+      this.bVel[i * 3] = Math.cos(a) * sp;
+      this.bVel[i * 3 + 1] = 1 + Math.random() * 3;
+      this.bVel[i * 3 + 2] = Math.sin(a) * sp;
+      this.bAge[i] = Math.random() * 0.15;
+    }
+    this.bubblesAlive = true;
+    this.lastNow = now;
+  }
+
   setPad(mode: 'off' | 'ground' | 'feet'): void {
     this.pad.active = mode !== 'off';
     this.pad.follow = mode === 'feet';
@@ -122,6 +189,27 @@ export class PulseFX {
   }
 
   update(now: number, runner: THREE.Vector3, camera: THREE.Camera, scroll: number): void {
+    if (this.bubblesAlive) {
+      const dt = Math.min(0.2, Math.max(0, now - this.lastNow));
+      let alive = false;
+      for (let i = 0; i < this.bAge.length; i++) {
+        if (this.bAge[i] >= 1) continue;
+        alive = true;
+        this.bAge[i] = Math.min(1, this.bAge[i] + dt / 0.9);
+        const drag = Math.pow(0.2, dt);
+        this.bVel[i * 3] *= drag;
+        this.bVel[i * 3 + 1] = this.bVel[i * 3 + 1] * drag + 1.5 * dt; // bubbles rise
+        this.bVel[i * 3 + 2] *= drag;
+        this.bPos[i * 3] += this.bVel[i * 3] * dt;
+        this.bPos[i * 3 + 1] += this.bVel[i * 3 + 1] * dt;
+        this.bPos[i * 3 + 2] += this.bVel[i * 3 + 2] * dt + scroll;
+      }
+      this.bubblesAlive = alive;
+      this.bubblePts.geometry.attributes.position.needsUpdate = true;
+      this.bubblePts.geometry.attributes.aAge.needsUpdate = true;
+      this.bubbleMat.uniforms.uScale.value = window.innerHeight / 2 / Math.tan(THREE.MathUtils.degToRad(((camera as THREE.PerspectiveCamera).fov ?? 60) / 2));
+    }
+    this.lastNow = now;
     for (const r of this.rings) {
       if (!r.active) continue;
       if (r.follow) r.mesh.position.set(runner.x, runner.y + 0.02, runner.z);
@@ -177,6 +265,9 @@ export class PulseFX {
     }
     this.impact.active = false;
     this.impact.mesh.visible = false;
+    this.bAge.fill(1);
+    this.bubblePts.geometry.attributes.aAge.needsUpdate = true;
+    this.bubblesAlive = false;
     this.setPad('off');
   }
 

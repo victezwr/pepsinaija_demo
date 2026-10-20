@@ -19,10 +19,16 @@ export function gameInput(action: GameInput): void {
   world?.input(action);
 }
 
-/** TAP TO RUN on the motor-park menu. */
-export function gameTapToRun(): void {
+let skipPending = false;
+
+/** SKIP the opening cinematic: straight into the run (waits for the street if it is still loading). */
+export function gameSkipCinematic(): void {
   unlockAudio();
-  world?.tapToRun();
+  skipPending = true;
+  if (world && useGame.getState().phase === 'reveal') {
+    world.skipCinematic();
+    skipPending = false;
+  }
 }
 
 export function gameRunAgain(): void {
@@ -30,7 +36,9 @@ export function gameRunAgain(): void {
   world?.runAgain();
 }
 
+/** Runner picked on the intro card (applied to the street when it opens). */
 export function chooseRunner(r: Runner): void {
+  useGame.setState({ runner: r });
   world?.chooseRunner(r);
 }
 
@@ -46,8 +54,28 @@ export function gameDebugPulse(): Record<string, unknown> | null {
   return world ? world.debugPulse() : null;
 }
 
+export function gameDebugDistance(m: number): void {
+  world?.debugSetDistance(m);
+}
+
+export function gameDebugInvulnerable(secs: number): void {
+  world?.debugInvulnerable(secs);
+}
+
+export function gameDebugNearMiss(): void {
+  world?.debugNearMiss();
+}
+
 export function gameDebugChill(): void {
   world?.debugFillChill();
+}
+
+function activate(w: ChaseWorld): void {
+  w.activate();
+  if (skipPending) {
+    skipPending = false;
+    w.skipCinematic();
+  }
 }
 
 /**
@@ -69,11 +97,12 @@ export function GameScene({ active }: { active: boolean }): null {
         music.setLite(getStory().tier === 'low');
         scene.add(world.group);
         world.prewarm(gl);
-        if (activeRef.current) world.activate();
+        if (activeRef.current) activate(world);
       })
       .catch(() => setStory({ fallback: true }));
     return () => {
       alive = false;
+      skipPending = false;
       world?.dispose();
       world = null;
     };
@@ -81,7 +110,7 @@ export function GameScene({ active }: { active: boolean }): null {
 
   useEffect(() => {
     if (!active) return;
-    if (world) world.activate();
+    if (world) activate(world);
     else useGame.setState({ phase: 'loading' }); // assets still downloading: activate when built
   }, [active]);
 

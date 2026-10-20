@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
 import { track } from '../analytics/track';
 import { useStore } from '../state/store';
-import { ArrowIcon, CapIcon, XIcon } from '../ui/icons';
-import { HASHTAG, SHARE_URL, STAGES, TITLE, X_HANDLE } from './gameConfig';
-import { chooseRunner, gameRunAgain } from './GameScene';
-import { gameDom, useGame, type Runner } from './gameStore';
+import { CapIcon, XIcon } from '../ui/icons';
+import { HASHTAG, SHARE_URL, STAGES, X_HANDLE } from './gameConfig';
+import { gameRunAgain } from './GameScene';
+import { gameDom, useGame } from './gameStore';
 
 const fmt = (n: number): string => n.toLocaleString('en-NG');
 
@@ -13,48 +13,14 @@ export function GameUI(): JSX.Element {
   const registerBubble = useCallback((el: HTMLDivElement | null) => {
     gameDom.bubble = el;
   }, []);
+  const cinematic = useGame((s) => s.cinematic);
   return (
     <div className="game-ui">
       <div ref={registerBubble} className="bubble" aria-live="polite" />
       {phase === 'loading' && <p className="game-loading">Loading the streets…</p>}
-      {phase === 'menu' && <Menu />}
-      {(phase === 'starting' || phase === 'running') && <Hud />}
+      {(phase === 'starting' || phase === 'running') && !cinematic && <Hud />}
       {phase === 'caught' && <GameOver />}
     </div>
-  );
-}
-
-function Menu(): JSX.Element {
-  const runner = useGame((s) => s.runner);
-  const best = useGame((s) => s.best);
-  return (
-    <>
-      <h1 className="game-title">{TITLE}</h1>
-      <div className="menu-bottom">
-        <div className="runners runners--mini" role="group" aria-label="Choose your runner">
-          {(['male', 'female'] as Runner[]).map((r) => (
-            <button
-              key={r}
-              className={`runner${runner === r ? ' runner--on' : ''}`}
-              onClick={() => chooseRunner(r)}
-              aria-pressed={runner === r}
-              aria-label={r === 'male' ? 'Male runner' : 'Female runner'}
-            >
-              <img src={`/game/thumb-${r}.webp`} alt="" />
-            </button>
-          ))}
-        </div>
-        <p className="tap-to-run">TAP TO POP &amp; RUN</p>
-        <p className="menu-hint">
-          <ArrowIcon dir="left" size={18} />
-          <ArrowIcon dir="up" size={18} />
-          <ArrowIcon dir="down" size={18} />
-          <ArrowIcon dir="right" size={18} />
-          <span>swipe to dodge · double-tap to pulse</span>
-        </p>
-        {best > 0 && <p className="menu-best">Best run: {fmt(best)} m</p>}
-      </div>
-    </>
   );
 }
 
@@ -68,6 +34,10 @@ function Hud(): JSX.Element {
   const banner = useGame((s) => s.banner);
   const lite = useStore((s) => s.tier) === 'low';
   const active = pulse === 'activating' || pulse === 'pulsing' || pulse === 'ending';
+  // Time left in the Pulse: the world sets this bar's scale every frame (no React updates)
+  const registerTimer = useCallback((el: HTMLDivElement | null) => {
+    gameDom.pulseTimer = el;
+  }, []);
   const ready = pulse === 'charged';
   // The meter beats faster as it fills (2.2 s → 0.5 s per beat)
   const rate = `${(2.2 - 1.7 * chill).toFixed(2)}s`;
@@ -91,6 +61,11 @@ function Hud(): JSX.Element {
             <span>{ready ? 'PULSE READY' : 'PULSE'}</span>
           </div>
           {ready && <span className="pulse-hint">double-tap</span>}
+          {active && (
+            <div className="pulse-timer" aria-hidden="true">
+              <div ref={registerTimer} className="pulse-timer__bar" />
+            </div>
+          )}
         </div>
       </div>
       {pulse === 'pulsing' && <p className="pulse-stay">STAY ON THE PULSE</p>}

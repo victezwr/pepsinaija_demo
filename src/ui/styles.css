@@ -88,6 +88,12 @@ body {
 }
 .headline--accent { color: #fff; text-shadow: 0 0 18px rgba(0, 51, 255, 0.95), 0 0 48px rgba(0, 51, 255, 0.8); }
 .headline--md { font-size: clamp(24px, 6vw, 56px); color: var(--muted); }
+/* The cinematic's opening line: quieter, a slow fade instead of a slam */
+.headline--cine {
+  font-size: clamp(24px, min(7.4vw, 5vh), 60px); line-height: 1.02; padding: 0 6vw;
+  color: #eaf1ff; text-shadow: 0 0 22px rgba(31, 91, 255, 0.85);
+  animation: fade 1.2s ease both;
+}
 @keyframes slam {
   from { opacity: 0; transform: scale(1.15); }
   to { opacity: 1; transform: scale(1); }
@@ -207,11 +213,14 @@ body {
 .game-loading { position: absolute; left: 0; right: 0; top: 48%; text-align: center; color: var(--muted); letter-spacing: 0.08em; animation: breathe 1.2s ease-in-out infinite; }
 
 .bubble {
-  position: absolute; left: 0; top: 0; opacity: 0; max-width: 60vw;
-  padding: 8px 12px; border-radius: 14px; background: #fff; color: #111;
-  font: 800 14px/1.15 var(--font); font-stretch: 110%; white-space: nowrap;
+  position: absolute; left: 0; top: 0; opacity: 0; width: max-content; max-width: min(72vw, 320px);
+  padding: 8px 12px; border-radius: 14px; background: #fff; color: #111; text-align: center;
+  font: 800 14px/1.2 var(--font); font-stretch: 110%;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); transition: opacity 0.15s;
 }
+/* Speaker off-screen (an agbero behind the camera): the line sits low, with their name */
+.bubble--pinned { background: rgba(10, 16, 40, 0.88); color: #fff; border: 1px solid rgba(255, 196, 0, 0.6); }
+.bubble--pinned::after { display: none; }
 .bubble::after {
   content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -7px;
   border: 7px solid transparent; border-top-color: #fff; border-bottom: 0;
@@ -359,3 +368,26 @@ body {
 .pulse-flash--lite { opacity: 0.5; }
 @keyframes pulseFlash { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pulse-meter, .pulse-stay { animation: none; } .pulse-flash { display: none; } }
+
+/* Intro: runner picks either side of PLAY */
+.intro-play__row { display: flex; align-items: center; gap: 12px; pointer-events: auto; }
+.runner--intro { width: 50px; border-radius: 12px; flex: none; }
+
+/* Pulse: time left, under the meter */
+.pulse-timer { width: 100%; height: 4px; margin-top: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.15); overflow: hidden; }
+.pulse-timer__bar { height: 100%; background: linear-gradient(90deg, #1f5bff, #2ee6ff); transform-origin: left center; }
+
+/* Cinematic: blue energy ripple out of the bottle */
+.cine-ripple { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+.cine-ripple i {
+  position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border-radius: 50%;
+  border: 3px solid rgba(120, 220, 255, 0.95);
+  box-shadow: 0 0 14px rgba(46, 230, 255, 0.9), inset 0 0 14px rgba(31, 91, 255, 0.8);
+  opacity: 0; animation: ripple 1.1s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+}
+.cine-ripple i:nth-child(2) { animation-delay: 0.12s; }
+.cine-ripple i:nth-child(3) { animation-delay: 0.24s; }
+.cine-ripple--big i { border-width: 4px; border-color: #fff; animation-duration: 0.9s; animation-name: rippleBig; }
+@keyframes ripple { 0% { opacity: 0.9; transform: scale(0.3); } 100% { opacity: 0; transform: scale(2.2); } }
+@keyframes rippleBig { 0% { opacity: 1; transform: scale(0.3); } 100% { opacity: 0; transform: scale(7); } }
+@media (prefers-reduced-motion: reduce) { .cine-ripple i { animation-duration: 0.4s; } }

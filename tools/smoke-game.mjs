@@ -1,4 +1,4 @@
-// Plays the intro (spin, PLAY) into The Yellow Chase and screenshots every game state.
+// Plays the intro (spin, pick, PLAY), the opening cinematic and The Yellow Chase; screenshots every state.
 // Usage: node tools/smoke-game.mjs <baseUrl> <outDir> [width] [height] [query]
 import { chromium } from 'playwright';
 import fs from 'fs';
@@ -32,23 +32,19 @@ await page.mouse.move(+w * 0.8, +h * 0.52, { steps: 8 });
 await page.mouse.up();
 const spin1 = await page.evaluate(() => window.__dsm.debugSpin());
 console.log(JSON.stringify({ spun: +(spin1 - spin0).toFixed(2) }));
+await page.getByRole('button', { name: 'Female runner' }).click();
 await page.getByRole('button', { name: 'PLAY' }).click();
-await page.waitForTimeout(500);
-await shot('play-launch');
+// The opening cinematic plays through (beats A-C around the bottle, D-E in the motor park)
+await page.waitForFunction(() => window.__dsm.getState().headline?.text === "DON'T SHAKE ME.", null, { timeout: 120000 });
+await shot('cine-dont-shake');
 await waitStep('game');
 await page.waitForTimeout(700);
-await shot('reveal-drop');
-await waitPhase('menu');
-await page.waitForTimeout(1200);
-await shot('menu-male');
-await page.getByRole('button', { name: 'Female runner' }).click();
-await page.waitForTimeout(1000);
-await shot('menu-female');
-// Tap the scene (not a button) to pop & run
-await page.mouse.click(+w / 2, +h * 0.45);
+await shot('cine-drop');
+await page.waitForFunction(() => window.__dsm.gameDebugState()?.speaker === 'CHAIRMAN', null, { timeout: 300000 });
+await page.waitForTimeout(400);
+await shot('cine-chairman');
+await waitPhase('starting', 300000);
 await page.waitForTimeout(500);
-await shot('start-whistle');
-await page.waitForTimeout(900);
 await shot('start-swing');
 await waitPhase('running', 60000);
 // Release the Pulse straight away, before the first row arrives (the game runs in real time)

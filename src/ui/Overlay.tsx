@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CREDIT_HANDLE } from '../config';
+import { chooseRunner } from '../game/GameScene';
+import { useGame, type Runner } from '../game/gameStore';
 import { useStore } from '../state/store';
 import * as director from '../story/director';
 import { dom } from '../story/rig';
@@ -23,6 +25,7 @@ export function Overlay(): JSX.Element {
       <Headline />
       {step === 'loading' && <div className="loading" aria-label="Loading" />}
       {step === 'intro' && <IntroCard />}
+      <Ripple />
       <Caption />
       <p className="credit">Unofficial concept by {CREDIT_HANDLE}</p>
       <FpsCounter />
@@ -32,6 +35,18 @@ export function Overlay(): JSX.Element {
 
 /** SAME TASTE. NEW LOOK. above the bottle, PLAY beneath it. */
 function IntroCard(): JSX.Element {
+  const runner = useGame((s) => s.runner);
+  const best = useGame((s) => s.best);
+  const pick = (r: Runner): JSX.Element => (
+    <button
+      className={`runner runner--intro${runner === r ? ' runner--on' : ''}`}
+      onClick={() => chooseRunner(r)}
+      aria-pressed={runner === r}
+      aria-label={r === 'male' ? 'Male runner' : 'Female runner'}
+    >
+      <img src={`/game/thumb-${r}.webp`} alt="" />
+    </button>
+  );
   return (
     <>
       <h1 className="intro-title">
@@ -39,18 +54,41 @@ function IntroCard(): JSX.Element {
         <span className="intro-title__accent">NEW LOOK.</span>
       </h1>
       <div className="intro-play">
-        <button className="btn btn--play" onClick={director.play}>
-          <PlayIcon /> PLAY
-        </button>
+        <div className="intro-play__row" role="group" aria-label="Choose your runner, then play">
+          {pick('male')}
+          <button className="btn btn--play" onClick={director.play}>
+            <PlayIcon /> PLAY
+          </button>
+          {pick('female')}
+        </div>
         <p className="intro-play__sub">
-          <SpeakerIcon size={14} /> best with sound
+          <SpeakerIcon size={14} /> best with sound{best > 0 ? ` · best run ${best.toLocaleString('en-NG')} m` : ''}
         </p>
       </div>
     </>
   );
 }
 
+/** The blue energy ripple out of the bottle (cinematic); the director keeps it on the bottle. */
+function Ripple(): JSX.Element | null {
+  const n = useStore((s) => s.ripple);
+  const big = useStore((s) => s.rippleBig);
+  const step = useStore((s) => s.step);
+  const register = useCallback((el: HTMLDivElement | null) => {
+    dom.ripple = el;
+  }, []);
+  if (!n || step === 'game') return null;
+  return (
+    <div ref={register} key={n} className={`cine-ripple${big ? ' cine-ripple--big' : ''}`} aria-hidden="true">
+      <i />
+      <i />
+      <i />
+    </div>
+  );
+}
+
 function TopBar(): JSX.Element {
+  const cinematic = useGame((s) => s.cinematic);
   const muted = useStore((s) => s.muted);
   const tier = useStore((s) => s.tier);
   return (
@@ -63,6 +101,11 @@ function TopBar(): JSX.Element {
         {tier === 'high' ? 'LITE' : 'HD'}
       </button>
       <div className="topbar__right">
+        {cinematic && (
+          <button className="btn btn--ghost" onClick={director.skipCinematic}>
+            SKIP
+          </button>
+        )}
         <button className="btn btn--ghost" onClick={() => director.setMuted(!muted)} aria-label={muted ? 'Unmute' : 'Mute'}>
           <SpeakerIcon muted={muted} />
         </button>
@@ -75,7 +118,7 @@ function Headline(): JSX.Element | null {
   const h = useStore((s) => s.headline);
   if (!h) return null;
   return (
-    <h1 key={h.text} className={`headline${h.accent ? ' headline--accent' : ''}${h.size === 'md' ? ' headline--md' : ''}`} aria-live="polite">
+    <h1 key={h.text} className={`headline${h.accent ? ' headline--accent' : ''}${h.size === 'md' ? ' headline--md' : ''}${h.size === 'cine' ? ' headline--cine' : ''}`} aria-live="polite">
       {h.text}
     </h1>
   );

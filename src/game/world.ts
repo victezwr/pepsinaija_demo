@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import * as music from '../audio/music';
+import * as score from '../audio/score';
 import * as sfx from '../audio/sfx';
 import * as voices from '../audio/voices';
 import { track } from '../analytics/track';
@@ -36,6 +37,21 @@ const MENU_SPOTS: ReadonlyArray<readonly [number, number, number]> = [
   [-0.4, 5.8, -0.1],
 ];
 const isLive = (p: GamePhase): boolean => p === 'running' || p === 'starting';
+const MENU_CAM: readonly [number, number, number] = [1.35, 1.5, -3.5];
+const MENU_LOOK: readonly [number, number, number] = [0.2, 1.15, 1.5];
+/** Motor-park cinematic camera: [time, position, look-at], eased between keys. */
+const CINE_SHOTS: ReadonlyArray<readonly [number, readonly [number, number, number], readonly [number, number, number]]> = [
+  [0, [3.2, 4.4, -9.5], [0.4, 1.4, 2]], // wide: the motor park
+  [1.5, MENU_CAM, MENU_LOOK], // the runner, the crew behind
+  [3.7, MENU_CAM, MENU_LOOK],
+  [4.6, [0.5, 1.9, 0.9], [1.2, 1.95, 4]], // push in on the Chairman
+  [5.9, [0.5, 1.9, 0.9], [1.2, 1.95, 4]],
+  [6.6, [1.0, 1.55, -2.2], [0.05, 1.3, 0.6]], // the runner answers (in shot before the line)
+  [8.3, [1.0, 1.55, -2.2], [0.05, 1.3, 0.6]],
+  [8.9, MENU_CAM, MENU_LOOK], // back for the swing behind
+];
+/** Seconds into the motor-park cinematic at which each story beat fires. */
+const CINE = { catch: G.DROP_S, react: 1.3, boy: 1.7, chairman: 4.0, runner: 6.7, chase: 8.9 } as const;
 
 /** A skinned character with cross-faded clips. Models face +Z; the chase runs towards -Z. */
 class Actor {
@@ -112,6 +128,7 @@ interface Obstacle {
   clearT: number;
   flingX: number;
   beat: number; // the theme beat its front edge is due to reach the runner on
+  passed: boolean; // fully past the runner (near-miss check done)
 }
 
 interface Slot {
@@ -196,6 +213,18 @@ export class ChaseWorld {
   private chairmanLunge = 0;
   private camShake = 0;
   private bubbleText = '';
+  private bubbleSpeaker: Actor | null = null; // whose head the bubble sits over
+  private bubbleName = ''; // shown with the line when the speaker is off-screen
+  private bubblePinned = false;
+  private readonly saidOnce = new Set<string>(); // one-time lines this run
+  private readonly lastSaid: Record<string, number> = {};
+  private cineStep = 0; // next motor-park story beat to fire
+  private startLineAt = 0; // "Bring that cap back!" once the run is under way
+  private lastLaneChange = -99;
+  private glowFlash = 0; // the catch / game-over flash on the held bottle, 1 → 0
+  private glowColor = 0x2a6bff;
+  private pulseFireAt = 0; // the shockwave fires after a short wind-up
+  private pulseFired = false;
   private bubbleUntil = 0;
   private nextBubbleAt = 0;
   private caps = 0;
@@ -288,7 +317,7 @@ export class ChaseWorld {
         obj.rotation.y = def.rotY;
         obj.visible = false;
         this.group.add(obj);
-        this.obstacles.push({ kind, obj, lane: 0, z: 0, active: false, hit: false, horned: false, cleared: false, clearT: 0, flingX: 1, beat: 0 });
+        this.obstacles.push({ kind, obj, lane: 0, z: 0, active: false, hit: false, horned: false, cleared: false, clearT: 0, flingX: 1, beat: 0, passed: true });
       }
     }
 
@@ -348,6 +377,13 @@ export class ChaseWorld {
     this.toMenuPose();
   }
 
+  /** Share of the Pulse still to run (1 → 0), for the HUD's timer bar. */
+  private get pulseLeft(): number {
+    if (this.pulseState === 'activating') return 1;
+    if (this.pulseState !== 'pulsing') return 0;
+    return Math.max(0, Math.min(1, (this.pulseEndBeat - this.beatNow()) / G.PULSE_BEATS));
+  }
+
   private get chairman(): Actor {
     return this.agberos[0];
   }
@@ -384,19 +420,46 @@ export class ChaseWorld {
     });
   }
 
-  /** Story hand-off: the bottle that rocketed off-screen falls into the runner's hand. */
+  /**
+   * Cinematic beats D–E: the bottle that rocketed off-screen falls into the runner's hand at the
+   * motor park, the crew clocks the Golden Cap, words are exchanged, and the chase starts.
+   */
   activate(): void {
     this.scene.background = this.sky;
     this.scene.fog = this.fog;
     this.scene.environmentIntensity = 0.35;
     this.group.visible = true;
     this.phaseT = 0;
+    this.cineStep = 0;
+    this.chooseRunner(useGame.getState().runner);
+    this.toMenuPose();
     this.releaseBottle();
     voices.preloadVoices();
+    score.startGroove(0.9); // the drums come back in under the motor park
     setPhase('reveal');
   }
 
+  /**
+   * SKIP: straight into a correctly configured run (bottle in hand, theme playing, camera behind,
+   * controls live). Safe to call more than once and from any point of the cinematic.
+   */
+  skipCinematic(): void {
+    if (useGame.getState().phase !== 'reveal') return;
+    this.cineStep = 99;
+    score.stopGroove(0.1);
+    if (!music.themePlaying()) void music.startTheme();
+    this.holdBottle(this.runner);
+    this.resetRun();
+    this.runner.root.rotation.set(0, 0, 0);
+    this.whistled = true;
+    this.runner.play('run', { fade: 0.1 });
+    for (const a of this.agberos) a.play('run', { fade: 0.1 });
+    this.beginRunning();
+    track('cinematic_skipped');
+  }
+
   chooseRunner(r: Runner): void {
+    if (this.runner === this.runners[r] && this.runner.root.visible) return;
     for (const a of Object.values(this.runners)) a.root.visible = false;
     this.runner = this.runners[r];
     this.runner.root.visible = true;
@@ -423,13 +486,13 @@ export class ChaseWorld {
     });
   }
 
-  /** TAP TO RUN: psssht → "Oya hold am!" + whistle → camera swings behind → control. */
-  tapToRun(): void {
-    if (useGame.getState().phase !== 'menu') return;
+  /** Cinematic beat E: the Chairman's order, the whistle, the theme erupts, the camera swings behind. */
+  private beginChase(): void {
     this.resetRun();
-    sfx.capOpen();
-    this.whistled = false;
+    this.whistled = true;
     this.phaseT = 0;
+    this.runner.play('run', { fade: 0.2 });
+    for (const a of this.agberos.slice(1)) a.play('run');
     setPhase('starting');
     track('game_start', { runner: useGame.getState().runner });
   }
@@ -464,6 +527,9 @@ export class ChaseWorld {
     this.chaseGap = 4.5;
     this.chairmanLunge = 0;
     this.bubbleUntil = 0;
+    this.saidOnce.clear();
+    this.startLineAt = 0;
+    this.glowFlash = 0;
     this.caps = this.chill = 0;
     this.invulnerableUntil = 0;
     this.stage = 0;
@@ -487,6 +553,7 @@ export class ChaseWorld {
         if (next === this.lane) return;
         this.prevLane = this.lane;
         this.lane = next;
+        this.lastLaneChange = this.time;
         sfx.swoosh(action === 'left' ? -1 : 1);
         break;
       }
@@ -529,22 +596,33 @@ export class ChaseWorld {
    */
   private activatePulse(): void {
     if (this.pulseState !== 'charged' || useGame.getState().phase !== 'running') return;
+    // Protected from here; the shockwave lands after a short wind-up (the anticipation beat)
     this.setPulse('activating');
     this.chill = 0;
     this.pulseStartedAt = this.time;
-    this.pulseBeat = Math.ceil(this.beatNow() + 0.3); // the first ring lands on the next beat
-    this.pulseEndBeat = this.pulseBeat + G.PULSE_BEATS;
+    this.pulseFireAt = this.time + G.PULSE_WINDUP_S;
+    this.pulseFired = false;
     this.chaseCloseUntil = 0;
     this.chairmanLunge = 0;
-    // The shockwave: rings racing out across the asphalt from the runner
+    this.fovKick = -5; // the world draws in...
+    this.setGlow(1.4);
+    sfx.pulseWindup();
+    useGame.setState({ chill: 0 });
+  }
+
+  /** ...and the Golden Cap lets go: shockwave, bubbles, agberos blown back, road cleared. */
+  private firePulse(): void {
+    this.pulseFired = true;
+    this.pulseBeat = Math.ceil(this.beatNow() + 0.3); // the first ring lands on the next beat
+    this.pulseEndBeat = this.pulseBeat + G.PULSE_BEATS;
     this.pulseFx.setPad('off');
     this.pulseFx.shockwave(this.time, this.px, 0, G.PULSE_SHOCK_DIAMETER, 3, G.PULSE_SHOCK_S);
     this.pulseFx.burst(this.time, this.runnerPos.set(this.px, this.py, 0));
+    this.pulseFx.bubbles(this.time, this.px, this.py + 1, 0);
     this.camShake = 0.3;
     this.fovKick = 9;
     this.pulseCleared += this.clearObstacles(-G.PULSE_CLEAR_AHEAD, G.PULSE_CLEAR_BEHIND);
     this.startMagnet(G.PULSE_MAGNET_AHEAD, this.time + 0.9);
-    // Agberos blown back
     this.knock = 1;
     this.chaseGap += G.PULSE_KNOCKBACK;
     for (const a of this.agberos) a.play('shout', { fade: 0.08 });
@@ -552,7 +630,8 @@ export class ChaseWorld {
     sfx.pulseRelease();
     music.setPulse(true);
     this.flashBanner('RELEASE THE PULSE', 900);
-    useGame.setState({ chill: 0, pulseFlash: useGame.getState().pulseFlash + 1 });
+    this.line('pulse', this.chairman, 'CHAIRMAN', 'Ha! Wetin be that?!', { cooldown: 20, priority: true, voice: 2 });
+    useGame.setState({ pulseFlash: useGame.getState().pulseFlash + 1 });
   }
 
   /** Neutralise obstacles between zMin and zMax (world z; ahead is negative). Returns how many. */
@@ -575,9 +654,9 @@ export class ChaseWorld {
   }
 
   /** Charged glow on the held bottle (and the breathing ring under the runner). */
-  private setGlow(level: number): void {
+  private setGlow(level: number, color = 0x2a6bff): void {
     for (const m of this.heldMats) {
-      m.emissive.setHex(0x2a6bff);
+      if (m.emissive.getHex() !== color) m.emissive.setHex(color);
       m.emissiveIntensity = level;
     }
   }
@@ -634,6 +713,7 @@ export class ChaseWorld {
         }
       }
       this.spawnOnBeat();
+      if (phase === 'running') this.checkNearMisses();
       this.updateMagnet(dt);
       this.distance += d;
       if (phase === 'running') this.updateStage();
@@ -655,6 +735,10 @@ export class ChaseWorld {
     this.lean += (wantLean - this.lean) * Math.min(1, dt * (wantLean > this.lean ? 22 : 12));
     this.runner.root.rotation.x = this.lean;
     this.runner.root.position.set(this.px, this.py - this.lean * 0.12, 0);
+    if (phase === 'reveal') {
+      const look = this.phaseT > CINE.runner - 0.3 && this.phaseT < CINE.chase ? G.RUNNER_LOOK_BACK : 0;
+      this.runner.root.rotation.y += (look - this.runner.root.rotation.y) * Math.min(1, dt * 5);
+    }
     const runRate = Math.min(1.75, Math.max(0.6, this.speed / 12));
     if (this.runner.currentName === 'run') this.runner.setSpeed(runRate);
     this.runner.update(dt);
@@ -663,47 +747,80 @@ export class ChaseWorld {
     this.updateCoins();
     this.runnerPos.set(this.px, this.py, 0);
     this.pulseFx.update(this.time, this.runnerPos, this.camera, d);
-    if (this.pulseState === 'charged') this.setGlow(0.35 + 0.3 * Math.sin(this.time * 6));
+    if (gameDom.pulseTimer) gameDom.pulseTimer.style.transform = `scaleX(${this.pulseLeft.toFixed(3)})`;
+    this.updateCapEnergy(dt, phase);
     this.updateCamera(dt, phase);
     this.updateBubble(phase);
   }
 
+  /** Cinematic beats D–E (motor park), fired once each in order. */
   private revealStep(): void {
-    // The bottle falls out of the sky into the runner's hand, then the idle menu.
-    if (this.phaseT >= G.DROP_S && !this.bottleHolder) {
+    const t = this.phaseT;
+    if (this.cineStep === 0 && t >= CINE.catch) {
+      this.cineStep++;
       this.holdBottle(this.runner);
       sfx.catchIt();
+      sfx.goldGlint();
+      this.glowFlash = 1; // the Golden Cap flares as it lands
+      this.glowColor = 0xffb300;
+      this.pulseFx.shockwave(this.time, this.px, 0, 9, 2, 0.6);
     }
-    if (this.phaseT > G.DROP_S + 0.5 && this.chairman.currentName !== 'shout') {
-      this.chairman.play('shout');
-      this.bubbleText = 'Ah-ah! Yellow cap?!';
-      this.bubbleUntil = this.time + 2.2;
-      voices.shout(1, 0.45);
+    if (this.cineStep === 1 && t >= CINE.react) {
+      this.cineStep++;
+      this.agberos[1].play('shout', { fade: 0.1 }); // the boys jump at the flash
+      this.agberos[2].play('shout', { fade: 0.1 });
     }
-    if (this.phaseT > G.DROP_S + 1.4) {
+    if (this.cineStep === 2 && t >= CINE.boy) {
+      this.cineStep++;
+      this.say(this.agberos[2], 'AGBERO', 'Chairman, you see that thing?', 2.1, 1, 0.4);
+      this.agberos[1].play('idle', { fade: 0.4 });
+      this.agberos[2].play('idle', { fade: 0.4 });
+    }
+    if (this.cineStep === 3 && t >= CINE.chairman) {
+      this.cineStep++;
+      this.chairman.play('shout', { fade: 0.15 });
+      this.say(this.chairman, 'CHAIRMAN', 'Ha! Golden Cap! Omo, bring that one come!', 2.5, 2, 0.6);
+    }
+    if (this.cineStep === 4 && t >= CINE.runner) {
+      this.cineStep++;
       this.chairman.play('idle', { fade: 0.4 });
-      setPhase('menu');
+      this.say(this.runner, 'YOU', 'Na drink I come buy!', 1.9, 0);
+    }
+    if (this.cineStep === 5 && t >= CINE.chase) {
+      this.cineStep++;
+      this.beginChase(); // (resets the run, so the line comes after it)
+      this.say(this.chairman, 'CHAIRMAN', 'Oya! No let am escape!', 1.8, 3, 0.7);
+      this.chairman.play('shout', { fade: 0.1 });
+      sfx.whistle();
+      score.stopGroove(0.15);
+      score.fanfare(); // the trumpet motif and drums throw into the theme
+      void music.startTheme();
     }
   }
 
   private startingStep(): void {
     if (!this.whistled && this.phaseT > 0.45) {
       this.whistled = true;
-      this.bubbleText = 'Oya hold am!';
-      this.bubbleUntil = this.time + 1.8;
-      voices.shout(3, 0.65);
+      this.say(this.chairman, 'CHAIRMAN', 'Oya hold am!', 1.8, 3, 0.65);
       sfx.whistle();
       this.chairman.play('shout');
       this.runner.play('run', { fade: 0.2 });
       for (const a of this.agberos.slice(1)) a.play('run');
     }
     if (this.whistled && this.phaseT > 0.9 && this.chairman.currentName !== 'run') this.chairman.play('run');
-    if (this.phaseT >= G.START_S) {
-      this.chaseCloseUntil = this.time + G.CHASE_HOLD_S;
-      this.nextBubbleAt = this.time + 1.5;
-      void music.start(0);
-      setPhase('running');
-    }
+    if (this.phaseT >= G.START_S) this.beginRunning();
+  }
+
+  /** Controls on: the run proper (after the swing, a RUN AGAIN or a SKIP). */
+  private beginRunning(): void {
+    this.chaseCloseUntil = this.time + G.CHASE_HOLD_S;
+    this.nextBubbleAt = this.time + 3;
+    this.startLineAt = this.time + 1.1;
+    music.start(0);
+    score.startLayers();
+    score.setIntensity(this.stage);
+    setPhase('running');
+    useGame.setState({ cinematic: false });
   }
 
   /** Road, sidewalks, buildings, poles: once per frame. */
@@ -799,6 +916,7 @@ export class ChaseWorld {
       o.horned = false;
       o.cleared = false;
       o.beat = this.nextRowBeat;
+      o.passed = false;
       o.obj.scale.set(1, 1, 1);
       o.obj.rotation.set(0, def.rotY, 0);
       o.lane = lanes[i];
@@ -870,6 +988,10 @@ export class ChaseWorld {
       if (this.time >= this.pulseEndsAt) this.setPulse('empty');
       return;
     }
+    if (!this.pulseFired) {
+      if (this.time >= this.pulseFireAt) this.firePulse();
+      return;
+    }
     const b = this.beatNow();
     if (this.pulseBeat < b - 2) this.pulseBeat = Math.ceil(b); // the clock jumped (tab was hidden)
     // Caps keep flying to you while it pulses
@@ -892,6 +1014,7 @@ export class ChaseWorld {
       this.pulseFx.setPad('off');
       music.setPulse(false);
       sfx.pulseEnd();
+      this.line('power', this.agberos[1], 'AGBERO', 'Chairman, this one get power o!', { once: true, voice: 1 });
     }
   }
 
@@ -975,10 +1098,8 @@ export class ChaseWorld {
     this.chaseCloseUntil = this.time + G.CHASE_HOLD_S;
     this.chairmanLunge = 1; // the Chairman surges right up behind you
     this.camShake = 0.25;
-    this.bubbleText = 'Oya drop am!';
-    this.bubbleUntil = this.time + 1.8;
     sfx.crash(false);
-    voices.shout(1, 0.6);
+    this.say(this.chairman, 'CHAIRMAN', 'Oya drop am!', 1.8, 1, 0.6);
   }
 
   private caught(): void {
@@ -995,11 +1116,11 @@ export class ChaseWorld {
     this.slideT = this.duckT = 0;
     this.runner.play('fall', { loop: false, speed: 1.3, fade: 0.06 });
     this.camShake = 0.45;
-    this.bubbleText = 'We don catch am!';
-    this.bubbleUntil = this.time + 3;
     sfx.crash(true);
-    window.setTimeout(() => voices.shout(3, 0.7), 250);
+    this.say(this.agberos[1], 'AGBEROS', 'We don catch am!', 2.6, 3, 0.7);
     music.stop(0.4);
+    score.stopLayers();
+    score.gameOverSting();
     const dist = Math.floor(this.distance);
     const best = Math.max(useGame.getState().best, dist);
     writePref('bestDistance', String(best));
@@ -1013,10 +1134,27 @@ export class ChaseWorld {
   }
 
   private caughtStep(): void {
-    // The Chairman takes the bottle and lifts it like a trophy; the boys celebrate.
+    // The Chairman takes the bottle and lifts it like a trophy; the boys celebrate...
     if (this.phaseT > 0.8 && this.bottleHolder !== this.chairman) {
       this.holdBottle(this.chairman);
       for (const a of this.agberos) a.play('shout');
+      this.cineStep = 0;
+    }
+    // ...then the Golden Cap answers back: a spark and a rattle, and the Chairman isn't so sure
+    if (this.cineStep === 0 && this.phaseT > 2.4) {
+      this.cineStep = 1;
+      this.glowFlash = 1;
+      this.glowColor = 0x2a6bff;
+      this.handPos(this.chairman, this.v);
+      this.pulseFx.burst(this.time, this.v);
+      this.pulseFx.bubbles(this.time, this.v.x, this.v.y, this.v.z);
+      this.pulseFx.shockwave(this.time, this.chairman.root.position.x, this.chairman.root.position.z, 5, 1, 0.5);
+      sfx.capRattle();
+      this.chairman.play('idle', { fade: 0.2 });
+    }
+    if (this.cineStep === 1 && this.phaseT > 2.9) {
+      this.cineStep = 2;
+      this.say(this.chairman, 'CHAIRMAN', 'Ehn? Wetin dey inside this cap sef?', 2.6, 1, 0.35);
     }
     this.heroBottle.visible = this.phaseT > 1.2;
   }
@@ -1030,6 +1168,11 @@ export class ChaseWorld {
     this.flashBanner('SPEED UP!', 1300);
     sfx.whoosh(0.6, 0.4);
     music.setStage(s);
+    score.setIntensity(s);
+    // The story moves on with the distance (500 m, 2,000 m, 3,000 m; at 1,200 m the cap speaks)
+    if (s === 1) this.line('m500', this.agberos[2], 'AGBERO', 'Chairman, this one no dey tire o!', { once: true, priority: true });
+    if (s === 3) this.line('m2000', this.chairman, 'CHAIRMAN', 'All of una, run! Make una catch am!', { once: true, priority: true, voice: 3 });
+    if (s === 4) this.line('m3000', this.agberos[1], 'AGBERO', 'Abeg, make we calm down small.', { once: true, priority: true, loud: 0.3 });
   }
 
   private collect(): void {
@@ -1070,7 +1213,7 @@ export class ChaseWorld {
   }
 
   private updateChasers(dt: number, phase: GamePhase): void {
-    if (phase === 'reveal' || phase === 'menu') {
+    if (phase === 'reveal' || phase === 'loading') {
       this.layoutMenuAgberos();
     } else if (phase === 'caught') {
       // Surround the runner, facing the camera for the trophy shot
@@ -1169,13 +1312,12 @@ export class ChaseWorld {
     const sy = (Math.random() - 0.5) * this.camShake;
     const chasePos = this.v.set(this.px * 0.5 + sx, G.CAM_HEIGHT + this.py * 0.45 + sy, G.CAM_BACK);
     const chaseLook = this.look.set(this.px * 0.5, 1.2, -G.CAM_LOOK_AHEAD);
-    // Menu: in front of the runner, looking back at them and the agberos behind
-    const menuPos = this.s.set(1.35 + Math.sin(this.time * 0.4) * 0.15, 1.5, -3.5);
-    const menuLook = { x: 0.2, y: 1.15, z: 1.5 };
+    // The motor park: in front of the runner, looking back at them and the agberos behind
+    const menuPos = this.s.set(MENU_CAM[0], MENU_CAM[1], MENU_CAM[2]);
+    const menuLook = { x: MENU_LOOK[0], y: MENU_LOOK[1], z: MENU_LOOK[2] };
 
-    if (phase === 'reveal' || phase === 'menu' || phase === 'loading') {
-      cam.position.copy(menuPos);
-      cam.lookAt(menuLook.x, menuLook.y, menuLook.z);
+    if (phase === 'reveal' || phase === 'loading') {
+      this.cineCamera(phase === 'reveal' ? this.phaseT : 99);
       return;
     }
     if (phase === 'starting') {
@@ -1212,30 +1354,126 @@ export class ChaseWorld {
     cam.lookAt(chaseLook);
   }
 
+  /** One line of dialogue: a bubble over the speaker's head and (voice > 0) a shout. */
+  private say(who: Actor, name: string, text: string, secs: number, voice = 1, loud = 0.5): void {
+    this.bubbleText = text;
+    this.bubbleSpeaker = who;
+    this.bubbleName = name;
+    this.bubbleUntil = this.time + secs;
+    this.nextBubbleAt = Math.max(this.nextBubbleAt, this.time + secs + 1.5); // ambient shouts wait
+    if (voice > 0) voices.shout(voice, loud);
+  }
+
+  /**
+   * An event line: `once` per run, or not again within `cooldown` seconds, and never over another
+   * line unless `priority`. Returns whether it was said.
+   */
+  private line(
+    key: string,
+    who: Actor,
+    name: string,
+    text: string,
+    o: { once?: boolean; cooldown?: number; priority?: boolean; voice?: number; loud?: number },
+  ): boolean {
+    if (o.once && this.saidOnce.has(key)) return false;
+    if (o.cooldown && this.time - (this.lastSaid[key] ?? -99) < o.cooldown) return false;
+    if (!o.priority && this.time < this.bubbleUntil) return false;
+    this.saidOnce.add(key);
+    this.lastSaid[key] = this.time;
+    this.say(who, name, text, Math.max(1.6, text.length * 0.06), o.voice ?? 1, o.loud ?? 0.5);
+    return true;
+  }
+
+  /** Obstacles that just went past without touching you: dodged late or jumped/slid close. */
+  private checkNearMisses(): void {
+    for (const o of this.obstacles) {
+      if (!o.active || o.passed) continue;
+      const def = G.OBSTACLES[o.kind];
+      if (o.z - def.length / 2 < G.PLAYER_HALF_D) continue;
+      o.passed = true;
+      if (o.hit || o.cleared || this.pulseState !== 'empty' && this.pulseState !== 'charged') continue;
+      const sameLane = o.lane === this.lane; // jumped or slid it
+      const lateSwerve = Math.abs(o.lane - this.lane) === 1 && this.time - this.lastLaneChange < 0.6 && def.action === 'swerve';
+      if (!sameLane && !lateSwerve) continue;
+      sfx.nearMiss(o.lane < this.lane ? -1 : 1);
+      if (!this.line('near1', this.agberos[2], 'AGBERO', 'Chairman, e dey escape!', { once: true })) {
+        this.line('nearTaunt', this.chairman, 'CHAIRMAN', 'You think say you fit run pass me?', { cooldown: 14 });
+      }
+    }
+  }
+
+  /**
+   * The held bottle's glow: breathing when the Pulse is ready, a flare on the catch / game-over
+   * spark, and from 1,200 m the Golden Cap's energy pulsing on the beat (stronger each stage).
+   */
+  private updateCapEnergy(dt: number, phase: GamePhase): void {
+    this.glowFlash = Math.max(0, this.glowFlash - dt * 1.1);
+    if (this.glowFlash > 0) {
+      this.setGlow(this.glowFlash * 2.2, this.glowColor);
+      return;
+    }
+    if (this.pulseState === 'charged') {
+      this.setGlow(0.35 + 0.3 * Math.sin(this.time * 6));
+      return;
+    }
+    if (this.pulseState === 'activating') return; // wind-up glow set on activation
+    if (phase === 'running' && this.stage >= 2 && this.pulseState === 'empty') {
+      const b = this.beatNow();
+      const onBeat = 1 - (b - Math.floor(b)); // 1 on the beat, fading through it
+      this.setGlow((this.stage >= 4 ? 0.4 : this.stage >= 3 ? 0.28 : 0.18) * onBeat * onBeat);
+      return;
+    }
+    this.setGlow(0);
+  }
+
+  /** Cinematic camera: eased between the CINE_SHOTS keys. */
+  private cineCamera(t: number): void {
+    let i = 0;
+    while (i < CINE_SHOTS.length - 1 && CINE_SHOTS[i + 1][0] <= t) i++;
+    const [t0, p0, l0] = CINE_SHOTS[i];
+    const [t1, p1, l1] = CINE_SHOTS[Math.min(i + 1, CINE_SHOTS.length - 1)];
+    const k = t1 > t0 ? smooth(Math.min(1, Math.max(0, (t - t0) / (t1 - t0)))) : 1;
+    this.camera.position.set(lerp(p0[0], p1[0], k), lerp(p0[1], p1[1], k), lerp(p0[2], p1[2], k));
+    this.camera.lookAt(lerp(l0[0], l1[0], k), lerp(l0[1], l1[1], k), lerp(l0[2], l1[2], k));
+  }
+
   private updateBubble(phase: GamePhase): void {
     const el = gameDom.bubble;
     if (!el) return;
+    if (phase === 'running' && this.startLineAt > 0 && this.time >= this.startLineAt) {
+      this.startLineAt = 0;
+      this.line('start', this.agberos[1], 'AGBERO', 'Bring that cap back!', { priority: true, voice: 2 });
+    }
     if (phase === 'running' && this.chaseGap < 5 && this.time > this.nextBubbleAt && this.time > this.bubbleUntil) {
-      this.bubbleText = G.BUBBLE_LINES[Math.floor(Math.random() * G.BUBBLE_LINES.length)];
-      this.bubbleUntil = this.time + 1.8;
+      const who = this.agberos[Math.floor(Math.random() * 3)];
+      this.say(who, who === this.chairman ? 'CHAIRMAN' : 'AGBERO', G.BUBBLE_LINES[Math.floor(Math.random() * G.BUBBLE_LINES.length)], 1.8, 1, 0.5);
       this.nextBubbleAt = this.time + 3.2;
-      voices.shout(1, 0.5);
     }
-    if (this.time >= this.bubbleUntil) {
+    const who = this.bubbleSpeaker;
+    if (this.time >= this.bubbleUntil || !who) {
       el.style.opacity = '0';
       return;
     }
-    const a = this.chairman.root.position;
-    this.v.set(a.x, G.AGBERO_HEIGHT * G.CHAIRMAN_SCALE + 0.45, a.z).project(this.camera);
-    if (this.v.z > 1) {
-      el.style.opacity = '0';
+    const head = who === this.runner ? G.RUNNER_HEIGHT : who === this.chairman ? G.AGBERO_HEIGHT * G.CHAIRMAN_SCALE : G.AGBERO_HEIGHT;
+    const a = who.root.position;
+    this.v.set(a.x, a.y + head + 0.45, a.z).project(this.camera);
+    // Off-screen speaker (an agbero behind the camera): the line is pinned low, with their name
+    const pinned = this.v.z > 1 || Math.abs(this.v.x) > 1.05 || this.v.y > 1.05 || this.v.y < -1;
+    const text = pinned ? `${this.bubbleName}: ${this.bubbleText}` : this.bubbleText;
+    if (el.textContent !== text) el.textContent = text;
+    if (pinned !== this.bubblePinned) {
+      this.bubblePinned = pinned;
+      el.classList.toggle('bubble--pinned', pinned);
+    }
+    el.style.opacity = '1';
+    if (pinned) {
+      // Low, below the runner, clear of the road ahead (above the credit line)
+      el.style.transform = `translate(${(window.innerWidth / 2).toFixed(0)}px, ${(window.innerHeight - 36).toFixed(0)}px) translate(-50%, -100%)`;
       return;
     }
-    if (el.textContent !== this.bubbleText) el.textContent = this.bubbleText;
     const half = el.offsetWidth / 2 + 8; // keep the bubble on screen
     const x = Math.min(window.innerWidth - half, Math.max(half, (this.v.x * 0.5 + 0.5) * window.innerWidth));
     const y = Math.max(el.offsetHeight + 60, (-this.v.y * 0.5 + 0.5) * window.innerHeight);
-    el.style.opacity = '1';
     el.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) translate(-50%, -100%)`;
   }
 
@@ -1255,7 +1493,49 @@ export class ChaseWorld {
   }
 
   debugState(): Record<string, unknown> {
-    return { phaseT: this.phaseT, time: this.time, speed: this.speed, distance: this.distance, chill: this.chill, pulse: this.pulseState };
+    const holder = this.bottleHolder === this.runner ? 'runner' : this.bottleHolder === this.chairman ? 'chairman' : this.bottleHolder ? 'agbero' : 'none';
+    return {
+      phaseT: this.phaseT,
+      time: this.time,
+      speed: this.speed,
+      distance: this.distance,
+      chill: this.chill,
+      pulse: this.pulseState,
+      pulseLeft: this.pulseLeft,
+      holder,
+      runnerVisible: this.runner.root.visible,
+      camZ: this.camera.position.z,
+      cineStep: this.cineStep,
+      bubble: this.time < this.bubbleUntil ? this.bubbleText : '',
+      speaker: this.time < this.bubbleUntil ? this.bubbleName : '',
+      stage: this.stage,
+      intensity: score.debugIntensity(),
+    };
+  }
+
+  /** Test hook (?debug only): jump the distance (milestone lines, intensity). */
+  debugSetDistance(m: number): void {
+    if (useGame.getState().phase === 'running') this.distance = m;
+  }
+
+  /** Test hook (?debug only): traffic flashes past in the next lane just after a late swerve. */
+  debugNearMiss(): void {
+    if (useGame.getState().phase !== 'running') return;
+    const o = this.obstacles.find((x) => !x.active && G.OBSTACLES[x.kind].action === 'swerve');
+    if (!o) return;
+    o.active = true;
+    o.hit = o.cleared = false;
+    o.passed = false;
+    o.lane = this.lane === 1 ? 0 : this.lane + 1;
+    o.z = G.PLAYER_HALF_D + G.OBSTACLES[o.kind].length / 2 + 0.05;
+    o.obj.position.set(laneX(o.lane), 0, o.z);
+    o.obj.visible = true;
+    this.lastLaneChange = this.time;
+  }
+
+  /** Test hook (?debug only): nothing can catch you for `secs` (to stage events headless). */
+  debugInvulnerable(secs: number): void {
+    this.invulnerableUntil = this.time + secs;
   }
 
   /** Test hook (?debug only): get caught now, to check the trophy shot. */

@@ -42,6 +42,9 @@ export const STAND_TOP = 1.7;
 export const DUCK_TOP = 1.0;
 export const PLAYER_HALF_W = 0.35;
 export const PLAYER_HALF_D = 0.35;
+// Double-tap (Pulse): two taps that didn't become swipes, this close in time and space
+export const DOUBLE_TAP_MS = 320;
+export const DOUBLE_TAP_PX = 40;
 export const STUMBLE_WINDOW = 4; // second stumble while the Chairman is close = caught
 export const BOTTLE_HELD = 0.26; // metres tall in the hand (a touch bigger than life, so it reads)
 // Grip in the right hand bone's local space (Mixamo rig, checked by render): fingers curl round
@@ -54,7 +57,8 @@ export const GRIP_ROT: readonly [number, number, number] = [0, 0, 1.3 - Math.PI]
 export const CHASE_CLOSE = 1.0;
 export const CHASE_FAR = 10;
 export const CHASE_HOLD_S = 3;
-export const BUBBLE_LINES = ['Hold am!', 'Where you dey go?!', 'Oya drop am!', 'Bring that Pepsi come!', 'Stop there!'];
+export const BUBBLE_LINES = ['Hold am!', 'Where you dey go?!', 'Oya drop am!', 'Bring that cap come!', 'Stop there!'];
+export const RUNNER_LOOK_BACK = 0.9; // rad: the runner turns to answer the Chairman in the cinematic
 
 // Okadas drive at you, with a horn first
 export const OKADA_EXTRA = 0.55; // extra closing speed as a fraction of yours
@@ -67,7 +71,8 @@ export const COIN_PICKUP = 0.9;
 export const CHILL_FULL = 50; // caps to fill the Pulse meter
 
 // Pulse Mode: release → shockwave, then a ring on every beat while you keep running
-export const PULSE_BEATS = 16; // one phrase of the theme (≈ 6 s)
+export const PULSE_BEATS = 21; // beats of the theme it pulses for (≈ 8 s)
+export const PULSE_WINDUP_S = 0.16; // anticipation: the world draws in before the shockwave
 export const PULSE_GRACE_S = 0.5; // protection after the last ring
 export const PULSE_SHOCK_S = 0.7; // shockwave expansion time
 export const PULSE_SHOCK_DIAMETER = 56; // metres across at full size

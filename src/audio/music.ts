@@ -9,10 +9,11 @@ const THEME_URL = '/audio/theme.mp3';
 export const THEME_BPM = 155.76;
 export const BEAT_S = 60 / THEME_BPM;
 const FIRST_BEAT_S = 0.32;
-// Loop a whole number of 16-beat phrases (from beat 3 to just before the fade-out),
-// so the grid never slips when it wraps.
-const LOOP_START = FIRST_BEAT_S + 3 * BEAT_S;
-const LOOP_END = LOOP_START + 21 * 16 * BEAT_S;
+// Loop a whole number of 16-beat phrases, so the grid never slips when it wraps: from beat 51
+// (19.97 s, past the quieter opening, same level as the end) to just before the fade-out
+// (130.91 s). The song's first 20 s play once, from the chase start.
+const LOOP_START = FIRST_BEAT_S + 51 * BEAT_S;
+const LOOP_END = LOOP_START + 18 * 16 * BEAT_S;
 const THEME_LEVEL = 0.8;
 const DUCK_LEVEL = 0.3;
 
@@ -110,6 +111,13 @@ export function beat(): number | null {
   if (!g || !themeSrc) return null;
   const heard = g.ctx.currentTime - (g.ctx.outputLatency || g.ctx.baseLatency || 0);
   return (heard - themeStart - FIRST_BEAT_S) / BEAT_S;
+}
+
+/** Audio-clock time at which beat `n` of the theme is heard (null without the theme). */
+export function beatTime(n: number): number | null {
+  const g = audioGraph();
+  if (!g || !themeSrc) return null;
+  return themeStart + FIRST_BEAT_S + n * BEAT_S + (g.ctx.outputLatency || g.ctx.baseLatency || 0);
 }
 
 /** Seconds from now until the theme reaches beat `n` (null without the theme). */

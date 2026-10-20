@@ -7,6 +7,7 @@ type EventName =
   | 'peeled'
   | 'finished'
   | 'replayed'
+  | 'cinematic_skipped'
   | 'quality_drop'
   | 'fallback'
   | 'game_start'

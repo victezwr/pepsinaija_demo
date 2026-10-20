@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { readPref } from '../util/storage';
 
-export type GamePhase = 'loading' | 'reveal' | 'menu' | 'starting' | 'running' | 'caught';
+/** reveal = the motor-park half of the opening cinematic; starting = the swing behind the runner. */
+export type GamePhase = 'loading' | 'reveal' | 'starting' | 'running' | 'caught';
 export type Runner = 'male' | 'female';
 /** Pulse Mode ability states. */
 export type PulseState = 'empty' | 'charged' | 'activating' | 'pulsing' | 'ending';
@@ -17,6 +18,8 @@ export interface GameState {
   pulse: PulseState;
   /** Increments on each activation (drives the one-shot flash). */
   pulseFlash: number;
+  /** The opening cinematic is playing (from PLAY until the run starts or SKIP). */
+  cinematic: boolean;
   /** Short-lived centre banner (SPEED UP!, RELEASE THE PULSE). */
   banner: string | null;
 }
@@ -31,8 +34,9 @@ export const useGame = create<GameState>()(() => ({
   chill: 0,
   pulse: 'empty',
   pulseFlash: 0,
+  cinematic: false,
   banner: null,
 }));
 
 /** DOM nodes the game drives per frame without React re-renders. */
-export const gameDom: { bubble: HTMLElement | null } = { bubble: null };
+export const gameDom: { bubble: HTMLElement | null; pulseTimer: HTMLElement | null } = { bubble: null, pulseTimer: null };

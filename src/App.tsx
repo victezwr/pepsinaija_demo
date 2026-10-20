@@ -3,7 +3,8 @@ import { Component, Suspense, useEffect, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { track } from './analytics/track';
 import { CAMERA_FOV } from './config';
-import { GameScene, gameInput, gameTapToRun } from './game/GameScene';
+import { DOUBLE_TAP_MS, DOUBLE_TAP_PX } from './game/gameConfig';
+import { GameScene, gameInput } from './game/GameScene';
 import { useGame } from './game/gameStore';
 import { GameUI } from './game/GameUI';
 import type { GameInput } from './game/world';
@@ -72,12 +73,11 @@ export function App(): JSX.Element {
       b: 'boost',
     };
     const down = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape' && useGame.getState().cinematic) {
+        director.skipCinematic();
+        return;
+      }
       if (getState().step === 'game') {
-        if (useGame.getState().phase === 'menu' && (e.key === 'Enter' || e.key === ' ') && !isButton(e.target)) {
-          e.preventDefault();
-          gameTapToRun();
-          return;
-        }
         const action = keys[e.key];
         if (action && !isButton(e.target)) {
           e.preventDefault();
@@ -125,10 +125,6 @@ export function App(): JSX.Element {
           lastMove.current = e.timeStamp;
           if (step === 'game') {
             swipe.current = { x: e.clientX, y: e.clientY, done: false };
-            if (useGame.getState().phase === 'menu') {
-              gameTapToRun();
-              return;
-            }
           } else director.pointerDown(e.clientX, e.clientY);
         }}
         onPointerMove={(e) => {
@@ -152,7 +148,7 @@ export function App(): JSX.Element {
           const sw = swipe.current;
           if (step === 'game' && sw && !sw.done) {
             const lt = lastTap.current;
-            if (e.timeStamp - lt.t < 320 && Math.hypot(e.clientX - lt.x, e.clientY - lt.y) < 40) {
+            if (e.timeStamp - lt.t < DOUBLE_TAP_MS && Math.hypot(e.clientX - lt.x, e.clientY - lt.y) < DOUBLE_TAP_PX) {
               gameInput('boost');
               lastTap.current = { t: 0, x: 0, y: 0 };
             } else lastTap.current = { t: e.timeStamp, x: e.clientX, y: e.clientY };
