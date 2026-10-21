@@ -423,7 +423,7 @@ function updateLiquid(r: Rig, dt: number): void {
     if (slosh.primed) {
       const dSpin = THREE.MathUtils.clamp(spinVel - slosh.spinVel, -20, 20);
       const dTilt = THREE.MathUtils.clamp(tiltVel - slosh.tiltVel, -8, 8);
-      liq.push(-dSpin * 0.035, -dTilt * 0.3);
+      liq.push(-dSpin * C.DRAG_SLOSH, -dTilt * C.DRAG_SLOSH * 6);
     }
     slosh.ry = pose.ry;
     slosh.tilt = turn.tilt;
