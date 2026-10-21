@@ -20,7 +20,6 @@ export interface Rig {
   spin: THREE.Group; // centre pivot: rotation
   cap: THREE.Mesh;
   capMat: THREE.MeshStandardMaterial;
-  yellowMap: THREE.Texture;
   label: THREE.Mesh;
   fizz: Fizz;
   droplets: Droplets | null;

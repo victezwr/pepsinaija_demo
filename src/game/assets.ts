@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACO_PATH, MODEL_URL } from '../config';
+import { rebuildCap } from '../scene/cap';
 import type { PropName } from './gameConfig';
 
 export interface CharacterAsset {
@@ -73,6 +74,10 @@ function chaseBottle(lite: THREE.Group, full: THREE.Group): THREE.Group {
   });
   lite.traverse((o) => {
     if (o instanceof THREE.Mesh && mats.has(o.name)) o.material = mats.get(o.name) as THREE.Material;
+    if (o instanceof THREE.Mesh && o.name === 'Cap' && o.material instanceof THREE.MeshStandardMaterial) {
+      o.material = o.material.clone();
+      rebuildCap(o, 64); // small in the hand: fewer segments
+    }
   });
   return lite;
 }

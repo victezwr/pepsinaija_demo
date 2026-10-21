@@ -104,7 +104,7 @@ if (viaTouch) await page.waitForFunction(() => window.__dsm.gameDebugPulse().sta
 // 3. Mobile double-tap activates; swipes still work. Fire it with traffic ahead so 6 is meaningful.
 await page.waitForFunction(() => window.__dsm.gameDebugPulse().ahead > 0, null, { timeout: 30000 }).catch(() => {});
 const aheadAtFire = (await P()).ahead;
-const capsBefore = (await P()).caps;
+const { caps: capsBefore, magnetCaps: magBefore } = await P(); // (3a may already have fired a Pulse)
 await doubleTap();
 await page.waitForFunction(() => ['activating', 'pulsing'].includes(window.__dsm.gameDebugPulse().state), null, { timeout: 10000 }).catch(() => {});
 let p1 = await P();
@@ -140,7 +140,7 @@ const p2 = await P();
 check('8 runner keeps running on the road (no float), pulses on the beat', maxY < 0.01 && sawPulsing, `max height ${maxY.toFixed(2)} m, pulsing seen: ${sawPulsing}`);
 check('9 no stumble/catch during the pulse', !leftRunning);
 check('6 nearby obstacles neutralised', p2.cleared >= aheadAtFire && (aheadAtFire > 0 || p2.cleared >= 0), `${aheadAtFire} in range at release, ${p2.cleared} cleared in total (incl. landing zone)`);
-check('7 caps attracted and counted', p2.magnetCaps >= 0 && p2.caps >= capsBefore + p2.magnetCaps - 1, `${p2.magnetCaps} pulled in, caps ${capsBefore} → ${p2.caps}`);
+check('7 caps attracted and counted', p2.magnetCaps >= magBefore && p2.caps >= capsBefore + (p2.magnetCaps - magBefore) - 1, `${p2.magnetCaps - magBefore} pulled in, caps ${capsBefore} → ${p2.caps}`);
 check('charge spent once', p2.chill === 0 && p2.state === 'empty', JSON.stringify(p2));
 
 // 10. Safe re-entry: the road the last ring cleared + the grace keep you safe for a moment

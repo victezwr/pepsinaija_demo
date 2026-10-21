@@ -34,6 +34,7 @@ export const AGBERO_HEIGHT = 1.8;
 export const CHAIRMAN_SCALE = 1.12;
 export const LANE_SWITCH_RATE = 14;
 export const JUMP_VELOCITY = 9.2;
+export const JUMP_BUFFER_S = 0.25; // a swipe up this long before landing jumps on landing
 export const GRAVITY = 27;
 export const FAST_FALL_VELOCITY = -16;
 export const DUCK_TIME = 0.8;

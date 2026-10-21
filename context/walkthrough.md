@@ -8,7 +8,7 @@ game-over screen. Unofficial concept by @VOtakpor for @Pepsi_naija.
 ## Part 1: The intro
 
 ### 1. Same taste, new look
-- Black screen. The Pepsi bottle with the **new yellow cap** spins in as the light comes up, with the blue halftone ring behind it.
+- Black screen. The Pepsi bottle with the **new yellow cap** (clean, ridged Pepsi-yellow plastic) spins in as the light comes up, with the blue halftone ring behind it.
 - On screen: **SAME TASTE.** (white) / **NEW LOOK.** (yellow) above the bottle.
 - The bottle looks **straight out of the fridge**: the plastic and label are fogged with condensation, with clear beads all over (bigger towards the bottom) that catch the light and bend the label behind them, clear trails where drops have run down, and beads slowly sliding down. On HD the label also has a wet gloss.
 - There's **real cola inside**: near-black with a red-brown glow at the edges, a thin foam line at the top and bubbles rising.
@@ -48,7 +48,7 @@ An endless run down a three-lane Lagos street lined with shops, balconies and el
 | Phone | Computer | Move |
 |---|---|---|
 | Swipe left / right | ← → or A / D | Change lane (with a swoosh) |
-| Swipe up | ↑, W or Space | Jump |
+| Swipe up | ↑, W or Space | Jump (a swipe just before you land jumps as soon as you touch down) |
 | Swipe down | ↓ or S | Slide (body thrown back, feet first). Mid-air, this slams you down into a slide. |
 | Double-tap | B | Release the Pulse (when the meter is full) |
 
@@ -119,7 +119,7 @@ Every row of traffic always leaves you a way through. **Rows reach you on the be
 ---
 
 ## Always on screen
-- **LITE / HD** (top left): lighter graphics for slower phones. Weak phones switch to it automatically.
+- **LITE / HD** (top left): lighter graphics for slower phones (simpler lighting, slightly lower resolution, a shorter street in the fog, the crew holding back at the start; same gameplay). Weak phones switch to it automatically, also mid-run.
 - **Speaker** (top right): mute/unmute (music, effects and voices), remembered for your next visit.
 - **"Unofficial concept by @VOtakpor"** (bottom left).
 

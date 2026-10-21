@@ -10,10 +10,12 @@ import { useGame, type Runner } from './gameStore';
 import { ChaseWorld, type GameInput } from './world';
 
 let world: ChaseWorld | null = null;
-// Longest world step per frame when the song is the clock. Test hook: ?debug&clockcap=N lets a
-// headless browser (about 1 fps) keep pace with the song, so beat sync can be measured.
+// Longest world step per frame. Test hook: ?debug&clockcap=N lets a headless browser (about
+// 1 fps) keep pace with the song, so beat sync can be measured.
 const query = new URLSearchParams(window.location.search);
-const STEP_CAP = query.has('debug') && query.has('clockcap') ? Number(query.get('clockcap')) || 0.2 : 0.2;
+const STEP_CAP = query.has('debug') && query.has('clockcap') ? Number(query.get('clockcap')) || 0.1 : 0.1;
+/** Share of the gap to the song's clock closed per second (the world follows it, smoothly). */
+const SYNC_PULL = 3;
 
 export function gameInput(action: GameInput): void {
   world?.input(action);
@@ -126,15 +128,24 @@ export function GameScene({ active }: { active: boolean }): null {
   // frame rate sags below 40 fps for ~3 s while running, drop to LITE (lower resolution,
   // lighter music, fewer foam puffs) unless the visitor picked a tier themselves.
   const perf = useRef({ frames: 0, time: 0 });
-  const lastBeat = useRef<number | null>(null);
+  const songClock = useRef<number | null>(null); // where the world thinks the song is (s)
   useFrame((_, dt) => {
     if (!active || !world) return;
-    // The theme is the clock: with it playing, the world advances by song time, so rows keep
-    // landing on the beat even when frames are slow. Without it, frame time (capped).
+    // The world moves by frame time, steered gently onto the song's clock so rows keep landing
+    // on the beat. (Stepping by the audio clock directly stuttered on low-end Android, where it
+    // ticks in coarse 20-40 ms chunks: some frames moved nothing, others twice as far.)
     const b = music.beat();
     let step = Math.min(dt, 1 / 20);
-    if (b !== null && lastBeat.current !== null) step = Math.min(STEP_CAP, Math.max(0, (b - lastBeat.current) * music.BEAT_S));
-    lastBeat.current = b;
+    if (b === null) songClock.current = null;
+    else {
+      const song = b * music.BEAT_S;
+      if (songClock.current === null) songClock.current = song - dt; // lock on
+      const err = song - (songClock.current + dt); // what frame time alone would leave over
+      step = Math.min(STEP_CAP, Math.max(0, dt + err * Math.min(1, SYNC_PULL * dt)));
+      songClock.current += step;
+      // A long stall (tab hidden, a big hitch): don't sprint to catch up, re-lock (rows re-sync)
+      if (Math.abs(song - songClock.current) > 1) songClock.current = song;
+    }
     world.update(step);
     const story = getStory();
     if (useGame.getState().phase !== 'running' || story.tier !== 'high' || story.tierLocked) return;
@@ -147,6 +158,7 @@ export function GameScene({ active }: { active: boolean }): null {
     p.time = 0;
     if (fps < 40) {
       setStory({ tier: 'low' });
+      world.useLiteMaterials();
       music.setLite(true);
       track('quality_drop', { fps: Math.round(fps), where: 'chase' });
     }

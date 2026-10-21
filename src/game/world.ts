@@ -223,6 +223,8 @@ export class ChaseWorld {
   private readonly lastSaid: Record<string, number> = {};
   private cineStep = 0; // next motor-park story beat to fire
   private lastLaneChange = -99;
+  private jumpQueuedUntil = 0; // a swipe up just before landing still counts
+  private liteMats = false;
   private glowFlash = 0; // the catch / game-over flash on the held bottle, 1 → 0
   private glowColor = 0x2a6bff;
   private pulseFireAt = 0; // the shockwave fires after a short wind-up
@@ -244,7 +246,7 @@ export class ChaseWorld {
     lowTier: boolean,
   ) {
     this.sky = skyTexture();
-    this.fog = new THREE.Fog(0xeaa070, 45, lowTier ? 120 : 150);
+    this.fog = new THREE.Fog(0xeaa070, lowTier ? 35 : 45, lowTier ? 95 : 150);
     this.group.visible = false; // built during the story, shown on hand-off
 
     this.hemi = new THREE.HemisphereLight(0xffe2bd, 0x5b4636, 1.7);
@@ -275,7 +277,7 @@ export class ChaseWorld {
     // Buildings: shoulder to shoulder, fronts facing the road
     const bScale = 7.5;
     const bWidth = 0.72 * bScale;
-    const perSide = lowTier ? 24 : 28;
+    const perSide = lowTier ? 20 : 28; // LITE: a shorter street, hidden by closer fog
     this.buildingSpan = perSide * bWidth;
     for (const side of [-1, 1]) {
       for (let i = 0; i < perSide; i++) {
@@ -399,6 +401,45 @@ export class ChaseWorld {
       this.group.add(a.root);
     }
     this.toMenuPose();
+    if (lowTier) this.useLiteMaterials();
+  }
+
+  /**
+   * LITE: plain Lambert lighting instead of the physically based materials, for everything but
+   * the bottle (it stays shiny). Several times cheaper per pixel on slow phone GPUs. Also called
+   * when the chase drops to LITE mid-run (the shaders compile once then).
+   */
+  useLiteMaterials(): void {
+    if (this.liteMats) return;
+    this.liteMats = true;
+    const keep = new Set<THREE.Object3D>();
+    for (const root of [this.bottleGrip, this.heroBottle]) root.traverse((o) => keep.add(o));
+    const cache = new Map<THREE.Material, THREE.Material>();
+    const conv = (m: THREE.Material): THREE.Material => {
+      if (!(m instanceof THREE.MeshStandardMaterial)) return m;
+      let l = cache.get(m);
+      if (!l) {
+        l = new THREE.MeshLambertMaterial({
+          map: m.map,
+          color: m.color,
+          emissive: m.emissive,
+          emissiveMap: m.emissiveMap,
+          emissiveIntensity: m.emissiveIntensity,
+          transparent: m.transparent,
+          opacity: m.opacity,
+          alphaTest: m.alphaTest,
+          side: m.side,
+          depthWrite: m.depthWrite,
+        });
+        cache.set(m, l);
+      }
+      return l;
+    };
+    this.group.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh || keep.has(o)) return;
+      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(conv) : conv(mesh.material);
+    });
   }
 
   /** Caps the Pulse meter needs right now (rises with the speed stage). */
@@ -600,7 +641,10 @@ export class ChaseWorld {
         break;
       }
       case 'up':
-        if (!this.grounded) return;
+        if (!this.grounded) {
+          this.jumpQueuedUntil = this.time + G.JUMP_BUFFER_S; // jump the moment you land
+          return;
+        }
         this.vy = G.JUMP_VELOCITY;
         this.grounded = false;
         this.duckT = this.slideT = 0;
@@ -854,7 +898,9 @@ export class ChaseWorld {
 
   /** Controls on: the run proper (after the swing, a RUN AGAIN or a SKIP). */
   private beginRunning(): void {
-    this.chaseCloseUntil = this.time + G.CHASE_HOLD_S;
+    // On LITE the crew doesn't crowd the camera at the start (three big animated figures filling
+    // the bottom of the screen are the heaviest frames on slow phones); stumbles still bring them
+    this.chaseCloseUntil = this.liteMats ? 0 : this.time + G.CHASE_HOLD_S;
     music.start(0);
     score.startLayers();
     score.setIntensity(this.stage);
@@ -926,7 +972,7 @@ export class ChaseWorld {
   private spawnOnBeat(): void {
     const st = G.STAGES[this.stage];
     // Rows are placed for full speed: wait until the runner is up to it (run start)
-    if (Number.isNaN(this.nextRowBeat) && this.speed < st.speed * 0.97) return;
+    if (Number.isNaN(this.nextRowBeat) && this.speed < st.speed * 0.995) return;
     const b = this.beatNow();
     if (Number.isNaN(this.nextRowBeat) || this.nextRowBeat < b || this.nextRowBeat > b + 64) {
       // Run start (or the clock jumped): first row after the grace, on a bar line
@@ -1009,6 +1055,11 @@ export class ChaseWorld {
         this.vy = 0;
         this.grounded = true;
         if (this.duckT <= 0) this.lockAnimUntil = 0;
+        if (this.time < this.jumpQueuedUntil) {
+          this.jumpQueuedUntil = 0;
+          this.input('up');
+          return;
+        }
         if (this.slideT > 0) sfx.slide();
         else sfx.land();
       }

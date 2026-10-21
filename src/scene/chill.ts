@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+/** Where the cap starts (model units): the shell isn't drawn above it. */
+const CAP_BOTTOM = 0.872;
+
 /**
  * "Straight from the fridge" condensation, after how it looks in real life and in product shots:
  * - a fog of micro-droplets: the surface goes rough and slightly milky (not white speckles)
@@ -191,7 +194,8 @@ export function applyCondensation(mat: THREE.MeshStandardMaterial, cond: Condens
         `#include <map_fragment>
         ${
           o.pet
-            ? `float petLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+            ? `if (vCondP.y > ${CAP_BOTTOM.toFixed(3)}) discard; // the cap covers this: no plastic drawn over it
+        float petLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
         float petHi = smoothstep(0.42, 0.85, petLum);
         diffuseColor.rgb = mix(vec3(0.8, 0.86, 0.94), vec3(1.0), petHi);
         diffuseColor.a = 0.07 + petHi * 0.45;`

@@ -8,6 +8,7 @@ import * as C from '../config';
 import { useStore } from '../state/store';
 import * as director from '../story/director';
 import { getRig, setRig, type Rig } from '../story/rig';
+import { rebuildCap } from './cap';
 import { applyCondensation, makeCondensation, wetLabel } from './chill';
 import { Droplets } from './condensation';
 import { Liquid } from './liquid';
@@ -122,9 +123,8 @@ function buildRig(
   const liquid = new Liquid((bottleMesh as THREE.Mesh | null)?.geometry ?? labelMesh.geometry, C.FILL_Y, withDroplets);
   (bottleMesh as THREE.Mesh | null)?.parent?.add(liquid.mesh);
 
+  rebuildCap(capMesh); // the new yellow cap, clean (see cap.ts)
   const capMat = capMesh.material as THREE.MeshStandardMaterial;
-  const yellowMap = capMat.map as THREE.Texture; // the new yellow cap, from the start
-  capMat.roughness = 0.4;
 
   const capFlash = new THREE.PointLight(0xffc400, 0, 1.2, 2);
   capFlash.position.set(0, 0.45, 0.25);
@@ -152,7 +152,6 @@ function buildRig(
     spin,
     cap: capMesh,
     capMat,
-    yellowMap,
     label: labelMesh,
     fizz,
     droplets,

@@ -122,7 +122,8 @@ export function App(): JSX.Element {
 
   // The chase draws far more than the story: cap its resolution (big win on 720p phones).
   const inChase = step === 'game';
-  const dpr: number | [number, number] = directorMode ? [2, 2] : tier === 'high' ? (inChase ? [1, 1.5] : [1, 2]) : inChase ? 1 : 1.2;
+  // (LITE chase: a touch under 1 CSS pixel per pixel; fill rate is what slow phone GPUs run out of)
+  const dpr: number | [number, number] = directorMode ? [2, 2] : tier === 'high' ? (inChase ? [1, 1.5] : [1, 2]) : inChase ? 0.85 : 1.2;
 
   return (
     <main className="app">
