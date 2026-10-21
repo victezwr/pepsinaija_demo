@@ -37,9 +37,9 @@ let phoneSeen = 0; // clock time of the last motion reading
  * Pressure from shaking: `shakeT` is how long it has been shaken (the first seconds only slosh),
  * `fizz` builds after that (0..1; the foam climbs with it), `hold` is time spent shaking with the
  * foam at the cap (it blows at C.SHAKE.holdS), `level` is how hard it is sloshing (peak-held),
- * `input` how hard it is being shaken right now (kicks per second).
+ * `lastKick` when it was last really shaken (clock time).
  */
-const press = { fizz: 0, shakeT: 0, hold: 0, level: 0, input: 0 };
+const press = { fizz: 0, shakeT: 0, hold: 0, level: 0, lastKick: -99 };
 /** Cola shed by the bottle as it lifts off, until this clock time. */
 let dripUntil = 0;
 /** SKIP was pressed before the runner pick: go straight into the run after it. */
@@ -258,7 +258,7 @@ function resetScene(): void {
   fx.tremble = 0;
   cam.shake = 0;
   cam.orbit = 0;
-  Object.assign(press, { fizz: 0, shakeT: 0, hold: 0, level: 0, input: 0 });
+  Object.assign(press, { fizz: 0, shakeT: 0, hold: 0, level: 0, lastKick: -99 });
   dripUntil = 0;
   skipPark = false;
   setState({ headline: null, caption: null, shakeWarn: false });
@@ -407,7 +407,7 @@ export function debugSpin(): number {
 }
 
 /** Test hook (?debug): the shake build-up (fizz, how long shaken, foam-at-the-cap hold, slosh). */
-export function debugPressure(): { fizz: number; shakeT: number; hold: number; level: number; input: number; slosh: number } {
+export function debugPressure(): { fizz: number; shakeT: number; hold: number; level: number; lastKick: number; slosh: number } {
   return { ...press, slosh: getRig()?.liquid.slosh ?? 0 };
 }
 
@@ -455,9 +455,9 @@ function buildPressure(slosh: number, kicks: number, dt: number): void {
   const S = C.SHAKE;
   // A peak-hold envelope: the slosh swings through zero twice a cycle, a shake doesn't stop there
   press.level = Math.max(slosh, press.level - dt * S.release);
-  // Is it still being shaken (drag or phone kicks per second, smoothed), or just ringing on?
-  if (dt > 0) press.input += (kicks / dt - press.input) * Math.min(1, dt / S.inputS);
-  const shaking = press.level > S.min && press.input > S.inputMin;
+  // Is it still being shaken (a real kick from a drag or the phone just now), or just ringing on?
+  if (kicks > S.kickMin) press.lastKick = clock;
+  const shaking = press.level > S.min && clock - press.lastKick < S.kickGapS;
   press.shakeT = shaking ? press.shakeT + dt : Math.max(0, press.shakeT - dt * S.cool);
   if (shaking && press.shakeT > S.sloshS) press.fizz = Math.min(1, press.fizz + dt * S.build * Math.min(1.5, slosh / S.full));
   else if (!shaking) press.fizz = Math.max(0, press.fizz - dt * S.settle);

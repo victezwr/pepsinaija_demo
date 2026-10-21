@@ -95,7 +95,7 @@ try {
 
   // Left alone, it settles a little (the foam sinks back)
   const before = (await P()).fizz;
-  await page.waitForTimeout(8000);
+  await page.waitForTimeout(12000);
   const after = (await P()).fizz;
   check('left alone: the fizz settles', after < before && (await P()).step === 'intro', `${before.toFixed(2)} → ${after.toFixed(2)}`);
 
