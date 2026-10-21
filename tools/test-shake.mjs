@@ -44,12 +44,18 @@ const shake = async (ms) => {
       ms,
     );
   } else {
+    // A hand shakes over several frames per swing (headless draws a few frames a second, so pace
+    // the moves by frames, not by wall time)
+    const frame = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r())));
     const t0 = Date.now();
     await page.mouse.move(195, 420);
     await page.mouse.down();
     let dir = 1;
     while (Date.now() - t0 < ms) {
-      await page.mouse.move(195 + dir * 110, 420 + dir * 30, { steps: 3 });
+      for (let k = 1; k <= 3; k++) {
+        await page.mouse.move(195 + dir * (-110 + (220 * k) / 3), 420 + dir * 30);
+        await frame();
+      }
       dir = -dir;
     }
     await page.mouse.up();

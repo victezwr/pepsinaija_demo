@@ -45,7 +45,7 @@ async function run(kind) {
     check(`${kind}: no SKIP on the runner pick`, !(await page.getByRole('button', { name: 'SKIP' }).isVisible()));
     await page.getByRole('button', { name: 'Female runner' }).click();
   };
-  if (kind !== 'skip-early') await pick();
+  if (kind === 'skip-park') await pick();
 
   if (kind === 'watch') {
     // Record the order of everything the cinematic shows until the run starts
@@ -64,6 +64,7 @@ async function run(kind) {
         await shot(key.replace(/[^A-Za-z]+/g, '-').slice(0, 30));
       }
       if (s.game.phase === 'running') break;
+      if (s.step === 'choose') await pick();
       await page.waitForTimeout(150);
     }
     const s = await S();
