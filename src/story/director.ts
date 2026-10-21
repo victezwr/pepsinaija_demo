@@ -455,7 +455,8 @@ function buildPressure(slosh: number, dt: number): void {
   press.level = Math.max(slosh, press.level - dt * S.release);
   const shaking = press.level > S.min;
   press.shakeT = shaking ? press.shakeT + dt : Math.max(0, press.shakeT - dt * S.cool);
-  if (shaking && press.shakeT > S.sloshS) press.fizz = Math.min(1, press.fizz + dt * S.build * Math.min(1.5, press.level / S.full));
+  // (it builds with the live slosh, so it stops building the moment the shaking stops)
+  if (shaking && press.shakeT > S.sloshS) press.fizz = Math.min(1, press.fizz + dt * S.build * Math.min(1.5, slosh / S.full));
   else if (!shaking) press.fizz = Math.max(0, press.fizz - dt * S.settle);
   press.hold = press.fizz >= 1 && shaking ? press.hold + dt : Math.max(0, press.hold - dt * 2);
   ring.pulse = Math.max(0, press.fizz - 0.5) * 2; // the halftone ring throbs with the pressure
