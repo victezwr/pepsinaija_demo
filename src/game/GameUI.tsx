@@ -28,6 +28,7 @@ function Hud(): JSX.Element {
   const distance = useGame((s) => s.distance);
   const caps = useGame((s) => s.caps);
   const chill = useGame((s) => s.chill);
+  const cost = useGame((s) => s.pulseCost);
   const pulse = useGame((s) => s.pulse);
   const flash = useGame((s) => s.pulseFlash);
   const stage = useGame((s) => s.stage);
@@ -55,10 +56,10 @@ function Hud(): JSX.Element {
           <div
             className={`pulse-meter${ready ? ' pulse-meter--ready' : ''}${active ? ' pulse-meter--on' : ''}`}
             style={{ ['--beat' as string]: rate }}
-            aria-label={ready ? 'Pulse ready: double-tap' : `Pulse meter ${Math.round(chill * 100)}%`}
+            aria-label={ready ? 'Pulse ready: double-tap' : `Pulse meter ${Math.round(chill * cost)} of ${cost} caps`}
           >
             <div className="pulse-meter__fill" style={{ width: `${Math.round((active ? 1 : chill) * 100)}%` }} />
-            <span>{ready ? 'PULSE READY' : 'PULSE'}</span>
+            <span>{ready ? 'PULSE READY' : active ? 'PULSE' : `PULSE ${Math.round(chill * cost)}/${cost}`}</span>
           </div>
           {ready && <span className="pulse-hint">double-tap</span>}
           {active && (

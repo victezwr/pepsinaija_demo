@@ -25,6 +25,10 @@ let probe = { frames: 0, time: 0, done: false };
 const turn = { vel: 0, dragging: false, lastX: 0, lastY: 0, tilt: 0, releasedAt: -99 };
 /** Pressure building in the bottle (jitter amplitude). */
 const fx = { tremble: 0 };
+/** The liquid's inputs: last frame's spin/tilt (to feel accelerations) and the phone's gravity. */
+const slosh = { ry: 0, tilt: 0, spinVel: 0, tiltVel: 0, primed: false };
+const phoneUp = new THREE.Vector3(0, 1, 0);
+let phoneSeen = 0; // clock time of the last motion reading
 
 const tmp = new THREE.Vector3();
 const tmp2 = new THREE.Vector3();
@@ -148,6 +152,8 @@ function popOpen(): void {
   cam.shake = reduced() ? 0 : 0.035;
   burstFromCap(getState().tier === 'high' ? 160 : 50);
   if (!r) return;
+  r.liquid.push(1.6, 1.1); // the whole bottle fizzes up
+  r.liquid.agitation = 1;
   r.capMat.emissive.set(0xfff0b0);
   gsap.fromTo(r.capMat, { emissiveIntensity: 2.5 }, { emissiveIntensity: 0, duration: 0.8, ease: 'power2.out' });
   gsap.fromTo(r.capFlash, { intensity: 4 }, { intensity: 0, duration: 0.8, ease: 'power2.out' });
@@ -162,6 +168,7 @@ export function skipCinematic(): void {
     score.stopGroove(0.1);
     fx.tremble = 0;
     headline(null);
+    sfx.fizzLevel(0);
     enter('game');
   }
   if (getState().step === 'game' && useGame.getState().cinematic) gameSkipCinematic();
@@ -179,6 +186,7 @@ function burstFromCap(count: number): void {
 /** The intro hands over to the chase (src/game). */
 function toGame(): void {
   track('finished');
+  sfx.fizzLevel(0);
   enter('game');
 }
 
@@ -208,6 +216,7 @@ function resetScene(): void {
 
 export function pointerDown(x: number, y: number): void {
   if (getState().step !== 'intro') return;
+  sfx.unlock(); // touching the bottle is a gesture: its fizz can be heard from now on
   gsap.killTweensOf(pose, 'ry');
   turn.dragging = true;
   turn.lastX = x;
@@ -294,6 +303,7 @@ export function update(dt: number): void {
 
   // Particles / droplets
   r.fizz.update(dt);
+  if (step === 'intro' || step === 'cinematic') updateLiquid(r, dt);
   r.droplets?.update(dt);
 
   // Halftone ring (DOM), transform + opacity only
@@ -332,4 +342,53 @@ export function setMuted(muted: boolean): void {
 /** Test hook (?debug): the bottle's current spin, in radians. */
 export function debugSpin(): number {
   return pose.ry;
+}
+
+/**
+ * The cola sloshes from the bottle's own movement (changes in spin and tilt: a quick back-and-forth
+ * drag is a shake), the cinematic's pressure tremble and, on Android, the phone itself: its
+ * gravity tips the surface and a real shake sloshes it. The fizz follows the agitation.
+ */
+function updateLiquid(r: Rig, dt: number): void {
+  const liq = r.liquid;
+  if (dt > 0) {
+    const spinVel = (pose.ry - slosh.ry) / dt;
+    const tiltVel = (turn.tilt - slosh.tilt) / dt;
+    if (slosh.primed) {
+      const dSpin = THREE.MathUtils.clamp(spinVel - slosh.spinVel, -20, 20);
+      const dTilt = THREE.MathUtils.clamp(tiltVel - slosh.tiltVel, -8, 8);
+      liq.push(-dSpin * 0.035, -dTilt * 0.3);
+    }
+    slosh.ry = pose.ry;
+    slosh.tilt = turn.tilt;
+    slosh.spinVel = spinVel;
+    slosh.tiltVel = tiltVel;
+    slosh.primed = true;
+  }
+  if (fx.tremble > 0) liq.push((Math.random() - 0.5) * fx.tremble * 35, (Math.random() - 0.5) * fx.tremble * 35);
+  // Phone gravity (Android): eases back to plain "up" if the readings stop
+  if (clock - phoneSeen > 1) phoneUp.set(0, 1, 0);
+  liq.up.lerp(phoneUp, Math.min(1, dt * 6)).normalize();
+  const light = Math.min(1, 0.12 + (lights.key / C.KEY_INTENSITY) * 0.6 + (lights.rimL / C.RIM_L_INTENSITY) * 0.35);
+  liq.update(Math.min(dt, 1 / 30), clock, light);
+  sfx.fizzLevel(liq.agitation);
+  if (Math.random() < liq.agitation * dt * 30) sfx.fizzPop();
+}
+
+/**
+ * Android motion (no permission prompt there): `gravity` is accelerationIncludingGravity, which
+ * points "up" relative to the phone at rest; `shake` is the acceleration without gravity.
+ */
+export function motion(gx: number, gy: number, gz: number, ax: number, ay: number, az: number): void {
+  const step = getState().step;
+  if (step !== 'intro' && step !== 'cinematic') return;
+  const r = rigOrNull();
+  if (!r) return;
+  const g = Math.hypot(gx, gy, gz);
+  if (g > 4) {
+    phoneUp.set(gx / g, gy / g, gz / g); // phone axes ≈ the view's: x right, y up, z towards you
+    phoneSeen = clock;
+  }
+  const a = Math.hypot(ax, ay, az);
+  if (a > 2.5) r.liquid.push(-ax * 0.03, az * 0.03 - ay * 0.01);
 }

@@ -4,16 +4,16 @@
 // instead and the game keeps its own clock at the same tempo.
 import { audioGraph } from './sfx';
 
-// Theme beat grid, measured from the file: 155.76 BPM, first beat 0.320 s in.
+// Theme beat grid, measured from the file: 163.53 BPM, first beat 0.234 s in.
 const THEME_URL = '/audio/theme.mp3';
-export const THEME_BPM = 155.76;
+export const THEME_BPM = 163.53;
 export const BEAT_S = 60 / THEME_BPM;
-const FIRST_BEAT_S = 0.32;
-// Loop a whole number of 16-beat phrases, so the grid never slips when it wraps: from beat 51
-// (19.97 s, past the quieter opening, same level as the end) to just before the fade-out
-// (130.91 s). The song's first 20 s play once, from the chase start.
-const LOOP_START = FIRST_BEAT_S + 51 * BEAT_S;
-const LOOP_END = LOOP_START + 18 * 16 * BEAT_S;
+const FIRST_BEAT_S = 0.234;
+// Loop a whole number of 16-beat phrases, so the grid never slips when it wraps: beats 32 → 112
+// (11.98 s → 41.33 s), the cleanest seam inside the part of the recording that sits tightly on
+// the grid (from about 47 s the screen recording drifts off it). The opening plays once.
+const LOOP_START = FIRST_BEAT_S + 32 * BEAT_S;
+const LOOP_END = LOOP_START + 5 * 16 * BEAT_S;
 const THEME_LEVEL = 0.8;
 const DUCK_LEVEL = 0.3;
 

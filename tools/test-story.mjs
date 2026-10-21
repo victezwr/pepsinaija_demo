@@ -1,4 +1,5 @@
-// Story during play: event dialogue, milestones, music intensity, Pulse timer, game-over payoff, mute.
+// Story during play: lines only on stumbles and the run's first Pulse; milestones (music, Pulse cost),
+// Pulse timer, game-over payoff, mute.
 // Usage: node tools/test-story.mjs <baseUrl> <outDir>
 import { chromium } from 'playwright';
 import fs from 'fs';
@@ -36,15 +37,23 @@ try {
 
   // Staged events need the run to last: nothing catches the runner until the test says so
   await page.evaluate(() => window.__dsm.gameDebugInvulnerable(9999));
-  check('chase begins: "Bring that cap back!"', await heard('Bring that cap back!'));
+  /** Any line shown in the next `ms`? */
+  const anyLine = async (ms) => {
+    try {
+      await page.waitForFunction(() => !!window.__dsm.gameDebugState()?.bubble, null, { timeout: ms, polling: 50 });
+      return (await W()).bubble;
+    } catch {
+      return null;
+    }
+  };
+  check('running: no lines at the start of the run', !(await anyLine(5000)), '');
   let w = await W();
   check('music layers engine on, core only at 0 m', w.intensity.running && w.intensity.level === 0, JSON.stringify(w.intensity));
 
-  // Pulse first: it protects the run while the milestones are checked
+  // First Pulse of the run: one line
   await page.evaluate(() => window.__dsm.gameDebugChill());
   await page.keyboard.press('b');
-  check('pulse: "Ha! Wetin be that?!"', await heard('Ha! Wetin be that?!'));
-  await shot('pulse-line');
+  check('first Pulse: "Ha! Wetin be that?!"', await heard('Ha! Wetin be that?!'));
   const lefts = [];
   for (let i = 0; i < 6; i++) {
     const s = await W();
@@ -52,39 +61,48 @@ try {
     await page.waitForTimeout(300);
   }
   check('pulse: timer bar runs down', lefts.length >= 3 && lefts.every((x, i) => i === 0 || x <= lefts[i - 1]) && lefts[0] > lefts[lefts.length - 1], JSON.stringify(lefts));
-  const timerShown = await page.locator('.pulse-timer__bar').isVisible();
-  check('pulse: timer bar visible in the HUD', timerShown);
+  check('pulse: timer bar visible in the HUD', await page.locator('.pulse-timer__bar').isVisible());
   await shot('pulse-timer');
+  await page.waitForFunction(() => window.__dsm.gameDebugState().pulse === 'empty', null, { timeout: 120000 });
+  check('pulse end: no line', !(await anyLine(2500)));
 
-  // Milestones (priority lines), with the music intensity following
+  // Second Pulse: silent
+  await page.evaluate(() => window.__dsm.gameDebugChill());
+  await page.keyboard.press('b');
+  await page.waitForFunction(() => window.__dsm.gameDebugState().pulse !== 'charged', null, { timeout: 10000 });
+  check('second Pulse: no line', !(await anyLine(3000)));
+  await page.waitForFunction(() => window.__dsm.gameDebugState().pulse === 'empty', null, { timeout: 120000 });
+
+  // Milestones: the music (and the cap's glow) carry them now, no lines; the Pulse gets dearer
   const mil = [
-    [520, 'Chairman, this one no dey tire o!', 1],
-    [1250, null, 2],
-    [2050, 'All of una, run! Make una catch am!', 3],
-    [3050, 'Abeg, make we calm down small.', 4],
+    [520, 1, 70],
+    [1250, 2, 90],
+    [2050, 3, 110],
+    [3050, 4, 130],
   ];
-  for (const [m, text, lvl] of mil) {
+  for (const [m, lvl, cost] of mil) {
     await page.evaluate((m) => window.__dsm.gameDebugDistance(m), m);
-    const who = text ? await heard(text, 15000) : true;
-    await page.waitForTimeout(text ? 0 : 1200);
+    const said = await anyLine(1500);
     w = await W();
-    check(`${m} m: ${text ?? '(no line; cap energy + layers)'}`, who && w.intensity.level === lvl, `speaker ${who}, intensity ${w.intensity.level}, stage ${w.stage}`);
+    const g = await page.evaluate(() => window.__dsm.game());
+    check(`${m} m: no line, music level ${lvl}, Pulse costs ${cost}`, !said && w.intensity.level === lvl && g.pulseCost === cost, `line ${said}, intensity ${w.intensity.level}, cost ${g.pulseCost}`);
   }
+  check('meter shows the cost', await page.getByText(/^PULSE \d+\/130$/).isVisible().catch(() => false));
   await shot('milestones');
 
-  // Near misses: first one, then the taunt, then cooldown (no repeat)
-  await page.waitForFunction(() => window.__dsm.gameDebugState().pulse === 'empty', null, { timeout: 120000 });
-  const power = (await W()).bubble;
-  await page.waitForFunction(() => !window.__dsm.gameDebugState().bubble, null, { timeout: 20000 }).catch(() => {});
+  // Near miss: the whoosh only, no line
   await page.evaluate(() => window.__dsm.gameDebugNearMiss());
-  const first = await heard('Chairman, e dey escape!', 8000);
+  check('near miss: no line', !(await anyLine(2500)));
+
+  // Stumbles: the line every time
+  await page.evaluate(() => window.__dsm.gameDebugStumble());
+  check('stumble: "Oya drop am!"', await heard('Oya drop am!', 5000));
+  // Past the second-stumble window (4 s of game time; headless game time runs slow)
+  const tStumble = (await W()).time;
+  await page.waitForFunction((t) => window.__dsm.gameDebugState().time > t + 4.5, tStumble, { timeout: 120000 });
   await page.waitForFunction(() => !window.__dsm.gameDebugState().bubble, null, { timeout: 20000 }).catch(() => {});
-  await page.evaluate(() => window.__dsm.gameDebugNearMiss());
-  const taunt = await heard('You think say you fit run pass me?', 8000);
-  await page.waitForFunction(() => !window.__dsm.gameDebugState().bubble, null, { timeout: 20000 }).catch(() => {});
-  await page.evaluate(() => window.__dsm.gameDebugNearMiss());
-  const repeat = await heard('You think say you fit run pass me?', 3000);
-  check('near miss: first line, then taunt, then cooldown', first && taunt && !repeat, `first ${first}, taunt ${taunt}, repeat ${repeat}; pulse-end line seen: ${power}`);
+  await page.evaluate(() => window.__dsm.gameDebugStumble());
+  check('stumble again: "Oya drop am!" again', await heard('Oya drop am!', 5000));
 
   // Game over payoff
   if ((await phase()) === 'running') await page.evaluate(() => window.__dsm.gameDebugCatch());
@@ -103,10 +121,14 @@ try {
   check('mute: master gain to 0', gain !== undefined && gain < 0.01, `gain ${gain}`);
   await page.getByRole('button', { name: 'Unmute' }).click();
 
-  // RUN AGAIN: no cinematic, straight in; story lines reset per run
+  // RUN AGAIN: no cinematic, no lines, and the first Pulse line is back for the new run
   await page.getByRole('button', { name: 'RUN AGAIN' }).click();
   await page.waitForFunction(() => window.__dsm.game().phase === 'running', null, { timeout: 60000 });
-  check('run again: no cinematic, start line again', !(await page.evaluate(() => window.__dsm.game().cinematic)) && (await heard('Bring that cap back!')));
+  await page.evaluate(() => window.__dsm.gameDebugInvulnerable(9999));
+  const quiet = !(await page.evaluate(() => window.__dsm.game().cinematic)) && !(await anyLine(3000));
+  await page.evaluate(() => window.__dsm.gameDebugChill());
+  await page.keyboard.press('b');
+  check('run again: no cinematic, quiet start, first-Pulse line again', quiet && (await heard('Ha! Wetin be that?!')));
 } catch (e) {
   check('script', false, e.message.split('\n')[0]);
 }

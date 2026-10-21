@@ -9,6 +9,7 @@ export const DRACO_PATH = '/draco/';
 export const BOTTLE_HEIGHT = 0.98;
 export const BOTTLE_CENTER_Y = 0.49;
 export const BOTTLE_HALF_WIDTH = 0.15;
+export const FILL_Y = 0.74; // cola level (model units), just under the shoulder
 export const LABEL_RADIUS = 0.1336;
 
 // Camera framing
@@ -38,4 +39,4 @@ export const FPS_PROBE_START_S = 0.6;
 export const FPS_PROBE_LEN_S = 2;
 export const FPS_LOW_THRESHOLD = 45;
 export const PARTICLES = { high: 300, low: 80 } as const;
-export const DROPLETS = { high: 36, low: 0 } as const;
+export const DROPLETS = { high: 36, low: 14 } as const;

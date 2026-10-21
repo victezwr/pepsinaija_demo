@@ -394,3 +394,32 @@ export function capRattle(): void {
   tone('sawtooth', 90, 60, 0.12, 0.25, 0.32); // the zap
   burst('highpass', 5000, 0.25, 0.005, 0.18);
 }
+
+// ---- The liquid in the intro bottle
+
+let fizzBus: GainNode | null = null;
+
+/** Carbonation hiss that follows how hard the bottle is being shaken (0..1). */
+export function fizzLevel(level: number): void {
+  if (!ctx || !master) return;
+  if (!fizzBus) {
+    const src = noiseSource(true);
+    if (!src) return;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 6500;
+    bp.Q.value = 0.7;
+    fizzBus = ctx.createGain();
+    fizzBus.gain.value = 0;
+    src.connect(bp).connect(fizzBus).connect(master);
+    src.start();
+  }
+  fizzBus.gain.setTargetAtTime(Math.min(0.32, level * 0.32), ctx.currentTime, 0.08);
+}
+
+/** One bubble bursting at the surface (tiny click), for the crackle of a shaken bottle. */
+export function fizzPop(): void {
+  if (!ctx) return;
+  const f = 2500 + Math.random() * 4500;
+  tone('sine', f, f * 1.6, 0.025 + Math.random() * 0.03, 0.02);
+}

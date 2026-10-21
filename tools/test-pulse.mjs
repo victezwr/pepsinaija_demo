@@ -76,7 +76,7 @@ if (sync) {
       await page.waitForTimeout(400);
     }
   }
-  check('sync: rows due on the beat they were aimed at', live >= 3 && rows >= 6 && worst < 0.1, `${live} live samples, ${rows} rows, worst ${worst.toFixed(3)} beats (${((worst * 60000) / 155.76).toFixed(0)} ms) ${JSON.stringify(seen)}`);
+  check('sync: rows due on the beat they were aimed at', live >= 3 && rows >= 6 && worst < 0.1, `${live} live samples, ${rows} rows, worst ${worst.toFixed(3)} beats (${((worst * 60000) / 163.53).toFixed(0)} ms) ${JSON.stringify(seen)}`);
   throw new Error('sync-only run done');
 }
 

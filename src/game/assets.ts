@@ -62,17 +62,33 @@ function character(gltf: { scene: THREE.Group; animations: THREE.AnimationClip[]
   return { scene: gltf.scene, clips };
 }
 
+/**
+ * The bottle in the runner's hand: the low-poly geometry (tools/make-chase-bottle.mjs, ~8k
+ * triangles instead of ~154k) dressed in the full model's materials and textures, by mesh name.
+ */
+function chaseBottle(lite: THREE.Group, full: THREE.Group): THREE.Group {
+  const mats = new Map<string, THREE.Material | THREE.Material[]>();
+  full.traverse((o) => {
+    if (o instanceof THREE.Mesh) mats.set(o.name, o.material);
+  });
+  lite.traverse((o) => {
+    if (o instanceof THREE.Mesh && mats.has(o.name)) o.material = mats.get(o.name) as THREE.Material;
+  });
+  return lite;
+}
+
 /** Starts (once) and returns the game download. Safe to call early to warm the cache. */
 export function loadGameAssets(): Promise<GameAssets> {
   if (pending) return pending;
   const l = loader();
   const get = (url: string): Promise<{ scene: THREE.Group; animations: THREE.AnimationClip[] }> => l.loadAsync(url);
   pending = (async () => {
-    const [male, female, agbero, bottle, ...props] = await Promise.all([
+    const [male, female, agbero, bottle, bottleChase, ...props] = await Promise.all([
       get('/game/runner-male.glb'),
       get('/game/runner-female.glb'),
       get('/game/agbero.glb'),
       get(MODEL_URL),
+      get('/game/bottle-chase.glb'),
       ...PROPS.map((p) => get(`/game/${p}.glb`)),
     ]);
     const propMap = {} as Record<PropName, THREE.Group>;
@@ -84,7 +100,7 @@ export function loadGameAssets(): Promise<GameAssets> {
       female: character(female),
       agbero: character(agbero),
       props: propMap,
-      bottle: bottle.scene,
+      bottle: chaseBottle(bottleChase.scene, bottle.scene),
     };
   })();
   pending.catch(() => {

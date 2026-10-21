@@ -8,13 +8,13 @@ import * as C from '../config';
 import { useStore } from '../state/store';
 import * as director from '../story/director';
 import { getRig, setRig, type Rig } from '../story/rig';
-import { addMist, mistTexture, wetLabel } from './chill';
-import { Droplets, dropletNormalMap } from './condensation';
+import { applyCondensation, makeCondensation, wetLabel } from './chill';
+import { Droplets } from './condensation';
+import { Liquid } from './liquid';
 import { Fizz } from './fizz';
 
 export function Experience(): null {
   const { scene, camera, gl, size } = useThree();
-  const tier = useStore((s) => s.tier);
   const gltf = useLoader(GLTFLoader, C.MODEL_URL, (loader) => {
     const draco = new DRACOLoader();
     draco.setDecoderPath(C.DRACO_PATH);
@@ -44,13 +44,6 @@ export function Experience(): null {
     rig.viewport.h = size.height;
   }, [size]);
 
-  useEffect(() => {
-    const rig = getRig();
-    if (tier === 'low' && rig?.droplets) {
-      rig.droplets.mesh.removeFromParent();
-      rig.droplets = null;
-    }
-  }, [tier]);
 
   useFrame((_, dt) => director.update(Math.min(dt, 1 / 20)));
   return null;
@@ -84,11 +77,9 @@ function buildRig(
   root.add(spin);
   scene.add(root);
 
-  const drops = dropletNormalMap();
-  // Fresh from the fridge: misted plastic, a fogged label with drip trails
-  const mistLabel = mistTexture(true);
-  mistLabel.repeat.set(2, 1);
-  const mistBottle = mistTexture(true, 512);
+  // Fresh from the fridge (see chill.ts): one condensation set, wrapped round label and plastic
+  const cond = makeCondensation(withDroplets ? 1024 : 512);
+  const H = C.BOTTLE_HEIGHT;
   let bottleMesh: THREE.Mesh | null = null;
   let cap: THREE.Mesh | null = null;
   let label: THREE.Mesh | null = null;
@@ -96,16 +87,17 @@ function buildRig(
     if (!(o instanceof THREE.Mesh)) return;
     const mat = o.material as THREE.MeshStandardMaterial;
     if (o.name === 'Bottle') {
-      // Translucent PET: draw inside faces first, then outside, without depth writes.
+      // Clear PET round the liquid: inside faces first, then outside, without depth writes.
       mat.side = THREE.FrontSide;
       mat.depthWrite = false;
-      mat.roughness = 0.1;
-      mat.envMapIntensity = 1.2;
-      mat.normalMap = drops;
-      mat.normalScale.set(0.3, 0.3);
+      mat.transparent = true;
+      mat.roughness = 0.08;
+      mat.envMapIntensity = 1.4;
       o.renderOrder = 2;
       const backMat = mat.clone();
       backMat.side = THREE.BackSide;
+      applyCondensation(mat, cond, { repeat: 2, height: H, lens: 0, haze: 0.35, cloud: 0.1, pet: true });
+      applyCondensation(backMat, cond, { repeat: 2, height: H, lens: 0, haze: 0.15, cloud: 0.04, pet: true });
       const back = new THREE.Mesh(o.geometry, backMat);
       back.renderOrder = 1;
       o.parent?.add(back);
@@ -116,20 +108,19 @@ function buildRig(
       label = o;
       mat.side = THREE.FrontSide;
       mat.roughness = 0.28;
-      const ln = drops.clone();
-      ln.repeat.set(4, 1.4);
-      ln.needsUpdate = true;
-      mat.normalMap = ln;
-      mat.normalScale.set(0.45, 0.45);
-      if (withDroplets) o.material = wetLabel(mat, ln);
+      const m = withDroplets ? wetLabel(mat) : mat; // wet clear-coat on HD
+      applyCondensation(m, cond, { repeat: 2, height: H, lens: 0.003, haze: 0.13, cloud: 0 });
+      o.material = m;
     }
   });
-  if (bottleMesh) addMist(bottleMesh, mistBottle, 0.45, 3);
   if (!cap || !label) throw new Error('Model is missing Cap or Label');
   const capMesh = cap as THREE.Mesh;
   const labelMesh = label as THREE.Mesh;
   labelMesh.frustumCulled = false;
-  addMist(labelMesh, mistLabel, 0.62, 5);
+
+  // The cola, as its own mesh inside the plastic, so it can slosh
+  const liquid = new Liquid((bottleMesh as THREE.Mesh | null)?.geometry ?? labelMesh.geometry, C.FILL_Y, withDroplets);
+  (bottleMesh as THREE.Mesh | null)?.parent?.add(liquid.mesh);
 
   const capMat = capMesh.material as THREE.MeshStandardMaterial;
   const yellowMap = capMat.map as THREE.Texture; // the new yellow cap, from the start
@@ -150,11 +141,9 @@ function buildRig(
   const fizz = new Fizz(C.PARTICLES.high);
   scene.add(fizz.points);
 
-  let droplets: Droplets | null = null;
-  if (withDroplets) {
-    droplets = new Droplets(C.DROPLETS.high, 0.3, 0.555);
-    labelMesh.parent?.add(droplets.mesh);
-  }
+  // Beads sliding down the label (fewer on LITE)
+  const droplets = new Droplets(withDroplets ? C.DROPLETS.high : C.DROPLETS.low, 0.3, 0.555);
+  labelMesh.parent?.add(droplets.mesh);
 
   return {
     scene,
@@ -167,6 +156,7 @@ function buildRig(
     label: labelMesh,
     fizz,
     droplets,
+    liquid,
     key,
     rimL,
     rimR,

@@ -57,7 +57,6 @@ export const GRIP_ROT: readonly [number, number, number] = [0, 0, 1.3 - Math.PI]
 export const CHASE_CLOSE = 1.0;
 export const CHASE_FAR = 10;
 export const CHASE_HOLD_S = 3;
-export const BUBBLE_LINES = ['Hold am!', 'Where you dey go?!', 'Oya drop am!', 'Bring that cap come!', 'Stop there!'];
 export const RUNNER_LOOK_BACK = 0.9; // rad: the runner turns to answer the Chairman in the cinematic
 
 // Okadas drive at you, with a horn first
@@ -68,10 +67,12 @@ export const HORN_LEAD_S = 1.4;
 export const COIN_POOL = 140;
 export const COIN_RADIUS = 0.22;
 export const COIN_PICKUP = 0.9;
-export const CHILL_FULL = 50; // caps to fill the Pulse meter
+export const CAP_FLY_SPEED = 30; // m/s minimum for caps pulled to the hand by the Pulse
+/** Caps to fill the Pulse meter, by speed stage: it gets harder to charge the further you run. */
+export const PULSE_COST: readonly number[] = [50, 70, 90, 110, 130];
 
 // Pulse Mode: release → shockwave, then a ring on every beat while you keep running
-export const PULSE_BEATS = 21; // beats of the theme it pulses for (≈ 8 s)
+export const PULSE_BEATS = 22; // beats of the theme it pulses for (≈ 8 s at 163.5 BPM)
 export const PULSE_WINDUP_S = 0.16; // anticipation: the world draws in before the shockwave
 export const PULSE_GRACE_S = 0.5; // protection after the last ring
 export const PULSE_SHOCK_S = 0.7; // shockwave expansion time
@@ -87,8 +88,11 @@ export const PULSE_KNOCKBACK = 9; // metres the agberos are blown back
 export const CAM_HEIGHT = 2.9;
 export const CAM_BACK = 5.4;
 export const CAM_LOOK_AHEAD = 9;
-export const DROP_S = 0.77; // the bottle falling into the runner's hand: two beats of the theme
+export const DROP_S = 0.73; // the bottle falling into the runner's hand: two beats of the theme
 export const START_S = 1.8; // tap → whistle → camera swing → control
+
+/** Pepsi print on the overhead banner: width, height, centre height, offset towards the runner (m). */
+export const BANNER_PRINT: readonly [number, number, number, number] = [2.0, 0.75, 2.3, 0.28];
 
 export type PropName =
   | 'danfo'

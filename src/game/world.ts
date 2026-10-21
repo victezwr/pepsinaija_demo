@@ -11,6 +11,7 @@ import type { CharacterAsset, GameAssets } from './assets';
 import * as G from './gameConfig';
 import { gameDom, useGame, type GamePhase, type PulseState, type Runner } from './gameStore';
 import { PulseFX } from './pulse';
+import { bannerPrint, billboardFaces, makeBillboard } from './billboards';
 
 export type GameInput = 'left' | 'right' | 'up' | 'down' | 'boost';
 
@@ -146,6 +147,8 @@ export class ChaseWorld {
   private readonly poles: THREE.Group[] = [];
   private readonly buildingSpan: number;
   private readonly poleSpan: number;
+  private readonly billboards: THREE.Group[] = [];
+  private readonly boardSpan: number;
   private readonly roadTex: THREE.Texture;
   private readonly walkTex: THREE.Texture;
   private readonly parkedDanfo: THREE.Group;
@@ -219,14 +222,12 @@ export class ChaseWorld {
   private readonly saidOnce = new Set<string>(); // one-time lines this run
   private readonly lastSaid: Record<string, number> = {};
   private cineStep = 0; // next motor-park story beat to fire
-  private startLineAt = 0; // "Bring that cap back!" once the run is under way
   private lastLaneChange = -99;
   private glowFlash = 0; // the catch / game-over flash on the held bottle, 1 → 0
   private glowColor = 0x2a6bff;
   private pulseFireAt = 0; // the shockwave fires after a short wind-up
   private pulseFired = false;
   private bubbleUntil = 0;
-  private nextBubbleAt = 0;
   private caps = 0;
   private chill = 0;
   private invulnerableUntil = 0;
@@ -303,12 +304,30 @@ export class ChaseWorld {
       }
     }
 
+    // Pepsi billboards on the pavement, alternating sides and slogans, angled at the oncoming runner
+    const faces = billboardFaces();
+    const frame = new THREE.MeshLambertMaterial({ color: 0x23262e });
+    const boardsPerSide = 3;
+    const boardEvery = this.buildingSpan / boardsPerSide;
+    this.boardSpan = boardsPerSide * boardEvery;
+    let n = 0;
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < boardsPerSide; i++) {
+        const b = makeBillboard(faces[n++ % faces.length], frame);
+        b.position.set(side * (G.ROAD_HALF + G.SIDEWALK * 0.55), 0, -20 - i * boardEvery - (side > 0 ? boardEvery / 2 : 0));
+        b.rotation.y = side < 0 ? 0.5 : -0.5;
+        this.billboards.push(b);
+        this.group.add(b);
+      }
+    }
+
     // Motor-park set dressing: a danfo parked beside the runner in the menu
     this.parkedDanfo = place(assets.props.danfo, 5);
     this.parkedDanfo.position.set(-laneX(1), 0, 1.5);
     this.group.add(this.parkedDanfo);
 
-    // Obstacle pools
+    // Obstacle pools (the overhead banners carry a Pepsi print on the side facing the runner)
+    const print = bannerPrint();
     const pool: Record<G.ObstacleKind, number> = { danfo: 4, keke: 4, okada: 4, barrier: 5, table: 4, banner: 4 };
     for (const kind of Object.keys(pool) as G.ObstacleKind[]) {
       const def = G.OBSTACLES[kind];
@@ -316,6 +335,11 @@ export class ChaseWorld {
         const obj = place(assets.props[def.prop], def.scale, 'scaleY' in def ? def.scaleY : undefined);
         obj.rotation.y = def.rotY;
         obj.visible = false;
+        if (kind === 'banner') {
+          const face = new THREE.Mesh(new THREE.PlaneGeometry(G.BANNER_PRINT[0], G.BANNER_PRINT[1]), print);
+          face.position.set(0, G.BANNER_PRINT[2], G.BANNER_PRINT[3]);
+          obj.add(face);
+        }
         this.group.add(obj);
         this.obstacles.push({ kind, obj, lane: 0, z: 0, active: false, hit: false, horned: false, cleared: false, clearT: 0, flingX: 1, beat: 0, passed: true });
       }
@@ -377,6 +401,11 @@ export class ChaseWorld {
     this.toMenuPose();
   }
 
+  /** Caps the Pulse meter needs right now (rises with the speed stage). */
+  private get pulseCost(): number {
+    return G.PULSE_COST[Math.min(this.stage, G.PULSE_COST.length - 1)];
+  }
+
   /** Share of the Pulse still to run (1 → 0), for the HUD's timer bar. */
   private get pulseLeft(): number {
     if (this.pulseState === 'activating') return 1;
@@ -410,6 +439,20 @@ export class ChaseWorld {
     this.group.visible = true;
     this.scene.fog = this.fog;
     void gl.compileAsync(this.scene, this.camera);
+    // Upload every texture now too: otherwise each one goes to the GPU the first time its object
+    // appears, a ~0.1 s freeze apiece on slow phones, right at the start of the run.
+    const seen = new Set<THREE.Texture>();
+    this.group.traverse((o) => {
+      const mats = (o as THREE.Mesh).material;
+      if (!mats) return;
+      for (const m of Array.isArray(mats) ? mats : [mats]) {
+        for (const v of Object.values(m)) if (v instanceof THREE.Texture && !seen.has(v)) seen.add(v);
+        if (m instanceof THREE.ShaderMaterial) {
+          for (const u of Object.values(m.uniforms)) if (u.value instanceof THREE.Texture) seen.add(u.value);
+        }
+      }
+    });
+    for (const t of seen) gl.initTexture(t);
     this.scene.fog = prevFog;
     this.group.visible = false;
     pooled.forEach((o) => {
@@ -528,7 +571,6 @@ export class ChaseWorld {
     this.chairmanLunge = 0;
     this.bubbleUntil = 0;
     this.saidOnce.clear();
-    this.startLineAt = 0;
     this.glowFlash = 0;
     this.caps = this.chill = 0;
     this.invulnerableUntil = 0;
@@ -540,7 +582,7 @@ export class ChaseWorld {
     this.agberos.forEach((a) => {
       a.root.rotation.y = 0;
     });
-    useGame.setState({ caps: 0, distance: 0, stage: 0, chill: 0, banner: null });
+    useGame.setState({ caps: 0, distance: 0, stage: 0, chill: 0, pulseCost: G.PULSE_COST[0], banner: null });
   }
 
   input(action: GameInput): void {
@@ -630,7 +672,7 @@ export class ChaseWorld {
     sfx.pulseRelease();
     music.setPulse(true);
     this.flashBanner('RELEASE THE PULSE', 900);
-    this.line('pulse', this.chairman, 'CHAIRMAN', 'Ha! Wetin be that?!', { cooldown: 20, priority: true, voice: 2 });
+    this.line('pulse', this.chairman, 'CHAIRMAN', 'Ha! Wetin be that?!', { once: true, priority: true, voice: 2 }); // first Pulse of the run only
     useGame.setState({ pulseFlash: useGame.getState().pulseFlash + 1 });
   }
 
@@ -750,7 +792,7 @@ export class ChaseWorld {
     if (gameDom.pulseTimer) gameDom.pulseTimer.style.transform = `scaleX(${this.pulseLeft.toFixed(3)})`;
     this.updateCapEnergy(dt, phase);
     this.updateCamera(dt, phase);
-    this.updateBubble(phase);
+    this.updateBubble();
   }
 
   /** Cinematic beats D–E (motor park), fired once each in order. */
@@ -801,8 +843,7 @@ export class ChaseWorld {
   private startingStep(): void {
     if (!this.whistled && this.phaseT > 0.45) {
       this.whistled = true;
-      this.say(this.chairman, 'CHAIRMAN', 'Oya hold am!', 1.8, 3, 0.65);
-      sfx.whistle();
+      sfx.whistle(); // RUN AGAIN: just the whistle (lines while running: stumbles and the first Pulse only)
       this.chairman.play('shout');
       this.runner.play('run', { fade: 0.2 });
       for (const a of this.agberos.slice(1)) a.play('run');
@@ -814,8 +855,6 @@ export class ChaseWorld {
   /** Controls on: the run proper (after the swing, a RUN AGAIN or a SKIP). */
   private beginRunning(): void {
     this.chaseCloseUntil = this.time + G.CHASE_HOLD_S;
-    this.nextBubbleAt = this.time + 3;
-    this.startLineAt = this.time + 1.1;
     music.start(0);
     score.startLayers();
     score.setIntensity(this.stage);
@@ -842,6 +881,10 @@ export class ChaseWorld {
       p.position.z += d;
       if (p.position.z > G.DESPAWN_Z + 34) p.position.z -= this.poleSpan;
     }
+    for (const b of this.billboards) {
+      b.position.z += d;
+      if (b.position.z > G.DESPAWN_Z + 34) b.position.z -= this.boardSpan;
+    }
     if (this.parkedDanfo.visible) {
       this.parkedDanfo.position.z += d;
       if (this.parkedDanfo.position.z > G.DESPAWN_Z + 6) this.parkedDanfo.visible = false;
@@ -865,7 +908,7 @@ export class ChaseWorld {
       }
     }
     for (let i = 0; i < G.COIN_POOL; i++) {
-      if (!this.coinOn[i]) continue;
+      if (!this.coinOn[i] || this.coinMag[i]) continue; // caps flying to the hand move in runner space
       this.coinZ[i] += d;
       if (this.coinZ[i] > G.DESPAWN_Z) this.coinOn[i] = 0;
     }
@@ -1014,7 +1057,6 @@ export class ChaseWorld {
       this.pulseFx.setPad('off');
       music.setPulse(false);
       sfx.pulseEnd();
-      this.line('power', this.agberos[1], 'AGBERO', 'Chairman, this one get power o!', { once: true, voice: 1 });
     }
   }
 
@@ -1045,20 +1087,26 @@ export class ChaseWorld {
     for (let i = 0; i < G.COIN_POOL; i++) {
       if (!this.coinOn[i]) continue;
       if (!this.coinMag[i]) {
-        if (!on || this.coinZ[i] > 2 || this.coinZ[i] < -this.magnetAhead) continue;
+        // Only caps still ahead of you (a cap already behind you is gone)
+        if (!on || this.coinZ[i] > 0.3 || this.coinZ[i] < -this.magnetAhead) continue;
         this.coinMag[i] = 1;
       }
-      const k = Math.min(1, dt * 9);
-      this.coinX[i] += (tx - this.coinX[i]) * k;
-      this.coinY[i] += (ty - this.coinY[i]) * k;
-      this.coinZ[i] += (0 - this.coinZ[i]) * k;
-      const dx = this.coinX[i] - tx;
-      const dy = this.coinY[i] - ty;
-      const dz = this.coinZ[i];
-      if (dx * dx + dy * dy + dz * dz < 0.8) {
+      // Fly to the hand: eased, but never slower than CAP_FLY_SPEED, so it always arrives
+      const dx = tx - this.coinX[i];
+      const dy = ty - this.coinY[i];
+      const dz = -this.coinZ[i];
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const step = Math.max(dist * Math.min(1, dt * 9), G.CAP_FLY_SPEED * dt);
+      if (step >= dist || dist < 0.5) {
         this.coinOn[i] = 0;
+        this.coinMag[i] = 0;
         got++;
+        continue;
       }
+      const k = step / dist;
+      this.coinX[i] += dx * k;
+      this.coinY[i] += dy * k;
+      this.coinZ[i] += dz * k;
     }
     if (got) {
       this.pulseCaps += got;
@@ -1168,11 +1216,8 @@ export class ChaseWorld {
     this.flashBanner('SPEED UP!', 1300);
     sfx.whoosh(0.6, 0.4);
     music.setStage(s);
-    score.setIntensity(s);
-    // The story moves on with the distance (500 m, 2,000 m, 3,000 m; at 1,200 m the cap speaks)
-    if (s === 1) this.line('m500', this.agberos[2], 'AGBERO', 'Chairman, this one no dey tire o!', { once: true, priority: true });
-    if (s === 3) this.line('m2000', this.chairman, 'CHAIRMAN', 'All of una, run! Make una catch am!', { once: true, priority: true, voice: 3 });
-    if (s === 4) this.line('m3000', this.agberos[1], 'AGBERO', 'Abeg, make we calm down small.', { once: true, priority: true, loud: 0.3 });
+    score.setIntensity(s); // the music (and, from 1,200 m, the cap's glow) carry the milestones
+    if (this.pulseState === 'empty') useGame.setState({ chill: this.chill / this.pulseCost, pulseCost: this.pulseCost });
   }
 
   private collect(): void {
@@ -1194,15 +1239,15 @@ export class ChaseWorld {
   private award(got: number): void {
     this.caps += got;
     if (this.pulseState === 'empty') {
-      this.chill = Math.min(G.CHILL_FULL, this.chill + got);
-      if (this.chill >= G.CHILL_FULL) {
+      this.chill = Math.min(this.pulseCost, this.chill + got);
+      if (this.chill >= this.pulseCost) {
         this.setPulse('charged');
         this.pulseFx.setPad('ground');
         sfx.pulseCharge();
       }
     }
     sfx.coin();
-    useGame.setState({ caps: this.caps, chill: this.chill / G.CHILL_FULL });
+    useGame.setState({ caps: this.caps, chill: this.chill / this.pulseCost, pulseCost: this.pulseCost });
   }
 
   private flashBanner(text: string, ms: number): void {
@@ -1360,7 +1405,6 @@ export class ChaseWorld {
     this.bubbleSpeaker = who;
     this.bubbleName = name;
     this.bubbleUntil = this.time + secs;
-    this.nextBubbleAt = Math.max(this.nextBubbleAt, this.time + secs + 1.5); // ambient shouts wait
     if (voice > 0) voices.shout(voice, loud);
   }
 
@@ -1396,9 +1440,6 @@ export class ChaseWorld {
       const lateSwerve = Math.abs(o.lane - this.lane) === 1 && this.time - this.lastLaneChange < 0.6 && def.action === 'swerve';
       if (!sameLane && !lateSwerve) continue;
       sfx.nearMiss(o.lane < this.lane ? -1 : 1);
-      if (!this.line('near1', this.agberos[2], 'AGBERO', 'Chairman, e dey escape!', { once: true })) {
-        this.line('nearTaunt', this.chairman, 'CHAIRMAN', 'You think say you fit run pass me?', { cooldown: 14 });
-      }
     }
   }
 
@@ -1437,18 +1478,9 @@ export class ChaseWorld {
     this.camera.lookAt(lerp(l0[0], l1[0], k), lerp(l0[1], l1[1], k), lerp(l0[2], l1[2], k));
   }
 
-  private updateBubble(phase: GamePhase): void {
+  private updateBubble(): void {
     const el = gameDom.bubble;
     if (!el) return;
-    if (phase === 'running' && this.startLineAt > 0 && this.time >= this.startLineAt) {
-      this.startLineAt = 0;
-      this.line('start', this.agberos[1], 'AGBERO', 'Bring that cap back!', { priority: true, voice: 2 });
-    }
-    if (phase === 'running' && this.chaseGap < 5 && this.time > this.nextBubbleAt && this.time > this.bubbleUntil) {
-      const who = this.agberos[Math.floor(Math.random() * 3)];
-      this.say(who, who === this.chairman ? 'CHAIRMAN' : 'AGBERO', G.BUBBLE_LINES[Math.floor(Math.random() * G.BUBBLE_LINES.length)], 1.8, 1, 0.5);
-      this.nextBubbleAt = this.time + 3.2;
-    }
     const who = this.bubbleSpeaker;
     if (this.time >= this.bubbleUntil || !who) {
       el.style.opacity = '0';
@@ -1533,6 +1565,26 @@ export class ChaseWorld {
     this.lastLaneChange = this.time;
   }
 
+  /** Test hook (?debug only): a stumble, as if you clipped something. */
+  debugStumble(): void {
+    if (useGame.getState().phase === 'running') this.stumble();
+  }
+
+  /** Test hook (?debug only): put an obstacle of `kind` in your lane, `ahead` metres up the road. */
+  debugSpawn(kind: G.ObstacleKind, ahead: number): void {
+    const o = this.obstacles.find((x) => !x.active && x.kind === kind);
+    if (!o) return;
+    o.active = true;
+    o.hit = o.cleared = false;
+    o.passed = false;
+    o.lane = this.lane;
+    o.z = -ahead;
+    o.obj.position.set(laneX(o.lane), 0, o.z);
+    o.obj.rotation.set(0, G.OBSTACLES[kind].rotY, 0);
+    o.obj.scale.set(1, 1, 1);
+    o.obj.visible = true;
+  }
+
   /** Test hook (?debug only): nothing can catch you for `secs` (to stage events headless). */
   debugInvulnerable(secs: number): void {
     this.invulnerableUntil = this.time + secs;
@@ -1546,7 +1598,7 @@ export class ChaseWorld {
   /** Test hook (?debug only): fill the Pulse meter. */
   debugFillChill(): void {
     if (this.pulseState !== 'empty') return;
-    this.chill = G.CHILL_FULL - 1;
+    this.chill = this.pulseCost - 1;
     this.award(1);
   }
 

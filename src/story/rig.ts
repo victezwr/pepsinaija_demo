@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { Fizz } from '../scene/fizz';
 import type { Droplets } from '../scene/condensation';
+import type { Liquid } from '../scene/liquid';
 
 /** Animated values the director tweens; the scene applies them every frame. */
 export interface Pose {
@@ -23,6 +24,7 @@ export interface Rig {
   label: THREE.Mesh;
   fizz: Fizz;
   droplets: Droplets | null;
+  liquid: Liquid;
   key: THREE.DirectionalLight;
   rimL: THREE.DirectionalLight;
   rimR: THREE.DirectionalLight;

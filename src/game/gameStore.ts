@@ -15,6 +15,7 @@ export interface GameState {
   best: number; // best distance
   stage: number;
   chill: number; // 0..1 Pulse meter
+  pulseCost: number; // caps the meter needs now (rises with distance)
   pulse: PulseState;
   /** Increments on each activation (drives the one-shot flash). */
   pulseFlash: number;
@@ -32,6 +33,7 @@ export const useGame = create<GameState>()(() => ({
   best: Number(readPref('bestDistance') ?? 0) || 0,
   stage: 0,
   chill: 0,
+  pulseCost: 50,
   pulse: 'empty',
   pulseFlash: 0,
   cinematic: false,

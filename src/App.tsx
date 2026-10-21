@@ -58,6 +58,21 @@ export function App(): JSX.Element {
     void preloadTheme();
   }, []);
 
+  // Android: tilting / shaking the phone moves the cola in the intro bottle. iOS would need a
+  // permission prompt, which we never show (it stays drag-only there).
+  useEffect(() => {
+    const needsPermission = typeof (DeviceMotionEvent as unknown as { requestPermission?: unknown }).requestPermission === 'function';
+    if (needsPermission) return;
+    const onMotion = (e: DeviceMotionEvent): void => {
+      const g = e.accelerationIncludingGravity;
+      const a = e.acceleration;
+      if (!g || g.x === null || g.y === null || g.z === null) return;
+      director.motion(g.x, g.y, g.z, a?.x ?? 0, a?.y ?? 0, a?.z ?? 0);
+    };
+    window.addEventListener('devicemotion', onMotion);
+    return () => window.removeEventListener('devicemotion', onMotion);
+  }, []);
+
   useEffect(() => {
     const isButton = (t: EventTarget | null): boolean => t instanceof HTMLElement && t.closest('button') !== null;
     const keys: Record<string, GameInput> = {

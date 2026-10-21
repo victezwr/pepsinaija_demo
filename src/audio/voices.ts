@@ -1,17 +1,21 @@
 // Agbero shouts. Real recordings win: drop public/audio/agbero-1.mp3 … agbero-6.mp3 (people
 // shouting "Oya!", "Hold am!", "Where you dey go?!") and they are used at random. Until then a
-// formant synth makes rough, angry two-syllable shouts ("o-YA!", "HEY!").
+// formant synth makes rough, angry two-syllable shouts ("o-YA!", "HEY!"), rendered once offline
+// into a few buffers so a shout during play is a single playback node (cheap on slow phones).
 import { audioGraph } from './sfx';
 
 const MAX_CLIPS = 6;
 let clips: AudioBuffer[] | null = null;
+let synthClips: AudioBuffer[] | null = null;
+const SYNTH_VARIANTS = 6;
 let loading: Promise<void> | null = null;
 let lastShout = 0;
 
-/** Fetch any owner-provided shout recordings (missing files are simply skipped). */
+/** Fetch any owner-provided shout recordings (missing files are simply skipped); pre-render the synth ones. */
 export function preloadVoices(): void {
   const g = audioGraph();
   if (!g || loading) return;
+  void renderSynthShouts(g.ctx.sampleRate);
   loading = (async () => {
     const found: AudioBuffer[] = [];
     for (let i = 1; i <= MAX_CLIPS; i++) {
@@ -37,7 +41,26 @@ export function shout(voices = 1, loud = 0.5): void {
   for (let v = 0; v < voices; v++) {
     const at = now + v * 0.09 + Math.random() * 0.06;
     if (clips?.length) playClip(g.ctx, g.master, clips[Math.floor(Math.random() * clips.length)], at, loud);
+    else if (synthClips) playClip(g.ctx, g.master, synthClips[Math.floor(Math.random() * synthClips.length)], at, loud / Math.sqrt(voices) / 0.8);
     else synthShout(g.ctx, g.master, g.noise, at, loud / Math.sqrt(voices));
+  }
+}
+
+async function renderSynthShouts(rate: number): Promise<void> {
+  try {
+    const OAC = window.OfflineAudioContext ?? (window as unknown as { webkitOfflineAudioContext: typeof OfflineAudioContext }).webkitOfflineAudioContext;
+    const out: AudioBuffer[] = [];
+    for (let i = 0; i < SYNTH_VARIANTS; i++) {
+      const off = new OAC(1, Math.ceil(rate * 0.65), rate);
+      const noise = off.createBuffer(1, rate, rate);
+      const d = noise.getChannelData(0);
+      for (let j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1;
+      synthShout(off, off.destination, noise, 0.01, 0.5);
+      out.push(await off.startRendering());
+    }
+    synthClips = out;
+  } catch {
+    synthClips = null; // fall back to live synthesis
   }
 }
 
@@ -51,6 +74,8 @@ function playClip(ctx: AudioContext, out: AudioNode, buf: AudioBuffer, at: numbe
   src.start(at);
 }
 
+const RASP = new Float32Array(256).map((_, i) => Math.tanh((i / 128 - 1) * 3));
+
 // Vowel formants (Hz): o, a, e
 const VOWELS: ReadonlyArray<[number, number, number]> = [
   [570, 840, 2410],
@@ -58,7 +83,7 @@ const VOWELS: ReadonlyArray<[number, number, number]> = [
   [530, 1840, 2480],
 ];
 
-function synthShout(ctx: AudioContext, out: AudioNode, noise: AudioBuffer, t: number, peak: number): void {
+function synthShout(ctx: BaseAudioContext, out: AudioNode, noise: AudioBuffer, t: number, peak: number): void {
   const f0 = 115 + Math.random() * 55; // stocky men, angry
   const twoSyllables = Math.random() < 0.65; // "o-YA!" vs "HEY!"
   if (twoSyllables) syllable(ctx, out, noise, t, f0 * 0.95, VOWELS[0], 0.12, peak * 0.7);
@@ -66,7 +91,7 @@ function synthShout(ctx: AudioContext, out: AudioNode, noise: AudioBuffer, t: nu
   syllable(ctx, out, noise, t2, f0 * 1.25, VOWELS[1 + Math.floor(Math.random() * 2)], 0.38, peak);
 }
 
-function syllable(ctx: AudioContext, out: AudioNode, noise: AudioBuffer, t: number, f0: number, formants: [number, number, number], len: number, peak: number): void {
+function syllable(ctx: BaseAudioContext, out: AudioNode, noise: AudioBuffer, t: number, f0: number, formants: [number, number, number], len: number, peak: number): void {
   const src = ctx.createOscillator();
   src.type = 'sawtooth';
   src.frequency.setValueAtTime(f0 * 0.85, t);
@@ -74,12 +99,7 @@ function syllable(ctx: AudioContext, out: AudioNode, noise: AudioBuffer, t: numb
   src.frequency.exponentialRampToValueAtTime(f0 * 0.75, t + len);
   // Rasp: soft clipping
   const shaper = ctx.createWaveShaper();
-  const curve = new Float32Array(256);
-  for (let i = 0; i < 256; i++) {
-    const x = (i / 128) - 1;
-    curve[i] = Math.tanh(x * 3);
-  }
-  shaper.curve = curve;
+  shaper.curve = RASP;
   src.connect(shaper);
   const env = ctx.createGain();
   env.gain.setValueAtTime(0.0001, t);

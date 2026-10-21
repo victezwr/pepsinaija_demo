@@ -58,6 +58,14 @@ export function gameDebugDistance(m: number): void {
   world?.debugSetDistance(m);
 }
 
+export function gameDebugSpawn(kind: 'danfo' | 'keke' | 'okada' | 'barrier' | 'table' | 'banner', ahead: number): void {
+  world?.debugSpawn(kind, ahead);
+}
+
+export function gameDebugStumble(): void {
+  world?.debugStumble();
+}
+
 export function gameDebugInvulnerable(secs: number): void {
   world?.debugInvulnerable(secs);
 }
