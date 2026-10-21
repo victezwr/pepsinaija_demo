@@ -40,14 +40,16 @@ export const FPS_PROBE_START_S = 0.6;
 export const FPS_PROBE_LEN_S = 2;
 export const FPS_LOW_THRESHOLD = 45;
 /**
- * Shaking the intro bottle: sloshing harder than `min` (surface tilt amplitude, held at its peak
- * and let go at `release`/s) counts as shaking.
+ * Shaking the intro bottle: it counts as shaking while the cola sloshes harder than `min` (surface
+ * tilt amplitude, held at its peak and let go at `release`/s) AND it is still being kicked (drag
+ * or phone, at least `inputMin` per second, smoothed over `inputS` s; so the ringing on after you
+ * stop doesn't count).
  * The first `sloshS` seconds only slosh; then the fizz builds at `build`/s (faster when shaken
  * harder than `full`) and settles at `settle`/s when left alone. Past `warn` the title says
  * DON'T SHAKE ME; with the foam at the cap, `holdS` more seconds of shaking and it blows.
  * About 6 s of steady shaking end to end.
  */
-export const SHAKE = { min: 0.1, release: 0.25, full: 0.25, sloshS: 1.8, build: 0.3, settle: 0.1, cool: 0.8, warn: 0.5, holdS: 0.7 } as const;
+export const SHAKE = { min: 0.1, release: 0.4, inputMin: 1.5, inputS: 0.3, full: 0.25, sloshS: 1.8, build: 0.3, settle: 0.1, cool: 0.8, warn: 0.5, holdS: 0.7 } as const;
 /** How hard a change in drag spin kicks the cola (a quick back-and-forth drag is a shake). */
 export const DRAG_SLOSH = 0.16;
 /** Drops of cola shed per second as the bottle lifts off. */

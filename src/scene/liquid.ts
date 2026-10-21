@@ -110,6 +110,8 @@ export class Liquid {
   fizz = 0;
   /** The head of foam above the surface: 0 none .. 1 up to the cap. Set by the director. */
   foam = 0;
+  /** Kicks since the director last asked (how hard it is being shaken, not how it rings on). */
+  private kicks = 0;
   private readonly tmp = new THREE.Vector3();
   private readonly n = new THREE.Vector3();
 
@@ -146,6 +148,14 @@ export class Liquid {
   push(x: number, z: number): void {
     this.wv.x += x;
     this.wv.y += z;
+    this.kicks += Math.abs(x) + Math.abs(z);
+  }
+
+  /** The kicks since the last call (and reset). */
+  takeKicks(): number {
+    const k = this.kicks;
+    this.kicks = 0;
+    return k;
   }
 
   /** How hard it is sloshing right now (surface tilt amplitude, 0 still .. ~0.6). */

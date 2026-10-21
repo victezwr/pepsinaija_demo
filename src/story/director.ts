@@ -36,9 +36,10 @@ let phoneSeen = 0; // clock time of the last motion reading
 /**
  * Pressure from shaking: `shakeT` is how long it has been shaken (the first seconds only slosh),
  * `fizz` builds after that (0..1; the foam climbs with it), `hold` is time spent shaking with the
- * foam at the cap (it blows at C.SHAKE.holdS), `level` is how hard it is being shaken.
+ * foam at the cap (it blows at C.SHAKE.holdS), `level` is how hard it is sloshing (peak-held),
+ * `input` how hard it is being shaken right now (kicks per second).
  */
-const press = { fizz: 0, shakeT: 0, hold: 0, level: 0 };
+const press = { fizz: 0, shakeT: 0, hold: 0, level: 0, input: 0 };
 /** Cola shed by the bottle as it lifts off, until this clock time. */
 let dripUntil = 0;
 /** SKIP was pressed before the runner pick: go straight into the run after it. */
@@ -257,7 +258,7 @@ function resetScene(): void {
   fx.tremble = 0;
   cam.shake = 0;
   cam.orbit = 0;
-  Object.assign(press, { fizz: 0, shakeT: 0, hold: 0, level: 0 });
+  Object.assign(press, { fizz: 0, shakeT: 0, hold: 0, level: 0, input: 0 });
   dripUntil = 0;
   skipPark = false;
   setState({ headline: null, caption: null, shakeWarn: false });
@@ -406,7 +407,7 @@ export function debugSpin(): number {
 }
 
 /** Test hook (?debug): the shake build-up (fizz, how long shaken, foam-at-the-cap hold, slosh). */
-export function debugPressure(): { fizz: number; shakeT: number; hold: number; level: number; slosh: number } {
+export function debugPressure(): { fizz: number; shakeT: number; hold: number; level: number; input: number; slosh: number } {
   return { ...press, slosh: getRig()?.liquid.slosh ?? 0 };
 }
 
@@ -436,7 +437,8 @@ function updateLiquid(r: Rig, dt: number): void {
   if (clock - phoneSeen > 1) phoneUp.set(0, 1, 0);
   liq.up.lerp(phoneUp, Math.min(1, dt * 6)).normalize();
   const light = Math.min(1, 0.12 + (lights.key / C.KEY_INTENSITY) * 0.6 + (lights.rimL / C.RIM_L_INTENSITY) * 0.35);
-  if (getState().step === 'intro') buildPressure(liq.slosh, dt);
+  const kicks = liq.takeKicks();
+  if (getState().step === 'intro') buildPressure(liq.slosh, kicks, dt);
   liq.fizz = press.fizz;
   liq.foam = THREE.MathUtils.smoothstep(press.fizz, 0.3, 1);
   liq.update(Math.min(dt, 1 / 30), clock, light);
@@ -449,13 +451,14 @@ function updateLiquid(r: Rig, dt: number): void {
  * fizz, the foam climbs the neck (the title warns DON'T SHAKE ME), and shaken on with the foam at
  * the cap, it blows. Left alone, the fizz slowly settles and the foam sinks back.
  */
-function buildPressure(slosh: number, dt: number): void {
+function buildPressure(slosh: number, kicks: number, dt: number): void {
   const S = C.SHAKE;
   // A peak-hold envelope: the slosh swings through zero twice a cycle, a shake doesn't stop there
   press.level = Math.max(slosh, press.level - dt * S.release);
-  const shaking = press.level > S.min;
+  // Is it still being shaken (drag or phone kicks per second, smoothed), or just ringing on?
+  if (dt > 0) press.input += (kicks / dt - press.input) * Math.min(1, dt / S.inputS);
+  const shaking = press.level > S.min && press.input > S.inputMin;
   press.shakeT = shaking ? press.shakeT + dt : Math.max(0, press.shakeT - dt * S.cool);
-  // (it builds with the live slosh, so it stops building the moment the shaking stops)
   if (shaking && press.shakeT > S.sloshS) press.fizz = Math.min(1, press.fizz + dt * S.build * Math.min(1.5, slosh / S.full));
   else if (!shaking) press.fizz = Math.max(0, press.fizz - dt * S.settle);
   press.hold = press.fizz >= 1 && shaking ? press.hold + dt : Math.max(0, press.hold - dt * 2);
