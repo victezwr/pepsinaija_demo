@@ -49,7 +49,7 @@ export const FPS_LOW_THRESHOLD = 45;
  */
 export const SHAKE = { min: 0.1, release: 0.25, full: 0.25, sloshS: 1.8, build: 0.3, settle: 0.1, cool: 0.8, warn: 0.5, holdS: 0.7 } as const;
 /** How hard a change in drag spin kicks the cola (a quick back-and-forth drag is a shake). */
-export const DRAG_SLOSH = 0.09;
+export const DRAG_SLOSH = 0.16;
 /** Drops of cola shed per second as the bottle lifts off. */
 export const DRIP_RATE = 140;
 export const PARTICLES = { high: 300, low: 80, drips: 180 } as const;
