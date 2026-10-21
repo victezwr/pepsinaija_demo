@@ -33,6 +33,7 @@ try {
   await page.waitForFunction(() => window.__dsm?.getState().step === 'intro', null, { timeout: 120000 });
   await page.getByRole('button', { name: 'PLAY' }).click();
   await page.getByRole('button', { name: 'SKIP' }).click();
+  await page.getByRole('button', { name: 'Male runner', exact: true }).click();
   await page.waitForFunction(() => window.__dsm.game().phase === 'running', null, { timeout: 120000 });
 
   // Staged events need the run to last: nothing catches the runner until the test says so

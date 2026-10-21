@@ -8,20 +8,27 @@ game-over screen. Unofficial concept by @VOtakpor for @Pepsi_naija.
 ## Part 1: The intro
 
 ### 1. Same taste, new look
-- Black screen. The Pepsi bottle with the **new yellow cap** (clean, ridged Pepsi-yellow plastic) spins in as the light comes up, with the blue halftone ring behind it.
+- Black screen. The Pepsi bottle with the **new yellow cap** (clean, ridged Pepsi-yellow plastic, the original cap's shape) spins in as the light comes up, with the blue halftone ring behind it.
 - On screen: **SAME TASTE.** (white) / **NEW LOOK.** (yellow) above the bottle.
 - The bottle looks **straight out of the fridge**: the plastic and label are fogged with condensation, with clear beads all over (bigger towards the bottom) that catch the light and bend the label behind them, clear trails where drops have run down, and beads slowly sliding down. On HD the label also has a wet gloss.
-- There's **real cola inside**: near-black with a red-brown glow at the edges, a thin foam line at the top and bubbles rising.
+- There's **real cola inside**: near-black with a red-brown glow at the edges, a thin foam line at the top and the odd bubble rising.
 - It's a **live 3D model**: drag anywhere to spin it (flick it and it coasts), drag up or down to tip it a little. Left alone, it turns slowly on its own. Arrow keys spin it on a computer.
-- **Shake it** (quick back-and-forth drags) and the cola sloshes, the foam line thickens, bubbles stream up and you hear it fizz. Tip it and the surface stays level. On **Android**, tilting or shaking the phone itself moves the cola too (iPhone: drag only, since we never show a motion-permission prompt).
+- Tip it and the surface stays level. On **Android**, tilting or shaking the phone itself moves the cola too (iPhone: drag only, since we never show a motion-permission prompt).
 
-### 2. Pick your runner, PLAY
-- Beneath the bottle: your **runner** (male / female thumbnails) either side of **PLAY**, with "best with sound" (and your best run, once you have one).
-- **Tap PLAY** (or Enter / Space) to start the opening cinematic.
+### 2. Shake it, or PLAY
+Beneath the bottle: **PLAY**, with "best with sound" (and your best run, once you have one). Two ways in:
+- **Shake it** (quick back-and-forth drags, or shake the phone on Android), as in real life:
+  1. The first couple of seconds the cola **only sloshes**: no fizz, no sound.
+  2. Keep shaking and it starts to **fizz**: bubbles stream up, you hear it, and a **head of foam climbs** up the shoulder towards the cap. Halfway there the title turns into **DON'T SHAKE ME.** (with a hiss) and the ring throbs.
+  3. Stop and it slowly settles (the foam sinks back). Keep shaking with the foam at the cap and it **blows**: POP, cap flash, blue shockwave, and the bottle lifts off out of the top of the frame, **shedding cola** that falls away. About 6 seconds of steady shaking end to end.
+- **Tap PLAY** (or Enter / Space) for the opening cinematic (Part 2), which ends in the same pop and lift-off.
+
+### 3. Who catches it?
+- Either way, once the bottle is gone: **WHO CATCHES IT?** with the two runners side by side. Tap one to open the motor park, where the bottle drops into that runner's hand.
 
 ---
 
-## Part 2: The opening cinematic (about 20 seconds; **SKIP** top right, or Esc)
+## Part 2: The opening cinematic (about 20 seconds with the runner pick; **SKIP** top right, or Esc)
 
 **The story:** the Golden Cap holds the energy behind PULSE MODE. You set it off by accident, the blue burst catches the eye of the Chairman and his two boys at the motor park, the Chairman decides the cap is his, and you refuse.
 
@@ -29,18 +36,19 @@ game-over screen. Unofficial concept by @VOtakpor for @Pepsi_naija.
 |---|---|---|
 | 0–3 s | **The awakening** | The lights go out. A low dùndún talking-drum groove starts. A blue rim light finds the bottle as the camera eases in. **SOME THINGS SHOULD STAY CLOSED.** Three short, suspicious trumpet notes. |
 | 3–7 s | **The Golden Cap** | The camera circles the bottle. The yellow cap glows **gold** for a moment (with a shimmer), a restrained blue energy ripple pulses out. **DON'T SHAKE ME.** Then the music stops dead. |
-| 7–9 s | **The pop** | The bottle trembles as pressure hisses up (the cola shivers inside), then **POP**: the cap flashes, the cola foams up, a big blue shockwave rings out (a taste of PULSE MODE), and the bottle rockets up out of the frame. |
+| 7–9 s | **The pop** | The bottle trembles as pressure hisses up (the cola shivers and the foam climbs to the cap), then **POP**: the cap flashes, a big blue shockwave rings out (a taste of PULSE MODE), and the bottle rockets up out of the frame, shedding cola. |
+| | **Who catches it?** | Pick your runner (see 3 above). |
 | 9–16 s | **Chairman notices** | A Lagos motor park at sunset; the drums come back. The bottle drops into your runner's hand and the Golden Cap flares gold. The boys jump at the flash. **AGBERO:** "Chairman, you see that thing?" The camera pushes in: **CHAIRMAN:** "Ha! Golden Cap! Omo, bring that one come!" |
 | 16–20 s | **The chase** | Your runner turns to face them: **"Na drink I come buy!"** **CHAIRMAN:** "Oya! No let am escape!" A whistle, a trumpet fanfare and drum roll throw into the **theme song**, the camera swings in behind you and the controls come on. |
 
-- **SKIP** at any point drops you straight into the run: bottle in hand, theme playing, camera behind you, controls live.
+- **SKIP** at any point drops you straight into the run: bottle in hand, theme playing, camera behind you, controls live. (Pressed before the pick, the pick still comes first, then straight into the run.)
 - **RUN AGAIN** never replays the cinematic.
 
 ---
 
 ## Part 3: The Yellow Chase (the game)
 
-### 3. The run
+### 4. The run
 An endless run down a three-lane Lagos street lined with shops, balconies and electric poles.
 
 **Controls**
@@ -81,16 +89,16 @@ Every row of traffic always leaves you a way through. **Rows reach you on the be
 
 **On screen during the run:** distance in metres and speed stage (top left), caps and the **PULSE** meter (top right).
 
-### 4. The agberos
+### 5. The agberos
 - They run right behind you, then drop back out of view until you make a mistake.
 - **Once the run starts they say nothing except:** "Oya drop am!" every time you **stumble**, and "Ha! Wetin be that?!" the **first time you release the Pulse** in a run. The line sits over the speaker's head, or at the bottom of the screen with their name when they're out of view ("CHAIRMAN: …").
 - **Near misses** (a late swerve past traffic, or a close jump / slide) get a whoosh past your ear.
 
-### 5. Stumbles and getting caught
+### 6. Stumbles and getting caught
 - **Clip the side of something** and you **stumble**. The **Chairman surges right up behind you**, reaching for the Pepsi: **"Oya drop am!"**
 - **A second stumble within 4 seconds**, or **running head-on into anything**, and you're caught.
 
-### 6. Pulse Mode (the Golden Cap's power)
+### 7. Pulse Mode (the Golden Cap's power)
 - **Charging:** every cap fills the **PULSE** meter, which shows how many you have and need ("PULSE 23/70"). It gets harder the further you run: **50 caps** to start, then 70 from 500 m, 90 from 1,200 m, 110 from 2,000 m and 130 from 3,000 m. It throbs faster as it fills. When full it turns electric blue and reads **PULSE READY** ("double-tap" underneath), a rising fizz-and-bass sound plays, a blue ring breathes on the road under your runner, and the bottle in their hand glows.
 - **Release (double-tap, or B on a computer):** a split-second **wind-up** (the view draws in, the bottle flares, an intake swell), then **RELEASE THE PULSE.**
   - Concentric electric-blue shockwave rings with a white-hot core race out across the road, with a burst of carbonation bubbles, a camera jolt, a quick blue flash and a deep bass drop with a fizzy release.
@@ -101,7 +109,7 @@ Every row of traffic always leaves you a way through. **Rows reach you on the be
 - After the last ring you get half a second of protection and the meter starts again from empty. Double-tapping with an empty meter does nothing.
 - On **LITE**, the gameplay is identical, with fewer rings and bubbles, a softer flash and no camera-facing burst.
 
-### 7. Caught: game over
+### 8. Caught: game over
 - A crash, and the crowd yells: **"We don catch am!"** The theme drops low under them and a deflating trumpet plays ("wah, wah, wah, waaah").
 - The camera swings round to the front for the **trophy shot**: your runner sits defeated on the road while the Chairman **holds up your Pepsi** and the boys gather round. A big **Pepsi bottle with the yellow cap** spins in the corner.
 - Then the Golden Cap answers back: it **rattles and sparks** blue in his hand, and the Chairman isn't so sure: **"Ehn? Wetin dey inside this cap sef?"**

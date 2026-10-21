@@ -36,9 +36,16 @@ async function run(kind) {
   const S = () => page.evaluate(() => ({ step: window.__dsm.getState().step, headline: window.__dsm.getState().headline?.text ?? '', game: window.__dsm.game(), w: window.__dsm.gameDebugState() }));
   await page.goto(`${base}/?debug`);
   await page.waitForFunction(() => window.__dsm?.getState().step === 'intro', null, { timeout: 120000 });
-  await page.getByRole('button', { name: 'Female runner' }).click();
   await page.getByRole('button', { name: 'PLAY' }).click();
   const t0 = Date.now();
+  /** WHO CATCHES IT? comes after the bottle blows (or SKIP): no SKIP there, then the pick. */
+  const pick = async () => {
+    await page.waitForFunction(() => window.__dsm.getState().step === 'choose', null, { timeout: 120000 });
+    await shot('choose');
+    check(`${kind}: no SKIP on the runner pick`, !(await page.getByRole('button', { name: 'SKIP' }).isVisible()));
+    await page.getByRole('button', { name: 'Female runner' }).click();
+  };
+  if (kind !== 'skip-early') await pick();
 
   if (kind === 'watch') {
     // Record the order of everything the cinematic shows until the run starts
@@ -87,11 +94,17 @@ async function run(kind) {
     const skip = page.getByRole('button', { name: 'SKIP' });
     await skip.click();
     await skip.click({ timeout: 1000 }).catch(() => {}); // a second press must be harmless
-    await page.waitForFunction(() => window.__dsm.game().phase === 'running', null, { timeout: 120000 });
+    if (kind === 'skip-early') await pick();
+    let seenPark = false;
+    while ((await S()).game.phase !== 'running') {
+      if ((await S()).w?.bubble === 'Chairman, you see that thing?') seenPark = true;
+      await page.waitForTimeout(100);
+    }
     await page.waitForTimeout(2500);
     await shot('after-skip');
     const s = await S();
     const p = await page.evaluate(() => window.__dsm.gameDebugPulse());
+    if (kind === 'skip-early') check('skip-early: the pick goes straight to the run (no motor park)', !seenPark, '');
     check(`${kind}: valid running state`, s.game.phase === 'running' && !s.game.cinematic && s.step === 'game' && s.w.speed > 5, `${s.game.phase}, speed ${s.w.speed.toFixed(1)}`);
     check(`${kind}: runner holds the can, camera behind`, s.w.holder === 'runner' && s.w.runnerVisible && s.w.camZ > 3, `holder ${s.w.holder}, cam z ${s.w.camZ.toFixed(2)}`);
     check(`${kind}: theme playing and synced`, p.synced);

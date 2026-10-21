@@ -94,11 +94,15 @@ Rule: exactly one unit is `In progress` at a time (see `ai-workflow-rules.md`).
 | 6.33 | Pepsi branding on the street | Done | 2026-10-21 | Code-drawn billboards (logo + STAY ON THE PULSE / SAME TASTE. NEW LOOK.) on both pavements, pooled and scrolling; Pepsi print on the overhead banner obstacle. |
 | 6.34 | Clean yellow cap | Done | 2026-10-21 | Owner: blue residue on the cap. Cause: the generated cap mesh has dents and a jagged lower edge (the dark-blue background showed through) and shares the bottle's texture atlas. Now rebuilt in code (`scene/cap.ts`): ridged side, rounded top, tamper ring, plain Pepsi yellow; used in the intro, the hand and the trophy shot; the clear shell is no longer drawn over it. |
 | 6.35 | Spark lag, round 2 | Done (needs owner re-test) | 2026-10-21 | 1) Smooth clock: the world moves by frame time, steered onto the song (stepping by the audio clock stuttered where it ticks in 20-40 ms chunks, typical of low-end Android). 2) LITE: Lambert materials instead of PBR (bottle excepted), chase resolution 0.85, 20 building slots instead of 24 with closer fog, the crew doesn't crowd the camera at the start; the mid-run drop to LITE switches materials too. 3) Jump buffer: a swipe up up to 0.25 s before landing jumps on landing. Headless LITE chase (CPU-rendered, fill-bound like a weak GPU): 2.3 → 16 fps. Sync: worst 22 ms. |
+| 6.36 | Cap shape | Done | 2026-10-21 | Owner: the clean cap had the wrong shape. Now traced from the original cap's own outline (outer radius per height off the generated mesh, smoothed) and turned into a ridged lathe. |
+| 6.37 | Hand jitter in the motor park | Done | 2026-10-21 | The finger curl was applied on top of the previous frame's (the mixer doesn't rewrite bones whose frozen pose didn't change), so it wound up and flickered. Now applied to a remembered base pose: one steady grip. |
+| 6.38 | Runner pick before the game | Done | 2026-10-21 | WHO CATCHES IT? screen after the bottle blows (PLAY or shake), before the motor park; removed from beside PLAY. SKIP before the pick: pick, then straight into the run. |
+| 6.39 | Realistic shake | Done (needs owner test on the phone) | 2026-10-21 | Owner: the fizz came too easily. Now: the first ~1.8 s of shaking only sloshes (silent); then the fizz builds (bubbles, sound), a head of foam climbs to the cap, DON'T SHAKE ME at halfway; left alone it settles; shaken on with the foam at the cap for 0.7 s, it blows and lifts off shedding cola (falling drops), then the runner pick. PLAY's cinematic uses the same foam climb and shed cola. About 6 s of steady shaking. Tuning: `SHAKE` in `config.ts`. |
 
 ## Backlog (v1.1)
 - Video version for phones below the Spark 10C.
 - Real recorded/licensed sound design (Howler.js).
-- Phone-shake tuning.
+- Phone-shake tuning (owner to try the new build-up on the Spark).
 
 ## Owner to-do
 - [ ] Rename the Vercel project or domain so it doesn't contain "pepsi" (e.g. `dontshakeme`).

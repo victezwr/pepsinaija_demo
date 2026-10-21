@@ -9,7 +9,17 @@ export class Fizz {
   private readonly geo: THREE.BufferGeometry;
   private next = 0;
 
-  constructor(private readonly max: number, color = 0xd8e8ff, size = 0.018) {
+  private readonly gravity: number;
+  private readonly lifeS: number;
+
+  constructor(
+    private readonly max: number,
+    color = 0xd8e8ff,
+    size = 0.018,
+    opts: { additive?: boolean; gravity?: number; life?: number } = {},
+  ) {
+    this.gravity = opts.gravity ?? 3.2;
+    this.lifeS = opts.life ?? 0.8;
     this.pos = new Float32Array(max * 3).fill(-999);
     this.vel = new Float32Array(max * 3);
     this.life = new Float32Array(max);
@@ -20,9 +30,9 @@ export class Fizz {
       size,
       sizeAttenuation: true,
       transparent: true,
-      opacity: 0.85,
+      opacity: opts.additive === false ? 0.95 : 0.85,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: opts.additive === false ? THREE.NormalBlending : THREE.AdditiveBlending,
       map: dotTexture(),
     });
     this.points = new THREE.Points(this.geo, mat);
@@ -42,7 +52,7 @@ export class Fizz {
       this.vel[i * 3] = (dir.x + (Math.random() - 0.5) * spread) * s;
       this.vel[i * 3 + 1] = (dir.y + (Math.random() - 0.5) * spread * 0.5) * s;
       this.vel[i * 3 + 2] = (dir.z + (Math.random() - 0.5) * spread) * s;
-      this.life[i] = 0.5 + Math.random() * 0.8;
+      this.life[i] = 0.5 + Math.random() * this.lifeS;
     }
   }
 
@@ -52,7 +62,7 @@ export class Fizz {
       if (this.life[i] <= 0) continue;
       alive = true;
       this.life[i] -= dt;
-      this.vel[i * 3 + 1] -= 3.2 * dt;
+      this.vel[i * 3 + 1] -= this.gravity * dt;
       this.pos[i * 3] += this.vel[i * 3] * dt;
       this.pos[i * 3 + 1] += this.vel[i * 3 + 1] * dt;
       this.pos[i * 3 + 2] += this.vel[i * 3 + 2] * dt;

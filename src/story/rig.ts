@@ -22,6 +22,7 @@ export interface Rig {
   capMat: THREE.MeshStandardMaterial;
   label: THREE.Mesh;
   fizz: Fizz;
+  drips: Fizz;
   droplets: Droplets | null;
   liquid: Liquid;
   key: THREE.DirectionalLight;

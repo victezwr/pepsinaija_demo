@@ -20,6 +20,8 @@ const smooth = (t: number): number => t * t * (3 - 2 * t);
 const lerp = THREE.MathUtils.lerp;
 const setPhase = (phase: GamePhase): void => useGame.setState({ phase });
 const AXIS_X = new THREE.Vector3(1, 0, 0);
+const CURL = new THREE.Quaternion().setFromAxisAngle(AXIS_X, G.GRIP_CURL);
+const CURL_THUMB = new THREE.Quaternion().setFromAxisAngle(AXIS_X, G.GRIP_CURL * 0.5);
 const CYAN = new THREE.Color(0x7fe6ff);
 // Static layouts (module-level so nothing is allocated per frame)
 const CHASE_OFFSETS: ReadonlyArray<readonly [number, number]> = [
@@ -62,6 +64,9 @@ class Actor {
   grip = false;
   private readonly fingers: THREE.Object3D[] = [];
   private readonly thumb: THREE.Object3D[] = [];
+  /** Each finger's pose from the animation (before the curl), and the curled pose we last set. */
+  private gripBase: THREE.Quaternion[] = [];
+  private gripSet: THREE.Quaternion[] = [];
   private readonly mixer: THREE.AnimationMixer;
   private readonly actions = new Map<string, THREE.AnimationAction>();
   private current: THREE.AnimationAction | null = null;
@@ -80,6 +85,9 @@ class Actor {
       if (/RightHandThumb[23]$/.test(o.name)) this.thumb.push(o);
     });
     this.hand = hand;
+    const n = this.fingers.length + this.thumb.length;
+    this.gripBase = Array.from({ length: n }, () => new THREE.Quaternion());
+    this.gripSet = Array.from({ length: n }, () => new THREE.Quaternion(NaN, NaN, NaN, NaN));
     this.mixer = new THREE.AnimationMixer(model);
     for (const [name, clip] of Object.entries(asset.clips)) this.actions.set(name, this.mixer.clipAction(clip));
   }
@@ -101,6 +109,11 @@ class Actor {
     this.currentName = name;
   }
 
+  /** Test hook: the first finger's rotation (to check the grip holds still). */
+  debugFinger(): number[] {
+    return this.fingers[0] ? this.fingers[0].quaternion.toArray().map((v) => +v.toFixed(4)) : [];
+  }
+
   setSpeed(s: number): void {
     if (this.current) this.current.timeScale = s;
   }
@@ -108,9 +121,24 @@ class Actor {
   update(dt: number): void {
     this.mixer.update(dt);
     if (this.grip) {
-      // Mixamo finger joints bend round their local X axis (checked by render).
-      for (const f of this.fingers) f.rotateOnAxis(AXIS_X, G.GRIP_CURL);
-      for (const t of this.thumb) t.rotateOnAxis(AXIS_X, G.GRIP_CURL * 0.5);
+      // Mixamo finger joints bend round their local X axis (checked by render). The curl goes
+      // on top of the animation's pose; when a pose is frozen (the idle frame) the mixer doesn't
+      // rewrite the bone, so re-apply to the remembered pose instead of piling curl on curl.
+      let i = 0;
+      for (const list of [this.fingers, this.thumb]) {
+        const q = list === this.fingers ? CURL : CURL_THUMB;
+        for (const b of list) {
+          if (!b.quaternion.equals(this.gripSet[i])) this.gripBase[i].copy(b.quaternion); // fresh pose from the mixer
+          b.quaternion.copy(this.gripBase[i]).multiply(q);
+          this.gripSet[i].copy(b.quaternion);
+          i++;
+        }
+      }
+    } else if (this.fingers.length && !Number.isNaN(this.gripSet[0].x)) {
+      // Let go: back to the animation's pose
+      let i = 0;
+      for (const list of [this.fingers, this.thumb]) for (const b of list) b.quaternion.copy(this.gripBase[i++]);
+      for (const q of this.gripSet) q.set(NaN, NaN, NaN, NaN);
     }
     this.root.updateMatrixWorld(true);
   }
@@ -1593,6 +1621,7 @@ export class ChaseWorld {
       speaker: this.time < this.bubbleUntil ? this.bubbleName : '',
       stage: this.stage,
       intensity: score.debugIntensity(),
+      finger: this.runner.debugFinger(),
     };
   }
 

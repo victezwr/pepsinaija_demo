@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CREDIT_HANDLE } from '../config';
-import { chooseRunner } from '../game/GameScene';
 import { useGame, type Runner } from '../game/gameStore';
 import { useStore } from '../state/store';
 import * as director from '../story/director';
@@ -25,6 +24,7 @@ export function Overlay(): JSX.Element {
       <Headline />
       {step === 'loading' && <div className="loading" aria-label="Loading" />}
       {step === 'intro' && <IntroCard />}
+      {step === 'choose' && <ChooseCard />}
       <Ripple />
       <Caption />
       <p className="credit">Unofficial concept by {CREDIT_HANDLE}</p>
@@ -33,39 +33,60 @@ export function Overlay(): JSX.Element {
   );
 }
 
-/** SAME TASTE. NEW LOOK. above the bottle, PLAY beneath it. */
+/** SAME TASTE. NEW LOOK. above the bottle, PLAY beneath it. Shaken: DON'T SHAKE ME. */
 function IntroCard(): JSX.Element {
-  const runner = useGame((s) => s.runner);
   const best = useGame((s) => s.best);
+  const warn = useStore((s) => s.shakeWarn);
+  return (
+    <>
+      {warn ? (
+        <h1 className="intro-title intro-title--warn" aria-live="polite">
+          <span>DON'T</span>
+          <span className="intro-title__accent">SHAKE ME.</span>
+        </h1>
+      ) : (
+        <h1 className="intro-title">
+          <span>SAME TASTE.</span>
+          <span className="intro-title__accent">NEW LOOK.</span>
+        </h1>
+      )}
+      <div className="intro-play">
+        <button className="btn btn--play" onClick={director.play}>
+          <PlayIcon /> PLAY
+        </button>
+        <p className="intro-play__sub">
+          <SpeakerIcon size={14} /> best with sound{best > 0 ? ` · best run ${best.toLocaleString('en-NG')} m` : ''}
+        </p>
+      </div>
+    </>
+  );
+}
+
+/** After the bottle has blown: pick who catches it, then the motor park. */
+function ChooseCard(): JSX.Element {
+  const runner = useGame((s) => s.runner);
+  const first = useCallback((el: HTMLButtonElement | null) => el?.focus({ preventScroll: true }), []);
   const pick = (r: Runner): JSX.Element => (
     <button
-      className={`runner runner--intro${runner === r ? ' runner--on' : ''}`}
-      onClick={() => chooseRunner(r)}
-      aria-pressed={runner === r}
+      ref={r === runner ? first : undefined}
+      className={`runner runner--choose${runner === r ? ' runner--on' : ''}`}
+      onClick={() => director.choose(r)}
       aria-label={r === 'male' ? 'Male runner' : 'Female runner'}
     >
       <img src={`/game/thumb-${r}.webp`} alt="" />
     </button>
   );
   return (
-    <>
-      <h1 className="intro-title">
-        <span>SAME TASTE.</span>
-        <span className="intro-title__accent">NEW LOOK.</span>
+    <div className="choose">
+      <h1 className="choose__title">
+        WHO CATCHES <span>IT?</span>
       </h1>
-      <div className="intro-play">
-        <div className="intro-play__row" role="group" aria-label="Choose your runner, then play">
-          {pick('male')}
-          <button className="btn btn--play" onClick={director.play}>
-            <PlayIcon /> PLAY
-          </button>
-          {pick('female')}
-        </div>
-        <p className="intro-play__sub">
-          <SpeakerIcon size={14} /> best with sound{best > 0 ? ` · best run ${best.toLocaleString('en-NG')} m` : ''}
-        </p>
+      <div className="choose__row" role="group" aria-label="Choose your runner">
+        {pick('male')}
+        {pick('female')}
       </div>
-    </>
+      <p className="choose__sub">Tap a runner to start</p>
+    </div>
   );
 }
 
@@ -88,7 +109,8 @@ function Ripple(): JSX.Element | null {
 }
 
 function TopBar(): JSX.Element {
-  const cinematic = useGame((s) => s.cinematic);
+  const step = useStore((s) => s.step);
+  const cinematic = useGame((s) => s.cinematic) && step !== 'choose';
   const muted = useStore((s) => s.muted);
   const tier = useStore((s) => s.tier);
   return (

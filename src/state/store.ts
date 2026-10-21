@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { readPref } from '../util/storage';
 
-export type Step = 'loading' | 'intro' | 'cinematic' | 'game';
+/** choose = WHO CATCHES IT?, between the bottle's launch and the motor park. */
+export type Step = 'loading' | 'intro' | 'cinematic' | 'choose' | 'game';
 
 export type Tier = 'high' | 'low';
 
@@ -23,6 +24,8 @@ export interface AppState {
   /** Blue energy ripple out of the bottle in the cinematic: bumps per ripple. */
   ripple: number;
   rippleBig: boolean;
+  /** The intro bottle is foaming up from shaking: the title warns DON'T SHAKE ME. */
+  shakeWarn: boolean;
   reducedMotion: boolean;
   showFps: boolean;
   director: boolean;
@@ -43,6 +46,7 @@ export const useStore = create<AppState>()(() => ({
   fallback: false,
   ripple: 0,
   rippleBig: false,
+  shakeWarn: false,
   reducedMotion: reduced,
   showFps: params.has('fps'),
   director: params.has('director'),

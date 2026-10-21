@@ -38,7 +38,7 @@ export function gameRunAgain(): void {
   world?.runAgain();
 }
 
-/** Runner picked on the intro card (applied to the street when it opens). */
+/** Runner picked on WHO CATCHES IT? (applied to the street when it opens). */
 export function chooseRunner(r: Runner): void {
   useGame.setState({ runner: r });
   world?.chooseRunner(r);

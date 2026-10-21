@@ -32,11 +32,13 @@ await page.mouse.move(+w * 0.8, +h * 0.52, { steps: 8 });
 await page.mouse.up();
 const spin1 = await page.evaluate(() => window.__dsm.debugSpin());
 console.log(JSON.stringify({ spun: +(spin1 - spin0).toFixed(2) }));
-await page.getByRole('button', { name: 'Female runner' }).click();
 await page.getByRole('button', { name: 'PLAY' }).click();
-// The opening cinematic plays through (beats A-C around the bottle, D-E in the motor park)
+// The opening cinematic plays through (beats A-C around the bottle, the runner pick, D-E in the motor park)
 await page.waitForFunction(() => window.__dsm.getState().headline?.text === "DON'T SHAKE ME.", null, { timeout: 120000 });
 await shot('cine-dont-shake');
+await waitStep('choose');
+await shot('choose');
+await page.getByRole('button', { name: 'Female runner' }).click();
 await waitStep('game');
 await page.waitForTimeout(700);
 await shot('cine-drop');

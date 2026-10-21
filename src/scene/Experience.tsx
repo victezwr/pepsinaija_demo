@@ -32,6 +32,7 @@ export function Experience(): null {
     return () => {
       rig.root.removeFromParent();
       rig.fizz.points.removeFromParent();
+      rig.drips.points.removeFromParent();
       [rig.key, rig.rimL, rig.rimR].forEach((l) => l.removeFromParent());
     };
     // Built once per loaded model.
@@ -120,7 +121,7 @@ function buildRig(
   labelMesh.frustumCulled = false;
 
   // The cola, as its own mesh inside the plastic, so it can slosh
-  const liquid = new Liquid((bottleMesh as THREE.Mesh | null)?.geometry ?? labelMesh.geometry, C.FILL_Y, withDroplets);
+  const liquid = new Liquid((bottleMesh as THREE.Mesh | null)?.geometry ?? labelMesh.geometry, C.FILL_Y, C.FOAM_TOP_Y, withDroplets);
   (bottleMesh as THREE.Mesh | null)?.parent?.add(liquid.mesh);
 
   rebuildCap(capMesh); // the new yellow cap, clean (see cap.ts)
@@ -140,6 +141,9 @@ function buildRig(
 
   const fizz = new Fizz(C.PARTICLES.high);
   scene.add(fizz.points);
+  // Cola shaken off the bottle as it blows and lifts off (falls under gravity)
+  const drips = new Fizz(C.PARTICLES.drips, 0xb8662c, 0.044, { additive: false, gravity: 9, life: 1.4 });
+  scene.add(drips.points);
 
   // Beads sliding down the label (fewer on LITE)
   const droplets = new Droplets(withDroplets ? C.DROPLETS.high : C.DROPLETS.low, 0.3, 0.555);
@@ -154,6 +158,7 @@ function buildRig(
     capMat,
     label: labelMesh,
     fizz,
+    drips,
     droplets,
     liquid,
     key,

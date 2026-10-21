@@ -44,10 +44,10 @@ const touchDoubleTap = async () => {
 try {
 await page.goto(`${base}/?debug${lite ? '&lite' : ''}${sync ? '&clockcap=2&autopilot' : ''}`);
 await waitStep('intro');
-if (runner === 'female') await page.getByRole('button', { name: 'Female runner' }).click();
 await page.getByRole('button', { name: 'PLAY' }).click();
-// The opening cinematic has its own test (test-cinematic.mjs): skip it here
+// The opening cinematic has its own test (test-cinematic.mjs): skip it here, then pick the runner
 await page.getByRole('button', { name: 'SKIP' }).click();
+await page.getByRole('button', { name: runner === 'female' ? 'Female runner' : 'Male runner', exact: true }).click();
 await waitPhase('running');
 await page.waitForTimeout(800);
 

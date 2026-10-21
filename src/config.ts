@@ -10,6 +10,7 @@ export const BOTTLE_HEIGHT = 0.98;
 export const BOTTLE_CENTER_Y = 0.49;
 export const BOTTLE_HALF_WIDTH = 0.15;
 export const FILL_Y = 0.74; // cola level (model units), just under the shoulder
+export const FOAM_TOP_Y = 0.862; // how high a shaken bottle's foam climbs: just under the cap
 export const LABEL_RADIUS = 0.1336;
 
 // Camera framing
@@ -38,5 +39,16 @@ export const ESCAPE_HEIGHT = 3.4; // PLAY: the bottle rockets clear of the top o
 export const FPS_PROBE_START_S = 0.6;
 export const FPS_PROBE_LEN_S = 2;
 export const FPS_LOW_THRESHOLD = 45;
-export const PARTICLES = { high: 300, low: 80 } as const;
+/**
+ * Shaking the intro bottle: sloshing harder than `min` (surface tilt amplitude, held at its peak
+ * and let go at `release`/s) counts as shaking.
+ * The first `sloshS` seconds only slosh; then the fizz builds at `build`/s (faster when shaken
+ * harder than `full`) and settles at `settle`/s when left alone. Past `warn` the title says
+ * DON'T SHAKE ME; with the foam at the cap, `holdS` more seconds of shaking and it blows.
+ * About 6 s of steady shaking end to end.
+ */
+export const SHAKE = { min: 0.1, release: 0.25, full: 0.25, sloshS: 1.8, build: 0.3, settle: 0.1, cool: 0.8, warn: 0.5, holdS: 0.7 } as const;
+/** Drops of cola shed per second as the bottle lifts off. */
+export const DRIP_RATE = 140;
+export const PARTICLES = { high: 300, low: 80, drips: 180 } as const;
 export const DROPLETS = { high: 36, low: 14 } as const;
