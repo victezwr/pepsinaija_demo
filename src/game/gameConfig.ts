@@ -69,8 +69,12 @@ export const COIN_POOL = 140;
 export const COIN_RADIUS = 0.22;
 export const COIN_PICKUP = 0.9;
 export const CAP_FLY_SPEED = 30; // m/s minimum for caps pulled to the hand by the Pulse
-/** Caps to fill the Pulse meter, by speed stage: it gets harder to charge the further you run. */
-export const PULSE_COST: readonly number[] = [50, 70, 90, 110, 130];
+/**
+ * The Pulse is worked for over many runs: caps from every run are saved, and the first Pulse
+ * needs 2,000 of them, the next 4,000, then 6,000... (spent when it's released).
+ */
+export const PULSE_COST_STEP = 2000;
+export const pulseCostFor = (used: number): number => PULSE_COST_STEP * (used + 1);
 
 // Pulse Mode: release → shockwave, then a ring on every beat while you keep running
 export const PULSE_BEATS = 22; // beats of the theme it pulses for (≈ 8 s at 163.5 BPM)
@@ -91,6 +95,9 @@ export const CAM_BACK = 5.4;
 export const CAM_LOOK_AHEAD = 9;
 export const DROP_S = 0.73; // the bottle falling into the runner's hand: two beats of the theme
 export const START_S = 1.8; // tap → whistle → camera swing → control
+
+/** Metres between roadside billboards on the same side (they alternate sides, so one every half that). */
+export const BILLBOARD_GAP = 120;
 
 /** Pepsi print on the overhead banner: width, height, centre height, offset towards the runner (m). */
 export const BANNER_PRINT: readonly [number, number, number, number] = [2.0, 0.75, 2.3, 0.28];

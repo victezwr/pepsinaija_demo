@@ -1,6 +1,8 @@
-// Sound effects, generated with the Web Audio API (no files to download). Every cue also posts
-// a caption so the game still reads with the sound off.
+// Sound effects, generated with the Web Audio API (no files to download), each replaced by a
+// recording when there is one (public/audio/sfx/<cue>.mp3, see recordings.ts). Every cue also
+// posts a caption so the game still reads with the sound off.
 import { getState, setState } from '../state/store';
+import { playRecording, preloadRecordings, ready, recorded } from './recordings';
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -27,6 +29,7 @@ export function unlock(): void {
       noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
       const d = noise.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      preloadRecordings(ctx);
     }
     if (ctx.state !== 'running') void ctx.resume();
   } catch {
@@ -41,6 +44,11 @@ export function audioGraph(): { ctx: AudioContext; master: GainNode; noise: Audi
 
 export function setMuted(muted: boolean): void {
   if (ctx && master) master.gain.setTargetAtTime(muted ? 0 : 0.9, ctx.currentTime, 0.05);
+}
+
+/** The recorded version of a cue, if there is one (then the generated sound is skipped). */
+function rec(cue: string, o?: { gain?: number; pan?: number; rate?: number }): boolean {
+  return !!ctx && !!master && playRecording(ctx, master, `sfx/${cue}`, o);
 }
 
 function noiseSource(loop = false): AudioBufferSourceNode | null {
@@ -91,7 +99,7 @@ function tone(type: OscillatorType, from: number, to: number, peak: number, dur:
 
 export function hiss(seconds: number): void {
   caption('[pressure building]');
-  if (!ctx) return;
+  if (!ctx || rec('hiss')) return;
   const src = noiseSource();
   if (!src) return;
   const f = ctx.createBiquadFilter();
@@ -105,7 +113,7 @@ export function hiss(seconds: number): void {
 }
 
 export function whoosh(seconds = 0.35, peak = 0.35): void {
-  if (!ctx) return;
+  if (!ctx || rec('whoosh', { gain: peak / 0.35 })) return;
   const src = noiseSource();
   if (!src) return;
   const f = ctx.createBiquadFilter();
@@ -125,6 +133,7 @@ export function coin(): void {
   const now = ctx.currentTime;
   const step = now - lastCoin < 0.25 ? 1.12 : 1; // quick streaks climb in pitch
   lastCoin = now;
+  if (rec('coin', { rate: step })) return;
   tone('square', 1320 * step, 1980 * step, 0.06, 0.09);
 }
 
@@ -132,7 +141,7 @@ export function coin(): void {
 
 /** Lane change: an airy swoosh that sweeps across the stereo field in the swipe direction. */
 export function swoosh(dir: -1 | 1): void {
-  if (!ctx || !master) return;
+  if (!ctx || !master || rec('swoosh', { pan: dir * 0.5 })) return;
   const src = noiseSource();
   if (!src) return;
   const t = ctx.currentTime;
@@ -161,17 +170,19 @@ export function swoosh(dir: -1 | 1): void {
 }
 
 export function jump(): void {
+  if (rec('jump')) return;
   tone('sine', 260, 720, 0.35, 0.16);
   whoosh(0.22, 0.14);
 }
 
 export function land(): void {
+  if (rec('land')) return;
   tone('sine', 140, 60, 0.4, 0.12);
   burst('lowpass', 500, 0.18, 0.002, 0.05);
 }
 
 export function slide(): void {
-  if (!ctx) return;
+  if (!ctx || rec('slide')) return;
   const src = noiseSource();
   if (!src) return;
   const f = ctx.createBiquadFilter();
@@ -187,12 +198,13 @@ export function slide(): void {
 
 /** Hitting an obstacle: a glancing knock, or (hard) the full smash when you're caught. */
 export function crash(hard: boolean): void {
+  if (hard) caption('[CRASH]');
+  if (rec(hard ? 'crash-hard' : 'crash')) return;
   burst('lowpass', hard ? 900 : 1400, hard ? 0.9 : 0.55, 0.002, hard ? 0.35 : 0.16);
   // Metal panel ring: inharmonic partials like a danfo door
   [410, 587, 911].forEach((f, i) => tone('triangle', f, f * 0.97, (hard ? 0.16 : 0.1) / (i + 1), hard ? 0.5 : 0.25));
   tone('sine', hard ? 90 : 130, 40, hard ? 0.9 : 0.5, hard ? 0.5 : 0.22);
   if (hard) {
-    caption('[CRASH]');
     burst('bandpass', 750, 0.3, 0.04, 0.5, 1.2); // the crowd's "ehn!"
   }
 }
@@ -200,7 +212,7 @@ export function crash(hard: boolean): void {
 /** The Chairman's pea whistle: a high, trilling "FEEEEW!". */
 export function whistle(): void {
   caption('[whistle]');
-  if (!ctx || !master) return;
+  if (!ctx || !master || rec('whistle')) return;
   const t = ctx.currentTime;
   const o = ctx.createOscillator();
   o.frequency.setValueAtTime(2600, t);
@@ -228,13 +240,14 @@ export function whistle(): void {
 /** Twisting the cap: a sharp gas hiss ("psssht"). */
 export function capOpen(): void {
   caption('[psssht]');
+  if (rec('cap-open')) return;
   burst('highpass', 3500, 0.5, 0.004, 0.32);
   burst('bandpass', 6000, 0.25, 0.002, 0.12, 2);
 }
 
 /** Okada horn: a quick "pim-pim", panned to the lane it is coming down. */
 export function horn(lane: number): void {
-  if (!ctx || !master) return;
+  if (!ctx || !master || rec('horn', { pan: lane * 0.7 })) return;
   const t = ctx.currentTime;
   const out = ctx.createGain();
   out.gain.value = 0.22;
@@ -265,6 +278,7 @@ export function horn(lane: number): void {
 
 /** The bottle smacking into a palm. */
 export function catchIt(): void {
+  if (rec('catch')) return;
   burst('bandpass', 1800, 0.45, 0.002, 0.07, 1.5);
   tone('sine', 220, 120, 0.3, 0.1);
 }
@@ -274,7 +288,7 @@ export function catchIt(): void {
 /** The meter just filled: a short rising fizz + bass swell. */
 export function pulseCharge(): void {
   caption('[pulse ready]');
-  if (!ctx) return;
+  if (!ctx || rec('pulse-charge')) return;
   const src = noiseSource();
   if (src) {
     const f = ctx.createBiquadFilter();
@@ -293,6 +307,7 @@ export function pulseCharge(): void {
 /** Release: pressure hiss, a deep punchy bass hit, then a bubbling fizz layer. */
 export function pulseRelease(): void {
   caption('[PULSE]');
+  if (rec('pulse-release')) return;
   burst('highpass', 2500, 0.55, 0.003, 0.35);
   tone('sine', 120, 38, 1.0, 0.6);
   tone('triangle', 70, 35, 0.35, 0.5);
@@ -306,7 +321,7 @@ export function pulseRelease(): void {
 
 /** End of the surf: a descending fizz tail. */
 export function pulseEnd(): void {
-  if (!ctx) return;
+  if (!ctx || rec('pulse-end')) return;
   const src = noiseSource();
   if (!src) return;
   const f = ctx.createBiquadFilter();
@@ -326,6 +341,7 @@ export function pulseEnd(): void {
 /** Beat A: the bottle appears out of the dark (deep boom + cold shimmer). */
 export function reveal(): void {
   caption('[low drum, cold shimmer]');
+  if (rec('reveal')) return;
   tone('sine', 70, 38, 0.6, 1.2);
   burst('highpass', 7000, 0.06, 0.4, 1.2);
 }
@@ -333,12 +349,14 @@ export function reveal(): void {
 /** The yellow cap's golden glint: a bright cluster of chimes. */
 export function goldGlint(): void {
   caption('[golden shimmer]', 1200);
+  if (rec('gold-glint')) return;
   [1567.98, 2093, 2637, 3135.96].forEach((f, i) => tone('sine', f, f * 1.01, 0.07, 0.6, i * 0.05));
 }
 
 /** The can opening: a sharp pop with a pressure hiss behind it. */
 export function pop(): void {
   caption('[POP]');
+  if (rec('pop')) return;
   burst('bandpass', 1100, 0.9, 0.001, 0.09, 1.2);
   tone('sine', 420, 90, 0.5, 0.12);
   burst('highpass', 4000, 0.35, 0.01, 0.7);
@@ -349,6 +367,7 @@ let lastNear = 0;
 export function nearMiss(dir: -1 | 1): void {
   if (!ctx || !master || ctx.currentTime - lastNear < 0.4) return;
   lastNear = ctx.currentTime;
+  if (rec('near-miss', { pan: dir * 0.6 })) return;
   const src = noiseSource();
   if (!src) return;
   const f = ctx.createBiquadFilter();
@@ -370,7 +389,7 @@ export function nearMiss(dir: -1 | 1): void {
 
 /** Pulse anticipation: a short intake swell before the shockwave. */
 export function pulseWindup(): void {
-  if (!ctx) return;
+  if (!ctx || rec('pulse-windup')) return;
   tone('sine', 55, 140, 0.35, 0.16);
   const src = noiseSource();
   if (!src) return;
@@ -387,6 +406,7 @@ export function pulseWindup(): void {
 /** Game over: the Golden Cap rattles and sparks in the Chairman's hand. */
 export function capRattle(): void {
   caption('[the cap rattles and sparks]', 1600);
+  if (rec('cap-rattle')) return;
   for (let i = 0; i < 7; i++) {
     const f = 2400 + Math.random() * 1800;
     tone('triangle', f, f * 0.9, 0.08, 0.04, i * 0.045 + Math.random() * 0.015);
@@ -398,28 +418,42 @@ export function capRattle(): void {
 // ---- The liquid in the intro bottle
 
 let fizzBus: GainNode | null = null;
+let fizzMax = 0.32;
 
 /** Carbonation hiss that follows how hard the bottle is being shaken (0..1). */
 export function fizzLevel(level: number): void {
   if (!ctx || !master) return;
   if (!fizzBus) {
-    const src = noiseSource(true);
-    if (!src) return;
-    const bp = ctx.createBiquadFilter();
-    bp.type = 'bandpass';
-    bp.frequency.value = 6500;
-    bp.Q.value = 0.7;
+    if (recorded('sfx/fizz-loop') && !ready('sfx/fizz-loop')) return; // the recording is on its way
+    const buf = ready('sfx/fizz-loop');
+    let src: AudioBufferSourceNode | null;
+    let out: AudioNode;
+    if (buf) {
+      src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      out = src;
+      fizzMax = 1;
+    } else {
+      src = noiseSource(true);
+      if (!src) return;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 6500;
+      bp.Q.value = 0.7;
+      out = src.connect(bp);
+    }
     fizzBus = ctx.createGain();
     fizzBus.gain.value = 0;
-    src.connect(bp).connect(fizzBus).connect(master);
+    out.connect(fizzBus).connect(master);
     src.start();
   }
-  fizzBus.gain.setTargetAtTime(Math.min(0.32, level * 0.32), ctx.currentTime, 0.08);
+  fizzBus.gain.setTargetAtTime(Math.min(fizzMax, level * fizzMax), ctx.currentTime, 0.08);
 }
 
 /** One bubble bursting at the surface (tiny click), for the crackle of a shaken bottle. */
 export function fizzPop(): void {
-  if (!ctx) return;
+  if (!ctx || rec('fizz-pop', { rate: 0.8 + Math.random() * 0.5, gain: 0.5 + Math.random() * 0.5 })) return;
   const f = 2500 + Math.random() * 4500;
   tone('sine', f, f * 1.6, 0.025 + Math.random() * 0.03, 0.02);
 }

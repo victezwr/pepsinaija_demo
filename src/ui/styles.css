@@ -347,12 +347,12 @@ body {
 
 /* ---------------------------------------------------------------- Pulse Mode */
 .pulse-meter {
-  position: relative; width: 120px; height: 16px; border-radius: 99px; overflow: hidden;
+  position: relative; width: 140px; height: 16px; border-radius: 99px; overflow: hidden;
   background: rgba(0, 8, 40, 0.55); border: 1px solid rgba(120, 180, 255, 0.45);
   animation: meterBeat var(--beat, 2s) ease-in-out infinite;
 }
 .pulse-meter__fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #0a2bd6, #1f5bff 60%, #2ee6ff); transition: width 0.2s; }
-.pulse-meter span { position: relative; display: block; text-align: center; font-size: 9px; line-height: 15px; font-weight: 800; letter-spacing: 0.18em; }
+.pulse-meter span { position: relative; display: block; text-align: center; font-size: 9px; line-height: 15px; font-weight: 800; letter-spacing: 0.1em; white-space: nowrap; }
 .pulse-meter--ready { border-color: #2ee6ff; box-shadow: 0 0 0 2px rgba(46, 230, 255, 0.55), 0 0 18px rgba(31, 91, 255, 0.9); animation-duration: 0.5s; }
 .pulse-meter--on { animation: none; }
 .pulse-meter--on .pulse-meter__fill { animation: drain 8.2s linear both; }
@@ -406,3 +406,7 @@ body {
 @keyframes ripple { 0% { opacity: 0.9; transform: scale(0.3); } 100% { opacity: 0; transform: scale(2.2); } }
 @keyframes rippleBig { 0% { opacity: 1; transform: scale(0.3); } 100% { opacity: 0; transform: scale(7); } }
 @media (prefers-reduced-motion: reduce) { .cine-ripple i { animation-duration: 0.4s; } }
+
+/* Game over: caps saved towards the Pulse (kept across runs) */
+.gameover__bank { margin: 2px 0 14px; font-size: 13px; color: rgba(255, 255, 255, 0.85); text-align: center; }
+.gameover__bank b { color: #ffc400; }

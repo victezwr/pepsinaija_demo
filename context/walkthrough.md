@@ -71,21 +71,21 @@ An endless run down a three-lane Lagos street lined with shops, balconies and el
 
 Every row of traffic always leaves you a way through. **Rows reach you on the beat of the theme song**: one every 4 beats at first, every 3 beats from 2,000 m.
 
-**Pepsi branding:** billboards on both pavements ("STAY ON THE PULSE" / "SAME TASTE. NEW LOOK." with the Pepsi globe), and the overhead banners you slide under carry a Pepsi print.
+**Pepsi branding:** billboards on the pavements ("STAY ON THE PULSE" / "SAME TASTE. NEW LOOK." with the Pepsi globe), well spaced: one every 60 m or so, switching sides (about every 3 seconds at full speed). The overhead banners you slide under carry a Pepsi print.
 
 **Collectibles:** lines of **yellow Pepsi caps**, some arcing over the jumps. They're spaced one per 16th note of the song, so a streak of chimes runs in time with it, climbing in pitch.
 
 **Speed:** 17 m/s, stepping up at **500 m, 1,200 m, 2,000 m and 3,000 m** ("SPEED UP!") to 24 m/s. The song keeps its own tempo.
 
-**The chase builds with the distance** (no dialogue: the music, the cap and the Pulse cost carry it):
+**The chase builds with the distance** (no dialogue: the music and the cap carry it):
 
-| Distance | Golden Cap | Music layered on the theme | Pulse needs |
-|---|---|---|---|
-| 0 m | | The theme on its own | 50 caps |
-| 500 m | | Agogo bell, brass accents every 4 bars | 70 caps |
-| 1,200 m | Starts glowing blue **on every beat** | + talking-drum fills answering every 2 bars | 90 caps |
-| 2,000 m | Stronger glow | + brass every 2 bars with pickups, a riser into every 8th bar | 110 caps |
-| 3,000 m | Strongest glow | Full: brass every bar, fills every bar, shaker 16ths | 130 caps |
+| Distance | Golden Cap | Music layered on the theme |
+|---|---|---|
+| 0 m | | The theme on its own |
+| 500 m | | Agogo bell, brass accents every 4 bars |
+| 1,200 m | Starts glowing blue **on every beat** | + talking-drum fills answering every 2 bars |
+| 2,000 m | Stronger glow | + brass every 2 bars with pickups, a riser into every 8th bar |
+| 3,000 m | Strongest glow | Full: brass every bar, fills every bar, shaker 16ths |
 
 **On screen during the run:** distance in metres and speed stage (top left), caps and the **PULSE** meter (top right).
 
@@ -99,7 +99,7 @@ Every row of traffic always leaves you a way through. **Rows reach you on the be
 - **A second stumble within 4 seconds**, or **running head-on into anything**, and you're caught.
 
 ### 7. Pulse Mode (the Golden Cap's power)
-- **Charging:** every cap fills the **PULSE** meter, which shows how many you have and need ("PULSE 23/70"). It gets harder the further you run: **50 caps** to start, then 70 from 500 m, 90 from 1,200 m, 110 from 2,000 m and 130 from 3,000 m. It throbs faster as it fills. When full it turns electric blue and reads **PULSE READY** ("double-tap" underneath), a rising fizz-and-bass sound plays, a blue ring breathes on the road under your runner, and the bottle in their hand glows.
+- **Charging: it's worked for over many runs.** Every cap you grab, in every run, is **saved** (in your browser) towards the Pulse, and the **PULSE** meter shows your saved caps against the target ("PULSE 1,240/2,000"). The **first Pulse needs 2,000 saved caps**; releasing it spends them, and the **next needs 4,000**, then 6,000, 8,000 and so on. Caps keep saving while it's ready or running, so they count towards the next one. A good run brings in roughly 3–4 caps a second. The meter throbs faster as it fills. When full it turns electric blue and reads **PULSE READY** ("double-tap" underneath), a rising fizz-and-bass sound plays, a blue ring breathes on the road under your runner, and the bottle in their hand glows.
 - **Release (double-tap, or B on a computer):** a split-second **wind-up** (the view draws in, the bottle flares, an intake swell), then **RELEASE THE PULSE.**
   - Concentric electric-blue shockwave rings with a white-hot core race out across the road, with a burst of carbonation bubbles, a camera jolt, a quick blue flash and a deep bass drop with a fizzy release.
   - The agberos are blown back and stagger. The first time in a run, CHAIRMAN: "Ha! Wetin be that?!"
@@ -116,6 +116,7 @@ Every row of traffic always leaves you a way through. **Rows reach you on the be
 - The game-over panel shows:
   - **AGBEROS DON COLLECT AM!**
   - Your **metres**, **caps** and **best** distance
+  - Your caps **saved for the Pulse** ("Saved for the Pulse: 1,240 / 2,000 caps"), or **PULSE READY for your next run**
   - **RUN AGAIN**: straight back into the chase (whistle, swing, go, no cinematic); the song comes back up
   - **CHALLENGE FRIENDS**: opens X with a ready-made post:
     > I dodged the agberos for 1,234m and grabbed 87 yellow caps with the new yellow-cap Pepsi @Pepsi_naija! Can you beat my score? #PepsiYellowChase

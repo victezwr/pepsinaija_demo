@@ -7,6 +7,7 @@ import * as voices from '../audio/voices';
 import { track } from '../analytics/track';
 import { dressAgbero, type Outfit } from './outfit';
 import { writePref } from '../util/storage';
+import { savedBank, savedPulses } from './gameStore';
 import type { CharacterAsset, GameAssets } from './assets';
 import * as G from './gameConfig';
 import { gameDom, useGame, type GamePhase, type PulseState, type Runner } from './gameStore';
@@ -259,7 +260,10 @@ export class ChaseWorld {
   private pulseFired = false;
   private bubbleUntil = 0;
   private caps = 0;
-  private chill = 0;
+  /** Caps saved across runs towards the Pulse (localStorage), and Pulses released so far. */
+  private bank = savedBank();
+  private pulsesUsed = savedPulses();
+  private bankSavedAt = 0;
   private invulnerableUntil = 0;
   private stage = 0;
   private storeTick = 0;
@@ -334,11 +338,12 @@ export class ChaseWorld {
       }
     }
 
-    // Pepsi billboards on the pavement, alternating sides and slogans, angled at the oncoming runner
+    // Pepsi billboards on the pavement, alternating sides and slogans, angled at the oncoming runner,
+    // well spaced: one every BILLBOARD_GAP / 2 metres, switching sides (recycled out in the fog)
     const faces = billboardFaces();
     const frame = new THREE.MeshLambertMaterial({ color: 0x23262e });
-    const boardsPerSide = 3;
-    const boardEvery = this.buildingSpan / boardsPerSide;
+    const boardsPerSide = 2;
+    const boardEvery = G.BILLBOARD_GAP;
     this.boardSpan = boardsPerSide * boardEvery;
     let n = 0;
     for (const side of [-1, 1]) {
@@ -472,7 +477,30 @@ export class ChaseWorld {
 
   /** Caps the Pulse meter needs right now (rises with the speed stage). */
   private get pulseCost(): number {
-    return G.PULSE_COST[Math.min(this.stage, G.PULSE_COST.length - 1)];
+    return G.pulseCostFor(this.pulsesUsed);
+  }
+
+  /** The meter's share, for the HUD. */
+  private get chill(): number {
+    return Math.min(1, this.bank / this.pulseCost);
+  }
+
+  private saveBank(): void {
+    this.bankSavedAt = this.time;
+    writePref('capBank', String(this.bank));
+    writePref('pulsesUsed', String(this.pulsesUsed));
+  }
+
+  /** Enough saved caps for the next Pulse: it's ready (double-tap). */
+  private checkCharge(): void {
+    if (this.pulseState !== 'empty' || this.bank < this.pulseCost) return;
+    this.setPulse('charged');
+    this.pulseFx.setPad('ground');
+    sfx.pulseCharge();
+  }
+
+  private pushMeter(): void {
+    useGame.setState({ caps: this.caps, bank: this.bank, chill: this.chill, pulseCost: this.pulseCost });
   }
 
   /** Share of the Pulse still to run (1 → 0), for the HUD's timer bar. */
@@ -641,7 +669,7 @@ export class ChaseWorld {
     this.bubbleUntil = 0;
     this.saidOnce.clear();
     this.glowFlash = 0;
-    this.caps = this.chill = 0;
+    this.caps = 0;
     this.invulnerableUntil = 0;
     this.stage = 0;
     this.heroBottle.visible = false;
@@ -651,7 +679,9 @@ export class ChaseWorld {
     this.agberos.forEach((a) => {
       a.root.rotation.y = 0;
     });
-    useGame.setState({ caps: 0, distance: 0, stage: 0, chill: 0, pulseCost: G.PULSE_COST[0], banner: null });
+    useGame.setState({ distance: 0, stage: 0, banner: null });
+    this.pushMeter();
+    this.checkCharge(); // saved enough on earlier runs: ready from the start
   }
 
   input(action: GameInput): void {
@@ -712,7 +742,10 @@ export class ChaseWorld {
     if (this.pulseState !== 'charged' || useGame.getState().phase !== 'running') return;
     // Protected from here; the shockwave lands after a short wind-up (the anticipation beat)
     this.setPulse('activating');
-    this.chill = 0;
+    // Spend the saved caps; the next Pulse costs more
+    this.bank -= this.pulseCost;
+    this.pulsesUsed++;
+    this.saveBank();
     this.pulseStartedAt = this.time;
     this.pulseFireAt = this.time + G.PULSE_WINDUP_S;
     this.pulseFired = false;
@@ -721,7 +754,7 @@ export class ChaseWorld {
     this.fovKick = -5; // the world draws in...
     this.setGlow(1.4);
     sfx.pulseWindup();
-    useGame.setState({ chill: 0 });
+    this.pushMeter();
   }
 
   /** ...and the Golden Cap lets go: shockwave, bubbles, agberos blown back, road cleared. */
@@ -1107,7 +1140,10 @@ export class ChaseWorld {
     this.hemi.color.copy(this.hemiColor).lerp(CYAN, this.beatGlow * 0.35);
     if (this.pulseState === 'empty' || this.pulseState === 'charged') return;
     if (this.pulseState === 'ending') {
-      if (this.time >= this.pulseEndsAt) this.setPulse('empty');
+      if (this.time >= this.pulseEndsAt) {
+        this.setPulse('empty');
+        this.checkCharge();
+      }
       return;
     }
     if (!this.pulseFired) {
@@ -1251,6 +1287,7 @@ export class ChaseWorld {
     const dist = Math.floor(this.distance);
     const best = Math.max(useGame.getState().best, dist);
     writePref('bestDistance', String(best));
+    this.saveBank();
     useGame.setState({ best, distance: dist, banner: null });
     // Remember where the camera is, to swing round to the trophy shot from here
     this.camFrom.copy(this.camera.position);
@@ -1296,7 +1333,6 @@ export class ChaseWorld {
     sfx.whoosh(0.6, 0.4);
     music.setStage(s);
     score.setIntensity(s); // the music (and, from 1,200 m, the cap's glow) carry the milestones
-    if (this.pulseState === 'empty') useGame.setState({ chill: this.chill / this.pulseCost, pulseCost: this.pulseCost });
   }
 
   private collect(): void {
@@ -1314,19 +1350,14 @@ export class ChaseWorld {
     if (got) this.award(got);
   }
 
-  /** Count caps once, fill the Pulse meter (only while it is charging). */
+  /** Count caps once: this run's score and the saved total towards the Pulse. */
   private award(got: number): void {
     this.caps += got;
-    if (this.pulseState === 'empty') {
-      this.chill = Math.min(this.pulseCost, this.chill + got);
-      if (this.chill >= this.pulseCost) {
-        this.setPulse('charged');
-        this.pulseFx.setPad('ground');
-        sfx.pulseCharge();
-      }
-    }
+    this.bank += got;
+    this.checkCharge();
+    if (this.time - this.bankSavedAt > 2) this.saveBank(); // (and when the run ends)
     sfx.coin();
-    useGame.setState({ caps: this.caps, chill: this.chill / this.pulseCost, pulseCost: this.pulseCost });
+    this.pushMeter();
   }
 
   private flashBanner(text: string, ms: number): void {
@@ -1478,13 +1509,13 @@ export class ChaseWorld {
     cam.lookAt(chaseLook);
   }
 
-  /** One line of dialogue: a bubble over the speaker's head and (voice > 0) a shout. */
+  /** One line of dialogue: a bubble over the speaker's head, and its recording or (voice > 0) a shout. */
   private say(who: Actor, name: string, text: string, secs: number, voice = 1, loud = 0.5): void {
     this.bubbleText = text;
     this.bubbleSpeaker = who;
     this.bubbleName = name;
     this.bubbleUntil = this.time + secs;
-    if (voice > 0) voices.shout(voice, loud);
+    voices.speak(text, useGame.getState().runner, voice, loud);
   }
 
   /**
@@ -1611,6 +1642,8 @@ export class ChaseWorld {
       speed: this.speed,
       distance: this.distance,
       chill: this.chill,
+      bank: this.bank,
+      pulseCost: this.pulseCost,
       pulse: this.pulseState,
       pulseLeft: this.pulseLeft,
       holder,
@@ -1675,17 +1708,17 @@ export class ChaseWorld {
     if (useGame.getState().phase === 'running') this.caught();
   }
 
-  /** Test hook (?debug only): fill the Pulse meter. */
+  /** Test hook (?debug only): fill the Pulse meter (top the saved caps up to the next Pulse). */
   debugFillChill(): void {
     if (this.pulseState !== 'empty') return;
-    this.chill = this.pulseCost - 1;
+    this.bank = Math.max(this.bank, this.pulseCost - 1);
     this.award(1);
   }
 
   debugPulse(): Record<string, unknown> {
     let ahead = 0;
     for (const o of this.obstacles) if (o.active && !o.cleared && o.z >= -G.PULSE_CLEAR_AHEAD && o.z <= G.PULSE_CLEAR_BEHIND) ahead++;
-    return { state: this.pulseState, cleared: this.pulseCleared, magnetCaps: this.pulseCaps, py: this.py, chill: this.chill, lane: this.lane, caps: this.caps, ahead, beat: this.beatNow(), synced: music.beat() !== null, rowSync: this.debugRowSync() };
+    return { state: this.pulseState, cleared: this.pulseCleared, magnetCaps: this.pulseCaps, py: this.py, chill: this.chill, bank: this.bank, cost: this.pulseCost, lane: this.lane, caps: this.caps, ahead, beat: this.beatNow(), synced: music.beat() !== null, rowSync: this.debugRowSync() };
   }
 
   /**

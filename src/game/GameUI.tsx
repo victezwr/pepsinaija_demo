@@ -28,6 +28,7 @@ function Hud(): JSX.Element {
   const distance = useGame((s) => s.distance);
   const caps = useGame((s) => s.caps);
   const chill = useGame((s) => s.chill);
+  const bank = useGame((s) => s.bank);
   const cost = useGame((s) => s.pulseCost);
   const pulse = useGame((s) => s.pulse);
   const flash = useGame((s) => s.pulseFlash);
@@ -56,10 +57,10 @@ function Hud(): JSX.Element {
           <div
             className={`pulse-meter${ready ? ' pulse-meter--ready' : ''}${active ? ' pulse-meter--on' : ''}`}
             style={{ ['--beat' as string]: rate }}
-            aria-label={ready ? 'Pulse ready: double-tap' : `Pulse meter ${Math.round(chill * cost)} of ${cost} caps`}
+            aria-label={ready ? 'Pulse ready: double-tap' : `Pulse meter: ${fmt(bank)} of ${fmt(cost)} saved caps`}
           >
             <div className="pulse-meter__fill" style={{ width: `${Math.round((active ? 1 : chill) * 100)}%` }} />
-            <span>{ready ? 'PULSE READY' : active ? 'PULSE' : `PULSE ${Math.round(chill * cost)}/${cost}`}</span>
+            <span>{ready ? 'PULSE READY' : active ? 'PULSE' : `PULSE ${fmt(Math.min(bank, cost))}/${fmt(cost)}`}</span>
           </div>
           {ready && <span className="pulse-hint">double-tap</span>}
           {active && (
@@ -84,6 +85,8 @@ function GameOver(): JSX.Element {
   const distance = useGame((s) => s.distance);
   const caps = useGame((s) => s.caps);
   const best = useGame((s) => s.best);
+  const bank = useGame((s) => s.bank);
+  const cost = useGame((s) => s.pulseCost);
   const share = (): void => {
     const text = `I dodged the agberos for ${fmt(distance)}m and grabbed ${fmt(caps)} yellow caps with the new yellow-cap Pepsi ${X_HANDLE}! Can you beat my score? ${HASHTAG}`;
     const url = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(SHARE_URL)}`;
@@ -109,6 +112,17 @@ function GameOver(): JSX.Element {
           <span>best</span>
         </div>
       </div>
+      <p className="gameover__bank">
+        {bank >= cost ? (
+          <>
+            <b>PULSE READY</b> for your next run: double-tap to release it
+          </>
+        ) : (
+          <>
+            Saved for the Pulse: <b>{fmt(bank)}</b> / {fmt(cost)} caps
+          </>
+        )}
+      </p>
       <div className="gameover__actions">
         <button className="btn btn--solid" onClick={gameRunAgain}>
           RUN AGAIN

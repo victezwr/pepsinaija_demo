@@ -86,11 +86,12 @@ await page.keyboard.press('b');
 await page.waitForTimeout(400);
 check('2 no activation without charge', (await P()).state === 'empty', JSON.stringify(await P()));
 
-// 1. Meter fills at 50 caps → charged
+// 1. Saved caps reach 2,000 → charged
+check('1a a fresh visitor needs 2,000 saved caps', (await P()).cost === 2000 && (await page.getByText(/^PULSE [\d,]+\/2,000$/).isVisible()), JSON.stringify(await P()));
 await page.evaluate(() => window.__dsm.gameDebugChill());
 await page.waitForTimeout(400);
 let p0 = await P();
-check('1 50 caps → PULSE READY', p0.state === 'charged' && p0.chill === 50, JSON.stringify(p0));
+check('1 2,000 saved caps → PULSE READY', p0.state === 'charged' && p0.bank >= 2000 && p0.cost === 2000, JSON.stringify(p0));
 check('1b HUD shows PULSE READY', await page.getByText('PULSE READY').isVisible());
 await shot('ready');
 
@@ -141,7 +142,7 @@ check('8 runner keeps running on the road (no float), pulses on the beat', maxY 
 check('9 no stumble/catch during the pulse', !leftRunning);
 check('6 nearby obstacles neutralised', p2.cleared >= aheadAtFire && (aheadAtFire > 0 || p2.cleared >= 0), `${aheadAtFire} in range at release, ${p2.cleared} cleared in total (incl. landing zone)`);
 check('7 caps attracted and counted', p2.magnetCaps >= magBefore && p2.caps >= capsBefore + (p2.magnetCaps - magBefore) - 1, `${p2.magnetCaps - magBefore} pulled in, caps ${capsBefore} → ${p2.caps}`);
-check('charge spent once', p2.chill === 0 && p2.state === 'empty', JSON.stringify(p2));
+check('charge spent once; the next Pulse costs 2,000 more', p2.state === 'empty' && p2.bank < p2.cost && p2.cost === p0.cost + 2000 * (viaTouch ? 2 : 1), JSON.stringify(p2));
 
 // 10. Safe re-entry: the road the last ring cleared + the grace keep you safe for a moment
 await page.waitForTimeout(1000);
@@ -171,11 +172,15 @@ check('11 stumble/game-over resume after the pulse', caught, caught ? 'caught na
 await page.waitForTimeout(4000);
 await shot('gameover');
 
-// 13. Restart leaves no residue
+// 13. Restart leaves no residue, but the saved caps carry over (and survive a reload)
+const pEnd = await P();
+check('13a game over shows the saved caps', await page.getByText('Saved for the Pulse').isVisible());
 await page.getByRole('button', { name: 'RUN AGAIN' }).click();
 await waitPhase('running');
 const p3 = await P();
-check('13 restart clears pulse state', p3.state === 'empty' && p3.chill === 0, JSON.stringify(p3));
+check('13 restart clears pulse state, keeps the saved caps', p3.state === 'empty' && p3.bank >= pEnd.bank && p3.cost === pEnd.cost, `${JSON.stringify(pEnd)} → ${JSON.stringify(p3)}`);
+const stored = await page.evaluate(() => ({ bank: localStorage.getItem('dsm:capBank'), used: localStorage.getItem('dsm:pulsesUsed') }));
+check('13b saved in the browser', Number(stored.bank) === pEnd.bank && Number(stored.used) === pEnd.cost / 2000 - 1, JSON.stringify(stored));
 
 } catch (e) {
   if (!e.message.includes('sync-only run done')) check('script', false, e.message.split('\n')[0] + ' | pulse=' + JSON.stringify(await P().catch(() => null)) + ' phase=' + (await phase().catch(() => '?')));

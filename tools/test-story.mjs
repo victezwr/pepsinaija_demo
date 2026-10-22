@@ -74,12 +74,13 @@ try {
   check('second Pulse: no line', !(await anyLine(3000)));
   await page.waitForFunction(() => window.__dsm.gameDebugState().pulse === 'empty', null, { timeout: 120000 });
 
-  // Milestones: the music (and the cap's glow) carry them now, no lines; the Pulse gets dearer
+  // Milestones: the music (and the cap's glow) carry them now, no lines. The Pulse's cost no
+  // longer depends on distance: two Pulses released → the next needs 6,000 saved caps.
   const mil = [
-    [520, 1, 70],
-    [1250, 2, 90],
-    [2050, 3, 110],
-    [3050, 4, 130],
+    [520, 1, 6000],
+    [1250, 2, 6000],
+    [2050, 3, 6000],
+    [3050, 4, 6000],
   ];
   for (const [m, lvl, cost] of mil) {
     await page.evaluate((m) => window.__dsm.gameDebugDistance(m), m);
@@ -88,7 +89,7 @@ try {
     const g = await page.evaluate(() => window.__dsm.game());
     check(`${m} m: no line, music level ${lvl}, Pulse costs ${cost}`, !said && w.intensity.level === lvl && g.pulseCost === cost, `line ${said}, intensity ${w.intensity.level}, cost ${g.pulseCost}`);
   }
-  check('meter shows the cost', await page.getByText(/^PULSE \d+\/130$/).isVisible().catch(() => false));
+  check('meter shows the cost', await page.getByText(/^PULSE [\d,]+\/6,000$/).isVisible().catch(() => false));
   await shot('milestones');
 
   // Near miss: the whoosh only, no line
