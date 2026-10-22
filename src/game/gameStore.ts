@@ -30,6 +30,10 @@ export interface GameState {
   cinematic: boolean;
   /** Short-lived centre banner (SPEED UP!, RELEASE THE PULSE). */
   banner: string | null;
+  /** The run is paused (the world and the music's clock stand still). */
+  paused: boolean;
+  /** Resuming: 3, 2, 1 on screen before the run carries on (0 = not counting). */
+  resumeCount: number;
 }
 
 export const useGame = create<GameState>()(() => ({
@@ -46,6 +50,8 @@ export const useGame = create<GameState>()(() => ({
   pulseFlash: 0,
   cinematic: false,
   banner: null,
+  paused: false,
+  resumeCount: 0,
 }));
 
 /** DOM nodes the game drives per frame without React re-renders. */

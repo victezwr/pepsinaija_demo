@@ -13,7 +13,9 @@ type EventName =
   | 'game_start'
   | 'game_caught'
   | 'game_won'
-  | 'game_share';
+  | 'game_share'
+  | 'game_pause'
+  | 'leaderboard_open';
 
 interface UmamiWindow extends Window {
   umami?: { track: (name: string, data?: Record<string, string | number>) => void };

@@ -410,3 +410,65 @@ body {
 /* Game over: caps saved towards the Pulse (kept across runs) */
 .gameover__bank { margin: 2px 0 14px; font-size: 13px; color: rgba(255, 255, 255, 0.85); text-align: center; }
 .gameover__bank b { color: #ffc400; }
+
+/* Intro: the leaderboard link under PLAY */
+.intro-play__board { display: inline-flex; align-items: center; gap: 6px; pointer-events: auto; text-decoration: none; font-size: 13px; color: #fff; padding: 8px 12px; }
+
+/* WHO CATCHES IT?: your name for the leaderboard */
+.choose__name { display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(80vw, 300px); animation: rise 0.5s 0.2s ease both; }
+.choose__name span { font-size: 12px; letter-spacing: 0.08em; color: var(--muted); }
+.choose__name input {
+  width: 100%; height: 46px; padding: 0 16px; border-radius: 999px; text-align: center;
+  font: 700 16px var(--font); color: #fff; background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.25); outline: none;
+}
+.choose__name input::placeholder { color: rgba(255, 255, 255, 0.4); font-weight: 500; }
+.choose__name input:focus { border-color: #ffc400; box-shadow: 0 0 0 3px rgba(255, 196, 0, 0.2); }
+.choose__name input[aria-invalid='true'] { border-color: #ff6b5a; }
+.choose__warn { margin: -6px 0 0; font-size: 13px; color: #ff9a8c; }
+.runner--wait { opacity: 0.55; }
+
+/* The leaderboard */
+.lb-backdrop {
+  position: fixed; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center;
+  padding: max(var(--inset), env(safe-area-inset-top)) var(--inset) max(var(--inset), env(safe-area-inset-bottom));
+  background: rgba(0, 4, 20, 0.72); pointer-events: auto; animation: fade 0.2s ease both;
+}
+.lb {
+  width: min(100%, 440px); max-height: 100%; display: flex; flex-direction: column; border-radius: 22px; overflow: hidden;
+  background: linear-gradient(#0d1b5c, #050a26); border: 1px solid rgba(120, 160, 255, 0.35); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.lb__head { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 4px 18px; }
+.lb__head h2 { margin: 0; display: flex; align-items: center; gap: 8px; font-stretch: 125%; font-weight: 900; font-size: 20px; letter-spacing: 0.02em; }
+.lb__close { min-height: 34px; padding: 0 14px; font-size: 12px; }
+.lb__sub { margin: 0; padding: 0 18px 10px; font-size: 12px; color: var(--muted); }
+.lb__note { margin: 0; padding: 18px; text-align: center; font-size: 14px; color: rgba(255, 255, 255, 0.8); }
+.lb__list { list-style: none; margin: 0; padding: 0 8px 12px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.lb__row { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 12px; font-size: 15px; }
+.lb__row:nth-child(odd) { background: rgba(255, 255, 255, 0.04); }
+.lb__rank { font-weight: 900; font-stretch: 115%; color: rgba(255, 255, 255, 0.7); text-align: center; }
+.lb__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.lb__name em { font-style: normal; font-weight: 500; color: #ffc400; font-size: 13px; }
+.lb__dist { font-weight: 800; font-variant-numeric: tabular-nums; }
+.lb__row--top1 .lb__rank { color: #ffc400; }
+.lb__row--top2 .lb__rank { color: #dfe6f2; }
+.lb__row--top3 .lb__rank { color: #e0a070; }
+.lb__row--me { background: rgba(255, 196, 0, 0.16) !important; box-shadow: inset 0 0 0 1.5px rgba(255, 196, 0, 0.7); }
+.lb__gap { text-align: center; padding: 4px 0; font-size: 20px; letter-spacing: 0.3em; color: rgba(255, 255, 255, 0.5); }
+
+/* Game over: your place on the board */
+.gameover__rank { margin: 0 0 4px; min-height: 18px; font-size: 14px; font-weight: 700; text-align: center; color: #fff; }
+.gameover__board { margin: 4px auto 0; display: inline-flex; align-items: center; gap: 8px; }
+
+/* Pause */
+.game-ui--paused * { animation-play-state: paused !important; }
+.game-ui--paused .pause, .game-ui--paused .pause * { animation-play-state: running !important; }
+.pause {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: rgba(0, 4, 20, 0.62); pointer-events: auto; animation: fade 0.2s ease both;
+}
+.pause--count { background: rgba(0, 4, 20, 0.35); pointer-events: auto; }
+.pause__title { margin: 0 0 10px; font-stretch: 125%; font-weight: 900; font-size: clamp(34px, 11vw, 64px); letter-spacing: 0.04em; }
+.pause__resume { display: inline-flex; align-items: center; gap: 10px; min-width: 200px; min-height: 54px; justify-content: center; font-size: 16px; font-weight: 900; }
+.pause .btn--ghost { min-width: 200px; min-height: 46px; }
+.pause__count { margin: 0; font-stretch: 125%; font-weight: 900; font-size: clamp(80px, 30vw, 160px); color: #ffc400; text-shadow: 0 0 30px rgba(255, 196, 0, 0.6); animation: slam 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }

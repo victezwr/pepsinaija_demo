@@ -16,7 +16,7 @@ game-over screen. Unofficial concept by @VOtakpor for @Pepsi_naija.
 - Tip it and the surface stays level. On **Android**, tilting or shaking the phone itself moves the cola too (iPhone: drag only, since we never show a motion-permission prompt).
 
 ### 2. Shake it, or PLAY
-Beneath the bottle: **PLAY**, with "best with sound" (and your best run, once you have one). Two ways in:
+Beneath the bottle: **PLAY**, a **Leaderboard** link, and "best with sound" (and your best run, once you have one). Two ways in:
 - **Shake it** (quick back-and-forth drags, or shake the phone on Android), as in real life:
   1. The first couple of seconds the cola **only sloshes**: no fizz, no sound.
   2. Keep shaking and it starts to **fizz**: bubbles stream up, you hear it, and a **head of foam climbs** up the shoulder towards the cap. Halfway there the title turns into **DON'T SHAKE ME.** (with a hiss) and the ring throbs.
@@ -24,7 +24,9 @@ Beneath the bottle: **PLAY**, with "best with sound" (and your best run, once yo
 - **Tap PLAY** (or Enter / Space) for the opening cinematic (Part 2), which ends in the same pop and lift-off.
 
 ### 3. Who catches it?
-- Either way, once the bottle is gone: **WHO CATCHES IT?** with the two runners side by side. Tap one to open the motor park, where the bottle drops into that runner's hand.
+- Either way, once the bottle is gone: **WHO CATCHES IT?**
+- First, **your name on the leaderboard** (2–16 letters or numbers). The first time it's empty and ready to type in; after that it's remembered and filled in (you can change it). Tapping a runner without a name doesn't start: "Type your name first".
+- Then the two runners side by side. Tap one to open the motor park, where the bottle drops into that runner's hand.
 
 ---
 
@@ -87,7 +89,9 @@ Every row of traffic always leaves you a way through. **Rows reach you on the be
 | 2,000 m | Stronger glow | + brass every 2 bars with pickups, a riser into every 8th bar |
 | 3,000 m | Strongest glow | Full: brass every bar, fills every bar, shaker 16ths |
 
-**On screen during the run:** distance in metres and speed stage (top left), caps and the **PULSE** meter (top right).
+**On screen during the run:** distance in metres and speed stage (top left), caps and the **PULSE** meter (top right), and a **pause** button in the top bar.
+
+**Pause:** the pause button (or P / Esc on a computer) freezes the run and the music exactly where they are; leaving the page (switching apps, locking the phone) pauses too. The pause screen has **RESUME** (a big **3, 2, 1** on screen, then the run and the song carry on exactly in step), **RESTART RUN** (a fresh run; the paused one isn't recorded) and the **Leaderboard**.
 
 ### 5. The agberos
 - They run right behind you, then drop back out of view until you make a mistake.
@@ -116,14 +120,25 @@ Every row of traffic always leaves you a way through. **Rows reach you on the be
 - The game-over panel shows:
   - **AGBEROS DON COLLECT AM!**
   - Your **metres**, **caps** and **best** distance
+  - Your place on the **leaderboard**: "Leaderboard: #61 of 340 (best 1,234 m)" (your best run counts)
   - Your caps **saved for the Pulse** ("Saved for the Pulse: 1,240 / 2,000 caps"), or **PULSE READY for your next run**
   - **RUN AGAIN**: straight back into the chase (whistle, swing, go, no cinematic); the song comes back up
   - **CHALLENGE FRIENDS**: opens X with a ready-made post:
     > I dodged the agberos for 1,234m and grabbed 87 yellow caps with the new yellow-cap Pepsi @Pepsi_naija! Can you beat my score? #PepsiYellowChase
     >
     > https://dontshakeme.vercel.app
+  - **LEADERBOARD** (see below)
   - **STAY ON THE PULSE** with the Pepsi logo
   - **Watch the intro again**: back to SAME TASTE. NEW LOOK.
+
+
+### 9. The leaderboard
+- Opens from the intro (**Leaderboard** under PLAY), the pause screen and the game-over panel.
+- **The top 50** longest runs: rank, name, distance (gold, silver and bronze ranks for the top three), with how many runners are on the board.
+- If you're further down than 50: a **"…"** after the 50th, then **your own row** with your rank (e.g. "61 · Ada Okafor (you) · 52 m"). If you're in the top 50, your row is highlighted where it is.
+- Every run you finish is sent; only your **best** distance counts. Names that are rude, or that pose as Pepsi, aren't accepted (you're asked for another name before your next run).
+- Runs are checked by the server: each run gets a signed token when it starts, used once, and the distance has to be possible in the time since (top speed 24 m/s), so a made-up score can't simply be posted.
+- Until the leaderboard's storage is connected on Vercel, it says "The leaderboard isn't open yet" and everything else works as normal.
 
 ---
 

@@ -8,6 +8,7 @@ import { track } from '../analytics/track';
 import { dressAgbero, type Outfit } from './outfit';
 import { writePref } from '../util/storage';
 import { savedBank, savedPulses } from './gameStore';
+import * as leaderboard from '../leaderboard/board';
 import type { CharacterAsset, GameAssets } from './assets';
 import * as G from './gameConfig';
 import { gameDom, useGame, type GamePhase, type PulseState, type Runner } from './gameStore';
@@ -637,6 +638,12 @@ export class ChaseWorld {
     track('game_start', { runner: useGame.getState().runner });
   }
 
+  /** RESTART from the pause menu: drop this run (not recorded) and start a fresh one. */
+  restartRun(): void {
+    score.stopLayers();
+    this.runAgain();
+  }
+
   /** RUN AGAIN from the game-over screen: straight back into the chase. */
   runAgain(): void {
     this.resetRun();
@@ -965,6 +972,7 @@ export class ChaseWorld {
     music.start(0);
     score.startLayers();
     score.setIntensity(this.stage);
+    leaderboard.startRun(); // the server's token for this run (to record it on the leaderboard)
     setPhase('running');
     useGame.setState({ cinematic: false });
   }
@@ -1289,6 +1297,7 @@ export class ChaseWorld {
     writePref('bestDistance', String(best));
     this.saveBank();
     useGame.setState({ best, distance: dist, banner: null });
+    void leaderboard.submitRun(dist);
     // Remember where the camera is, to swing round to the trophy shot from here
     this.camFrom.copy(this.camera.position);
     this.camera.getWorldDirection(this.fwd);

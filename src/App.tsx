@@ -4,10 +4,11 @@ import * as THREE from 'three';
 import { track } from './analytics/track';
 import { CAMERA_FOV } from './config';
 import { DOUBLE_TAP_MS, DOUBLE_TAP_PX } from './game/gameConfig';
-import { GameScene, gameInput } from './game/GameScene';
+import { GameScene, gameInput, gamePause, gameResume } from './game/GameScene';
 import { useGame } from './game/gameStore';
 import { GameUI } from './game/GameUI';
 import type { GameInput } from './game/world';
+import { LeaderboardPanel } from './leaderboard/LeaderboardPanel';
 import { Experience } from './scene/Experience';
 import { preloadTheme } from './audio/music';
 import { unlock as unlockAudio } from './audio/sfx';
@@ -92,6 +93,13 @@ export function App(): JSX.Element {
         director.skipCinematic();
         return;
       }
+      // P / Esc: pause; again (or Enter on RESUME) resumes
+      if (getState().step === 'game' && (e.key === 'p' || e.key === 'P' || e.key === 'Escape')) {
+        e.preventDefault();
+        if (useGame.getState().paused) gameResume();
+        else gamePause();
+        return;
+      }
       if (getState().step === 'game') {
         const action = keys[e.key];
         if (action && !isButton(e.target)) {
@@ -109,6 +117,15 @@ export function App(): JSX.Element {
     };
     window.addEventListener('keydown', down);
     return () => window.removeEventListener('keydown', down);
+  }, []);
+
+  // Leaving the page (app switch, lock screen, another tab) pauses the run
+  useEffect(() => {
+    const hide = (): void => {
+      if (document.visibilityState === 'hidden') gamePause();
+    };
+    document.addEventListener('visibilitychange', hide);
+    return () => document.removeEventListener('visibilitychange', hide);
   }, []);
 
   if (fallback) {
@@ -137,7 +154,7 @@ export function App(): JSX.Element {
             // Pointer already gone (or synthetic): capture is a nicety, never drop the tap over it
           }
           // Android can suspend page audio (app switch, screen dim); every tap wakes it again.
-          if (getState().step === 'game') unlockAudio();
+          if (getState().step === 'game' && !useGame.getState().paused) unlockAudio();
           lastMove.current = e.timeStamp;
           if (step === 'game') {
             swipe.current = { x: e.clientX, y: e.clientY, done: false };
@@ -197,6 +214,7 @@ export function App(): JSX.Element {
       <Overlay />
       {step === 'game' && <GameUI />}
       {step === 'game' && <div className="handoff-flash" aria-hidden="true" />}
+      <LeaderboardPanel />
     </main>
   );
 }

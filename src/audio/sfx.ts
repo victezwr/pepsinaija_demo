@@ -31,10 +31,23 @@ export function unlock(): void {
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       preloadRecordings(ctx);
     }
-    if (ctx.state !== 'running') void ctx.resume();
+    if (ctx.state !== 'running' && !held) void ctx.resume();
   } catch {
     setState({ audioOk: false });
   }
+}
+
+let held = false;
+
+/** Pause: all sound stops and the audio clock (the song's beat) stands still until resumeAudio. */
+export function suspendAudio(): void {
+  held = true;
+  if (ctx && ctx.state === 'running') void ctx.suspend();
+}
+
+export function resumeAudio(): void {
+  held = false;
+  if (ctx && ctx.state !== 'running') void ctx.resume();
 }
 
 /** Shared graph for the music module (null until the first tap unlocks audio). */

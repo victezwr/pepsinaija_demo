@@ -10,6 +10,7 @@ const browser = await chromium.launch({
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
 });
 const page = await browser.newPage({ viewport: { width: +w, height: +h } });
+await page.addInitScript(() => localStorage.setItem('dsm:playerName', 'Test Runner')); // (the runner pick needs a name)
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => m.type() === 'error' && !m.text().includes('404') && errors.push(m.text()));

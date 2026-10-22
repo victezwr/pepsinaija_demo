@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import type * as THREE from 'three';
 import * as music from '../audio/music';
-import { unlock as unlockAudio } from '../audio/sfx';
+import { resumeAudio, suspendAudio, unlock as unlockAudio } from '../audio/sfx';
 import { track } from '../analytics/track';
 import { getState as getStory, setState as setStory } from '../state/store';
 import { loadGameAssets } from './assets';
@@ -16,9 +16,49 @@ const query = new URLSearchParams(window.location.search);
 const STEP_CAP = query.has('debug') && query.has('clockcap') ? Number(query.get('clockcap')) || 0.1 : 0.1;
 /** Share of the gap to the song's clock closed per second (the world follows it, smoothly). */
 const SYNC_PULL = 3;
+const G_RESUME_STEP_MS = 650; // each number of the 3, 2, 1
 
 export function gameInput(action: GameInput): void {
+  if (useGame.getState().paused) return;
   world?.input(action);
+}
+
+let countdown = 0;
+
+/** Pause (button, P / Esc, or leaving the page): only while running. */
+export function gamePause(): void {
+  const g = useGame.getState();
+  if (g.phase !== 'running' || g.cinematic) return;
+  window.clearInterval(countdown);
+  suspendAudio();
+  useGame.setState({ paused: true, resumeCount: 0 });
+  track('game_pause');
+}
+
+/** Resume: 3, 2, 1, then the run (and the music) carry on exactly where they stopped. */
+export function gameResume(): void {
+  const g = useGame.getState();
+  if (!g.paused || g.resumeCount > 0) return;
+  useGame.setState({ resumeCount: 3 });
+  window.clearInterval(countdown);
+  countdown = window.setInterval(() => {
+    const n = useGame.getState().resumeCount - 1;
+    if (n > 0) {
+      useGame.setState({ resumeCount: n });
+      return;
+    }
+    window.clearInterval(countdown);
+    resumeAudio();
+    useGame.setState({ paused: false, resumeCount: 0 });
+  }, G_RESUME_STEP_MS);
+}
+
+/** RESTART from the pause menu: a fresh run (this one isn't recorded). */
+export function gameRestart(): void {
+  window.clearInterval(countdown);
+  resumeAudio();
+  useGame.setState({ paused: false, resumeCount: 0 });
+  world?.restartRun();
 }
 
 let skipPending = false;
@@ -131,6 +171,7 @@ export function GameScene({ active }: { active: boolean }): null {
   const songClock = useRef<number | null>(null); // where the world thinks the song is (s)
   useFrame((_, dt) => {
     if (!active || !world) return;
+    if (useGame.getState().paused) return; // frozen (the song's clock is suspended too)
     // The world moves by frame time, steered gently onto the song's clock so rows keep landing
     // on the beat. (Stepping by the audio clock directly stuttered on low-end Android, where it
     // ticks in coarse 20-40 ms chunks: some frames moved nothing, others twice as far.)

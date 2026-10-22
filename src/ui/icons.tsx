@@ -62,3 +62,23 @@ export function PlayIcon({ size = 16, className }: IconProps): JSX.Element {
     </svg>
   );
 }
+
+export function TrophyIcon({ size = 16, className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 3h10v4a5 5 0 0 1-10 0z" fill="#ffc400" />
+      <path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5a3.5 3.5 0 0 1-3.5 3.5" fill="none" stroke="#ffc400" strokeWidth="1.8" />
+      <path d="M10.5 11.5h3v4h-3z" fill="#e0a800" />
+      <path d="M7.5 20.5h9l-1-4h-7z" fill="#ffc400" />
+    </svg>
+  );
+}
+
+export function PauseIcon({ size = 16, className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="6" y="4.5" width="4" height="15" rx="1.2" fill="currentColor" />
+      <rect x="14" y="4.5" width="4" height="15" rx="1.2" fill="currentColor" />
+    </svg>
+  );
+}

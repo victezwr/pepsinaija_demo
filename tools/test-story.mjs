@@ -8,6 +8,7 @@ const [base, out] = process.argv.slice(2);
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })).newPage();
+await page.addInitScript(() => localStorage.setItem('dsm:playerName', 'Test Runner')); // (the runner pick needs a name)
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => m.type() === 'error' && !m.text().includes('404') && errors.push(m.text()));

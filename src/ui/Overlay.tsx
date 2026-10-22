@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CREDIT_HANDLE } from '../config';
+import { gamePause } from '../game/GameScene';
 import { useGame, type Runner } from '../game/gameStore';
+import { openBoard, setName, tidyName, useBoard } from '../leaderboard/board';
 import { useStore } from '../state/store';
 import * as director from '../story/director';
 import { dom } from '../story/rig';
 import { HalftoneRing } from './HalftoneRing';
-import { PlayIcon, SpeakerIcon } from './icons';
+import { PauseIcon, PlayIcon, SpeakerIcon, TrophyIcon } from './icons';
 import { useViewport } from './useViewport';
 
 export function StageRing(): JSX.Element {
@@ -54,6 +56,9 @@ function IntroCard(): JSX.Element {
         <button className="btn btn--play" onClick={director.play}>
           <PlayIcon /> PLAY
         </button>
+        <button className="linkbtn intro-play__board" onClick={openBoard}>
+          <TrophyIcon size={15} /> Leaderboard
+        </button>
         <p className="intro-play__sub">
           <SpeakerIcon size={14} /> best with sound{best > 0 ? ` · best run ${best.toLocaleString('en-NG')} m` : ''}
         </p>
@@ -62,15 +67,38 @@ function IntroCard(): JSX.Element {
   );
 }
 
-/** After the bottle has blown: pick who catches it, then the motor park. */
+/**
+ * After the bottle has blown: your name (for the leaderboard, remembered next time), then pick
+ * who catches it, which opens the motor park.
+ */
 function ChooseCard(): JSX.Element {
   const runner = useGame((s) => s.runner);
-  const first = useCallback((el: HTMLButtonElement | null) => el?.focus({ preventScroll: true }), []);
+  const saved = useBoard((s) => s.name);
+  const [name, setNameText] = useState(saved);
+  const [warn, setWarn] = useState(false);
+  const valid = tidyName(name) !== null;
+  const input = useRef<HTMLInputElement>(null);
+  // Focus the name if there isn't one yet, else your last runner (keyboard: Enter picks)
+  const first = useCallback((el: HTMLButtonElement | null) => {
+    if (el && tidyName(useBoard.getState().name)) el.focus({ preventScroll: true });
+  }, []);
+  useEffect(() => {
+    if (!tidyName(useBoard.getState().name)) input.current?.focus({ preventScroll: true });
+  }, []);
+  const go = (r: Runner): void => {
+    if (!valid) {
+      setWarn(true);
+      input.current?.focus();
+      return;
+    }
+    setName(name);
+    director.choose(r);
+  };
   const pick = (r: Runner): JSX.Element => (
     <button
       ref={r === runner ? first : undefined}
-      className={`runner runner--choose${runner === r ? ' runner--on' : ''}`}
-      onClick={() => director.choose(r)}
+      className={`runner runner--choose${runner === r ? ' runner--on' : ''}${valid ? '' : ' runner--wait'}`}
+      onClick={() => go(r)}
       aria-label={r === 'male' ? 'Male runner' : 'Female runner'}
     >
       <img src={`/game/thumb-${r}.webp`} alt="" />
@@ -81,6 +109,28 @@ function ChooseCard(): JSX.Element {
       <h1 className="choose__title">
         WHO CATCHES <span>IT?</span>
       </h1>
+      <label className="choose__name">
+        <span>Your name on the leaderboard</span>
+        <input
+          ref={input}
+          value={name}
+          onChange={(e) => {
+            setNameText(e.target.value);
+            setWarn(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          }}
+          maxLength={16}
+          placeholder="Type your name"
+          autoComplete="nickname"
+          autoCapitalize="words"
+          spellCheck={false}
+          enterKeyHint="done"
+          aria-invalid={warn && !valid}
+        />
+      </label>
+      {warn && !valid && <p className="choose__warn">Type your name first: 2–16 letters or numbers.</p>}
       <div className="choose__row" role="group" aria-label="Choose your runner">
         {pick('male')}
         {pick('female')}
@@ -111,6 +161,7 @@ function Ripple(): JSX.Element | null {
 function TopBar(): JSX.Element {
   const step = useStore((s) => s.step);
   const cinematic = useGame((s) => s.cinematic) && step !== 'choose';
+  const canPause = useGame((s) => s.phase === 'running' && !s.cinematic && !s.paused) && step === 'game';
   const muted = useStore((s) => s.muted);
   const tier = useStore((s) => s.tier);
   return (
@@ -126,6 +177,11 @@ function TopBar(): JSX.Element {
         {cinematic && (
           <button className="btn btn--ghost" onClick={director.skipCinematic}>
             SKIP
+          </button>
+        )}
+        {canPause && (
+          <button className="btn btn--ghost" onClick={gamePause} aria-label="Pause">
+            <PauseIcon />
           </button>
         )}
         <button className="btn btn--ghost" onClick={() => director.setMuted(!muted)} aria-label={muted ? 'Unmute' : 'Mute'}>

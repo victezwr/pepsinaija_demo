@@ -23,7 +23,7 @@ URL flags: `?fps` (frame counter), `?lite` (force low quality), `?director` (for
 |---|---|
 | Stack | Vite · React 18 · TypeScript · Three.js via React Three Fiber · GSAP · Zustand |
 | Audio | Theme song `public/audio/theme.mp3` (the clock the game is timed to) + sound effects generated with the Web Audio API |
-| Hosting | Static, Vercel. No backend. |
+| Hosting | Vercel: the static site, plus two small functions in `api/` for the leaderboard (Upstash Redis). |
 | First load | ~1.8 MB (JS 323 KB gz + 1.17 MB model + Draco decoder) |
 
 - **The intro and cinematic** live in `src/story/director.ts` (around the bottle: the shake build-up in `buildPressure`, PLAY's cinematic in `play`, the runner pick in `choose`) and `src/game/world.ts` (`revealStep`, motor park). SKIP works from either half. The shake tuning is `SHAKE` in `src/config.ts`.
@@ -31,7 +31,18 @@ URL flags: `?fps` (frame counter), `?lite` (force low quality), `?director` (for
 - **Beat sync** (`src/audio/music.ts`): the theme is decoded before the first tap, erupts at the end of the cinematic (or on SKIP) and loops on whole 16-beat phrases (seam crossfaded over a beat). `beat()` gives the song position in beats (124 BPM); the chase world is stepped by song time, obstacle rows are placed to reach the runner exactly on a beat, caps fall on 16th notes and the Pulse rings fire on the beat.
 - **Quality tiers:** the intro doubles as a speed test and drops weaker phones to a lighter tier; the chase keeps measuring and drops to LITE if it sags.
 
+- **Leaderboard** (`api/`, `src/leaderboard/`): `POST /api/run` gives each run a signed token; `POST /api/leaderboard` records a finished run (token genuine, unused, distance possible in the time since; your best counts; names checked); `GET /api/leaderboard?player=…` returns the top 50, the total and your own rank. `npm run dev` and `vite preview` serve the same functions with an in-memory board.
+- **Pause:** suspends the audio context, so the song's clock (and the beat-synced world) stands still and picks up exactly in step.
+
 Product, architecture, standards and progress are documented in [`/context`](context/).
+
+## Turning the leaderboard on (one time, on Vercel)
+
+1. Vercel dashboard → this project → **Storage** → **Create Database** → **Upstash** → **Upstash for Redis** (the free plan is plenty).
+2. **Connect** it to this project (all environments). That adds `KV_REST_API_URL` and `KV_REST_API_TOKEN` to the project's environment variables.
+3. **Redeploy** (Deployments → the latest → Redeploy). The leaderboard is live.
+
+Optional: add `LEADERBOARD_SECRET` (any long random text) to sign run tokens with their own key; otherwise the Redis token is used.
 
 ## Assets
 
@@ -46,6 +57,6 @@ Rebuild the web model: `cd tools && npm install && npm run fix-model`. The model
 
 Game assets (`assets/source/game/` → `public/game/`): `cd tools && npm install && node prep-game.mjs ../assets/source/game ../public/game`. The low-poly bottle the runner carries: `node make-chase-bottle.mjs ../public/models/pepsi-bottle.glb ../public/game/bottle-chase.glb`.
 
-Walkthrough tests: `npm run build && npx vite preview`, then `node tools/smoke-game.mjs http://localhost:4173 ./shots 390 844` (intro → spin → PLAY → chase → Pulse → game over → run again). Pulse Mode acceptance checks: `node tools/test-pulse.mjs http://localhost:4173 ./shots male` (add `lite` for LITE). Beat sync: `node tools/test-pulse.mjs http://localhost:4173 ./shots male sync`. Cinematic + SKIP: `node tools/test-cinematic.mjs http://localhost:4173 ./shots`. Story during play (lines only on stumbles and the first Pulse, milestones, music layers, Pulse cost, game-over payoff, mute): `node tools/test-story.mjs http://localhost:4173 ./shots`. Shaking the intro bottle (slosh → fizz → foam → blow → pick → run): `node tools/test-shake.mjs http://localhost:4173 ./shots phone` (or `drag`).
+Walkthrough tests: `npm run build && npx vite preview`, then `node tools/test-leaderboard.mjs http://localhost:4173 ./shots` (name entry, pause, leaderboard with 60 seeded runners), `node tools/smoke-game.mjs http://localhost:4173 ./shots 390 844` (intro → spin → PLAY → chase → Pulse → game over → run again). Pulse Mode acceptance checks: `node tools/test-pulse.mjs http://localhost:4173 ./shots male` (add `lite` for LITE). Beat sync: `node tools/test-pulse.mjs http://localhost:4173 ./shots male sync`. Cinematic + SKIP: `node tools/test-cinematic.mjs http://localhost:4173 ./shots`. Story during play (lines only on stumbles and the first Pulse, milestones, music layers, Pulse cost, game-over payoff, mute): `node tools/test-story.mjs http://localhost:4173 ./shots`. Shaking the intro bottle (slosh → fizz → foam → blow → pick → run): `node tools/test-shake.mjs http://localhost:4173 ./shots phone` (or `drag`).
 
 Recorded sounds and voices: see [`context/recording-script.md`](context/recording-script.md) for what to record and the file names; drop files in `public/audio/voice/` and `public/audio/sfx/`.
