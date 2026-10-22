@@ -869,11 +869,13 @@ export class ChaseWorld {
       this.spawnOnBeat();
       if (phase === 'running') this.checkNearMisses();
       this.updateMagnet(dt);
-      this.distance += d;
+      // (caught part-way through this frame: the score is already final, don't add the rest)
+      const live = isLive(useGame.getState().phase);
+      if (live) this.distance += d;
       if (phase === 'running') this.updateStage();
       this.updatePulse(dt);
       this.storeTick -= dt;
-      if (this.storeTick <= 0) {
+      if (live && this.storeTick <= 0) {
         this.storeTick = 0.1;
         useGame.setState({ distance: Math.floor(this.distance) });
       }

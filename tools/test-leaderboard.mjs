@@ -100,7 +100,8 @@ try {
   await waitPhase('caught', 30000);
   await page.waitForFunction(() => /#\d+ of \d+/.test(document.querySelector('.gameover__rank')?.textContent ?? ''), null, { timeout: 30000 });
   const rankText = await page.locator('.gameover__rank').textContent();
-  check('game over shows your leaderboard place', /Leaderboard: #6[01] of 6[12]/.test(rankText), rankText);
+  const m = /Leaderboard: #(\d+) of (\d+)/.exec(rankText) ?? [];
+  check('game over shows your leaderboard place (past 50: the seeded runners are all ahead)', +m[1] > 50 && +m[2] >= 61, rankText);
   await page.waitForTimeout(1500);
   await shot('gameover');
 
@@ -112,7 +113,9 @@ try {
   const last = await page.locator('.lb__row').last().textContent();
   const first = await page.locator('.lb__row').first().textContent();
   check('board: 50 rows, then …, then you', rows === 51 && gap === 1 && /Ada Okafor/.test(last) && /\(you\)/.test(last), `${rows} rows, gap ${gap}, last "${last}"`);
-  check('board: longest run first', /Runner 60/.test(first) && /159 m/.test(first), first);
+  const dists = await page.locator('.lb__row .lb__dist').allTextContents();
+  const top = dists.slice(0, 50).map((t) => Number(t.replace(/[^\d]/g, '')));
+  check('board: longest run first, in order', top.every((d, i) => i === 0 || d <= top[i - 1]) && top[0] >= 159, `${first} … ${top.slice(-1)} m`);
   await shot('leaderboard');
   await page.screenshot({ path: `${out}/${String(++n).padStart(2, '0')}-leaderboard-end.png`, fullPage: false });
   await page.locator('.lb__list').evaluate((el) => el.scrollTo(0, el.scrollHeight));

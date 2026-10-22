@@ -11,7 +11,8 @@ const page = await (await browser.newContext({ viewport: { width: 390, height: 8
 await page.addInitScript(() => localStorage.setItem('dsm:playerName', 'Test Runner')); // (the runner pick needs a name)
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-page.on('console', (m) => m.type() === 'error' && !m.text().includes('404') && errors.push(m.text()));
+// (400: the leaderboard rightly refuses this run, which the test teleports thousands of metres)
+page.on('console', (m) => m.type() === 'error' && !m.text().includes('404') && !m.text().includes('400') && errors.push(m.text()));
 const results = [];
 const check = (name, ok, detail = '') => results.push({ name, ok: !!ok, detail });
 const W = () => page.evaluate(() => window.__dsm.gameDebugState());
