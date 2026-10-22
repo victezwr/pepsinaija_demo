@@ -1,3 +1,6 @@
+// Screenshots of every screen (intro, leaderboard, runner pick, street scene, run, stumble line,
+// pause, Pulse ready, game over, leaderboard) at seven sizes, from a small phone to a desktop,
+// to check the layout. Usage: node tools/shots-responsive.mjs <baseUrl> <outDir> [size name]
 import { chromium } from 'playwright';
 import fs from 'fs';
 const [base, out, only] = process.argv.slice(2);
