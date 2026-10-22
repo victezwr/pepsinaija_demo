@@ -63,7 +63,7 @@ src/
 public/
   models/pepsi-bottle.glb   Built by tools/ from assets/source/
   draco/                    Decoder files copied from three/examples
-  poster.webp, logo.svg
+  og.jpg (link-preview card, also the no-3D fallback), logo.svg
 ```
 
 ## Asset pipeline

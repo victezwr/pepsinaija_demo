@@ -131,7 +131,7 @@ export function App(): JSX.Element {
   if (fallback) {
     return (
       <main className="app app--fallback">
-        <img className="poster" src="/poster.webp" alt="A cold Pepsi bottle with a yellow cap" />
+        <img className="poster" src="/og.jpg" alt="The yellow-cap Pepsi bottle and a runner chased through a Lagos street: THE YELLOW CHASE" />
         <EndCard note="Your browser can't run the 3D version, so here's the ending." />
       </main>
     );
