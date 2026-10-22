@@ -41,6 +41,7 @@ Product, architecture, standards and progress are documented in [`/context`](con
 1. Vercel dashboard → this project → **Storage** → **Create Database** → **Upstash** → **Upstash for Redis** (the free plan is plenty).
 2. **Connect** it to this project (all environments). That adds `KV_REST_API_URL` and `KV_REST_API_TOKEN` to the project's environment variables.
 3. **Redeploy** (Deployments → the latest → Redeploy). The leaderboard is live.
+4. Check: open `https://dontshakeme.vercel.app/api/status`. It says `"leaderboard": "on", "storage": "reachable"` when it works; otherwise it says what's missing (setting names only, never their values).
 
 Optional: add `LEADERBOARD_SECRET` (any long random text) to sign run tokens with their own key; otherwise the Redis token is used.
 

@@ -2,8 +2,8 @@
 // routes on Vercel).
 //
 // Storage: Upstash Redis over its REST API (Vercel dashboard → Storage → Upstash for Redis,
-// connected to this project; it adds KV_REST_API_URL / KV_REST_API_TOKEN, or the UPSTASH_REDIS_
-// names). No SDK. Without those the leaderboard reports itself offline and the game carries on.
+// connected to this project; it adds KV_REST_API_URL / KV_REST_API_TOKEN, or the same with a
+// prefix, or the UPSTASH_REDIS_REST_ names). No SDK. /api/status says what the server can see. Without those the leaderboard reports itself offline and the game carries on.
 // Local dev, `vite preview` and the tests use an in-memory store instead (vite.config.ts).
 //
 // Data: a sorted set of each player's best distance (lb:dist), their display names (lb:names),
@@ -108,10 +108,24 @@ export function storeFromEnv(env = process.env) {
     memory ??= memoryStore();
     return { store: memory, secret: 'local-test-secret' };
   }
-  const url = env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL;
-  const token = env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  return { store: redisStore(url, token), secret: env.LEADERBOARD_SECRET || token };
+  const found = redisEnv(env);
+  if (!found) return null;
+  return { store: redisStore(env[found.url], env[found.token]), secret: env.LEADERBOARD_SECRET || env[found.token] };
+}
+
+/**
+ * Which environment variables hold the Redis REST address and token. Vercel names them after the
+ * prefix chosen when the database is connected (KV_REST_API_URL by default, STORAGE_KV_REST_API_URL,
+ * UPSTASH_REDIS_REST_URL, MYDB_UPSTASH_REDIS_REST_URL...): accept any of those.
+ */
+export function redisEnv(env = process.env) {
+  for (const url of Object.keys(env).sort()) {
+    const m = /^(.*?)(KV_REST_API|UPSTASH_REDIS_REST)_URL$/.exec(url);
+    if (!m || !env[url]) continue;
+    const token = `${m[1]}${m[2]}_TOKEN`;
+    if (env[token]) return { url, token };
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------- rules
