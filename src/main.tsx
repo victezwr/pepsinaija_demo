@@ -9,14 +9,13 @@ import { gameDebugCatch, gameDebugChill, gameDebugDistance, gameDebugInvulnerabl
 import { useGame } from './game/gameStore';
 import { audioGraph } from './audio/sfx';
 import { beat } from './audio/music';
-import { shout } from './audio/voices';
 import './ui/styles.css';
 
 inject();
 
 // Test hook for the Playwright walkthrough (tools/smoke.mjs); only with ?debug.
 if (new URLSearchParams(window.location.search).has('debug')) {
-  Object.assign(window, { __dsm: { getState, play, choose, debugSpin, debugPressure, debugHoldFizz, beat, game: useGame.getState, gameInput, gameDebugChill, gameDebugCatch, gameDebugDistance, gameDebugInvulnerable, gameDebugNearMiss, gameDebugSpawn, gameDebugStumble, gameDebugPulse, gameDebugState, audioGraph, shout } });
+  Object.assign(window, { __dsm: { getState, play, choose, debugSpin, debugPressure, debugHoldFizz, beat, game: useGame.getState, gameInput, gameDebugChill, gameDebugCatch, gameDebugDistance, gameDebugInvulnerable, gameDebugNearMiss, gameDebugSpawn, gameDebugStumble, gameDebugPulse, gameDebugState, audioGraph } });
 }
 loadAnalyticsProvider();
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { TrophyIcon } from '../ui/icons';
+import { CloseIcon, TrophyIcon } from '../ui/icons';
 import { closeBoard, useBoard, type Entry } from './board';
 
 const fmt = (n: number): string => n.toLocaleString('en-NG');
@@ -46,7 +46,7 @@ export function LeaderboardPanel(): JSX.Element | null {
             <TrophyIcon size={22} /> LEADERBOARD
           </h2>
           <button ref={closeRef} className="btn btn--ghost lb__close" onClick={closeBoard} aria-label="Close the leaderboard">
-            CLOSE
+            <CloseIcon />
           </button>
         </header>
         <p className="lb__sub">Longest runs{board ? ` · ${fmt(board.total)} ${board.total === 1 ? 'runner' : 'runners'}` : ''}</p>

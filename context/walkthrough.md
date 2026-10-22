@@ -30,18 +30,18 @@ Beneath the bottle: **PLAY**, a **Leaderboard** link, and "best with sound" (and
 
 ---
 
-## Part 2: The street scene (about 7 seconds; **SKIP** top right, or Esc)
+## Part 2: The street scene (about 5 seconds; **SKIP** top right, or Esc)
 
-**The story:** the bottle you set off lands in a Lagos street right by your runner. The agberos hanging about see the shining Golden Cap and want it. Your runner makes as if to hand it over... and bolts.
+**The story:** the bottle you set off comes down in a Lagos street, straight into your runner's hand. The agberos hanging about see the shining Golden Cap and want it. Your runner bolts with it.
+
+**No voices:** the lines are speech bubbles only (on screen, over the speaker's head), here and in the chase. A line is only heard if its recording has been added (see the recording script).
 
 | Time | Beat | What happens |
 |---|---|---|
-| 0–1 s | **It lands** | A Lagos street at sunset; the drums come back. Your runner is standing in the road, the agberos close by. The bottle flies in from where it left the intro, tumbling, and **lands upright in the road** just in front of your runner with a bounce and a wobble. |
-| 1–2 s | **The shine** | Low and close on the bottle: the **cap flashes gold** with a ring of light and a shimmer. The boys jump at it. |
-| 2–3 s | **The grab** | Your runner **crouches and picks it up**. |
-| 3.5–6 s | **"Gimme am"** | Over your runner's shoulder, the lead agbero: **AGBERO:** "Afa, wetin be that wey dey shine? Gimme am ASAP!" |
-| 6–7.4 s | **The offer** | Your runner turns to him, steps closer and **holds the bottle out**, as if to hand it over... |
-| 7.4 s | **The bolt** | ...then whips round and **bursts away**. **AGBEROS:** "If I catch you!" A whistle, a trumpet fanfare and drum roll throw into the **theme song**, the camera swings in behind you, the crew gives chase and the controls come on. |
+| 0–1 s | **It lands** | A Lagos street at sunset; the drums come back. Your runner is standing in the road, the agberos close by. The bottle drops out of the sky, spinning, **into your runner's hand**, and the **cap flares gold** with a ring of light and a shimmer. |
+| 1–2 s | **They see it** | The boys jump at the flash. |
+| 2–5 s | **"Gimme am"** | Over your runner's shoulder, the lead agbero (bubble): **AGBERO:** "Afa, wetin be that wey dey shine? Gimme am ASAP!" |
+| 5 s | **The bolt** | Your runner **bursts away**. **AGBEROS:** "If I catch you!" (bubble). A whistle, a trumpet fanfare and drum roll throw into the **theme song**, the camera swings in behind you, the crew gives chase and the controls come on. |
 
 - **SKIP** at any point drops you straight into the run: bottle in hand, theme playing, camera behind you, controls live. (Pressed before the pick, the pick still comes first, then straight into the run.)
 - **RUN AGAIN** never replays the cinematic.
@@ -148,7 +148,6 @@ Every row of traffic always leaves you a way through. **Rows reach you on the be
 - **"Unofficial concept by @VOtakpor"** (bottom left).
 
 ## Placeholders, to be replaced
-- **Agbero voices:** generated in code until the voice-over is recorded (`public/audio/agbero-1.mp3` … `agbero-6.mp3`).
+- **Voices:** none until recorded: lines are speech bubbles; add `public/audio/voice/<line>.mp3` files (see the recording script) to hear them.
 - **Music:** the owner's theme song, "Morning Train to Somewhere" (`public/audio/theme.mp3`, 124 BPM, D minor). Swapping it means re-measuring the beat grid in `src/audio/music.ts`. The cinematic score and the chase intensity layers (talking drum, agogo, trumpet, brass) are generated in code (`src/audio/score.ts`).
-- **Voices:** every line of dialogue is a speech bubble; the agbero voices under them are generated placeholders, and the runner's line has no voice yet.
 - **Running on the danfo roofs via ramps:** planned, not built yet.

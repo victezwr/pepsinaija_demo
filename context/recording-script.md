@@ -4,8 +4,7 @@ Everything you can record to replace the sounds the game makes in code. Record a
 any order: each file you add replaces just that one sound, and anything you haven't recorded
 keeps its generated version.
 
-There are **6 voice lines** (Part 1), **6 crowd shouts** (Part 2) and **23 sound effects**
-(Part 3). The theme song is music, not covered here (it's already `public/audio/theme.mp3`).
+There are **6 voice lines** (Part 1) and **23 sound effects** (Part 2). The theme song is music, not covered here (it's already `public/audio/theme.mp3`).
 
 ---
 
@@ -25,13 +24,16 @@ There are **6 voice lines** (Part 1), **6 crowd shouts** (Part 2) and **23 sound
 - **Rights:** only use your own recordings, or voices of people who agreed to it.
 
 **Where the files go:** voice lines in `public/audio/voice/`, sound effects in
-`public/audio/sfx/`, crowd shouts straight in `public/audio/`, named exactly as in the tables
+`public/audio/sfx/`, named exactly as in the tables
 (lower case, with the dashes). Then commit and push: the next deploy picks them up. Or send them
 to me and I'll put them in.
 
 ---
 
 ## Part 1: Voice lines (`public/audio/voice/`)
+
+Optional. The lines show as speech bubbles either way; there are no generated voices. A line is
+only heard once its recording is added.
 
 **The cast**
 - **THE CHAIRMAN (the lead agbero):** the big one. Older, slow and sure of himself, a deep voice used to being obeyed. Lagos Pidgin. Greedy and amused, until the cap scares him at the end. On screen his lines are labelled AGBERO or CHAIRMAN.
@@ -48,23 +50,7 @@ to me and I'll put them in.
 
 ---
 
-## Part 2: Crowd shouts (`public/audio/`)
-
-Short angry shouts from the boys while they chase you (the game picks one at random and varies
-the pitch so they sound like different men). Plain shouts, no full sentences.
-
-| File | Shout | Length |
-|---|---|---|
-| `agbero-1.mp3` | "Oya!" | 0.5–1 s |
-| `agbero-2.mp3` | "Hold am!" | 0.5–1 s |
-| `agbero-3.mp3` | "Where you dey go?!" | 1–1.5 s |
-| `agbero-4.mp3` | "Bring am come!" | 0.5–1 s |
-| `agbero-5.mp3` | "Na our own be dat!" | 1–1.5 s |
-| `agbero-6.mp3` | "Stop there!" | 0.5–1 s |
-
----
-
-## Part 3: Sound effects (`public/audio/sfx/`)
+## Part 2: Sound effects (`public/audio/sfx/`)
 
 Ideas for each are in "How to make it": everyday things you can record at home. Record each one
 dry and close.
@@ -120,7 +106,6 @@ These play very often, so keep them short and not too loud.
 
 - [ ] Voice lines (6): agbero-gimme, agberos-if-i-catch-you, agbero-use-me-play, chairman-wetin,
       agberos-caught, chairman-inside-cap
-- [ ] Crowd shouts (6): agbero-1 … agbero-6
 - [ ] Intro and street scene (9): fizz-loop, fizz-pop, hiss, pop, cap-open, whoosh, gold-glint,
       catch, whistle
 - [ ] Chase (9): coin, swoosh, jump, land, slide, near-miss, horn, crash, crash-hard

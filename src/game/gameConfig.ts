@@ -58,7 +58,6 @@ export const GRIP_ROT: readonly [number, number, number] = [0, 0, 1.3 - Math.PI]
 export const CHASE_CLOSE = 1.0;
 export const CHASE_FAR = 10;
 export const CHASE_HOLD_S = 3;
-export const RUNNER_LOOK_BACK = 0.9; // rad: the runner turns to answer the Chairman in the cinematic
 
 // Okadas drive at you, with a horn first
 export const OKADA_EXTRA = 0.55; // extra closing speed as a fraction of yours

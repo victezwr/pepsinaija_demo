@@ -4,7 +4,7 @@ SAME TASTE. NEW LOOK. A cold Pepsi bottle with the new yellow cap you can spin i
 
 > **Unofficial concept / spec project** by [@VOtakpor](https://x.com/VOtakpor) for @Pepsi_naija. Not affiliated with or endorsed by PepsiCo.
 
-**SAME TASTE. NEW LOOK.** over the fridge-cold bottle (drag to spin it; shake it long enough and it blows, or press **PLAY**: it erupts and lifts off) → **WHO CATCHES IT?** (your name, your runner) → the street: the bottle lands by your runner, the agberos want it ("Afa, wetin be that wey dey shine? Gimme am ASAP!"), your runner holds it out... and bolts ("If I catch you!") → **The Yellow Chase** to the theme song: outrun the agberos, grab yellow caps (saved across runs), release the Golden Cap's Pulse once you've saved 2,000 (then 4,000, 6,000...) → STAY ON THE PULSE.
+**SAME TASTE. NEW LOOK.** over the fridge-cold bottle (drag to spin it; shake it long enough and it blows, or press **PLAY**: it erupts and lifts off) → **WHO CATCHES IT?** (your name, your runner) → the street: the bottle drops into your runner's hand, the agberos want it ("Afa, wetin be that wey dey shine? Gimme am ASAP!", a speech bubble: no voices) and your runner bolts ("If I catch you!") → **The Yellow Chase** to the theme song: outrun the agberos, grab yellow caps (saved across runs), release the Golden Cap's Pulse once you've saved 2,000 (then 4,000, 6,000...) → STAY ON THE PULSE.
 
 ## Run it
 
