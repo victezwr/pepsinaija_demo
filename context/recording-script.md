@@ -4,7 +4,7 @@ Everything you can record to replace the sounds the game makes in code. Record a
 any order: each file you add replaces just that one sound, and anything you haven't recorded
 keeps its generated version.
 
-There are **9 voice lines** (Part 1), **6 crowd shouts** (Part 2) and **24 sound effects**
+There are **6 voice lines** (Part 1), **6 crowd shouts** (Part 2) and **23 sound effects**
 (Part 3). The theme song is music, not covered here (it's already `public/audio/theme.mp3`).
 
 ---
@@ -34,20 +34,14 @@ to me and I'll put them in.
 ## Part 1: Voice lines (`public/audio/voice/`)
 
 **The cast**
-- **CHAIRMAN:** the motor-park boss. Older, big, slow and sure of himself; a deep voice used to
-  being obeyed. Lagos Pidgin. He's amused more than angry, until the cap scares him at the end.
-- **AGBERO:** one of his boys. Younger, rough, quick, a bit excitable.
-- **AGBEROS:** two or three of the boys together (record it as a group, or layer 2–3 takes).
-- **YOU (the runner):** young, cheeky, not scared. Record a **male** and a **female** take.
+- **THE CHAIRMAN (the lead agbero):** the big one. Older, slow and sure of himself, a deep voice used to being obeyed. Lagos Pidgin. Greedy and amused, until the cap scares him at the end. On screen his lines are labelled AGBERO or CHAIRMAN.
+- **AGBEROS:** two or three of the boys together (record it as a group, or layer 2–3 takes). Younger, rough, quick.
 
 | File | Who | Line | When it plays | How to say it | Max length |
 |---|---|---|---|---|---|
-| `agbero-see-that.mp3` | AGBERO | "Chairman, you see that thing?" | Cinematic: the bottle lands in your hand and the cap flashes gold | Amazed, pointing, half to himself, half calling the boss | 2.0 s |
-| `chairman-golden-cap.mp3` | CHAIRMAN | "Ha! Golden Cap! Omo, bring that one come!" | Cinematic: the camera pushes in on him | Slow grin into greed. "Ha!" is a laugh; "bring that one come" is an order | 2.4 s |
-| `you-drink-male.mp3` | YOU (male) | "Na drink I come buy!" | Cinematic: your runner turns to face them | Cheeky, defiant, a little offended: it's just a drink! | 1.8 s |
-| `you-drink-female.mp3` | YOU (female) | "Na drink I come buy!" | Same, with the female runner | Same | 1.8 s |
-| `chairman-no-escape.mp3` | CHAIRMAN | "Oya! No let am escape!" | Cinematic: right before the chase and the theme kick in | A shouted command to the boys. Big "Oya!" | 1.7 s |
-| `chairman-drop-am.mp3` | CHAIRMAN | "Oya drop am!" | Every time you stumble during the run | Shouted from behind, sure he's about to win. Plays often, so keep it short and punchy | 1.2 s |
+| `agbero-gimme.mp3` | CHAIRMAN | "Afa, wetin be that wey dey shine? Gimme am ASAP!" | Street scene: your runner has just picked up the shining bottle | Curious first ("Afa, wetin be that..."), then greedy and demanding. "Gimme am ASAP!" snapped like an order | 2.8 s |
+| `agberos-if-i-catch-you.mp3` | AGBEROS | "If I catch you!" | Street scene: your runner bolts with it; the chase starts | Furious, shouted after the runner as they set off | 1.5 s |
+| `agbero-use-me-play.mp3` | CHAIRMAN | "You dey use me play, abi?!" | Every time you stumble and he catches up | Right on your heels, annoyed and mocking. Plays often, so short and punchy | 1.8 s |
 | `chairman-wetin.mp3` | CHAIRMAN | "Ha! Wetin be that?!" | The first time you release the Pulse in a run | Shocked, thrown back by the blast | 1.5 s |
 | `agberos-caught.mp3` | AGBEROS | "We don catch am!" | Game over: they catch you | Triumphant, a group cheer, slightly breathless from running | 2.4 s |
 | `chairman-inside-cap.mp3` | CHAIRMAN | "Ehn? Wetin dey inside this cap sef?" | Game over: the cap rattles and sparks in his hand | Unsure, a bit spooked, looking at the bottle. Quieter than his other lines | 2.5 s |
@@ -75,19 +69,18 @@ the pitch so they sound like different men). Plain shouts, no full sentences.
 Ideas for each are in "How to make it": everyday things you can record at home. Record each one
 dry and close.
 
-### The intro bottle and the cinematic
+### The intro bottle and the street scene
 
 | File | When it plays | What it should sound like | How to make it | Length |
 |---|---|---|---|---|
 | `fizz-loop.mp3` | Loops while the intro bottle fizzes from shaking; its volume follows how hard it's shaken | Steady carbonation: the fine crackle of a freshly opened, shaken soda | Open a cold fizzy drink, pour it into a glass, hold the phone just above it. Must **loop seamlessly**: cut it so the end runs into the start with no click or jump | 3–6 s |
 | `fizz-pop.mp3` | Single bubbles bursting on top of the fizz (many times, random pitch) | One tiny bubble pop / click | Close up on the fizzing glass; cut out one single crackle | under 0.1 s |
-| `hiss.mp3` | The pressure building: the cinematic's tremble, and DON'T SHAKE ME when shaking | A rising, tightening gas hiss, getting higher | Slowly crack open a shaken bottle's cap just enough to hiss, tighten it again; or a slow "sssss" rising in pitch | 1–1.6 s |
-| `pop.mp3` | The bottle blows (end of the cinematic, or shaken too hard) | A sharp, clean pop | A finger popped out of the cheek, or a cork / tight lid off a bottle | 0.2–0.6 s |
+| `hiss.mp3` | The pressure building: the foam surging up after PLAY, and DON'T SHAKE ME when shaking | A rising, tightening gas hiss, getting higher | Slowly crack open a shaken bottle's cap just enough to hiss, tighten it again; or a slow "sssss" rising in pitch | 1–1.6 s |
+| `pop.mp3` | The bottle blows (PLAY, or shaken too hard) | A sharp, clean pop | A finger popped out of the cheek, or a cork / tight lid off a bottle | 0.2–0.6 s |
 | `cap-open.mp3` | Plays with the pop: the gas rushing out | "Psssht!": a fast gas release | Twist open a cold, shaken bottle of soda fast | 0.3–0.5 s |
-| `whoosh.mp3` | The bottle rocketing up out of the frame; the SPEED UP! moments | A fast air whoosh going past | Swing a thin stick or a belt fast past the phone | 0.4–0.6 s |
-| `reveal.mp3` | Cinematic start: the bottle appears out of the dark | A deep, low boom with a cold shimmer on top | A soft thump on a big drum, or a pillow hit close to the mic, plus a light shake of keys or a chime | about 1.2 s |
-| `gold-glint.mp3` | The yellow cap glows gold | A bright, magical sparkle / glint | A few light taps on wine glasses, or a wind chime brushed once | 0.6–0.8 s |
-| `catch.mp3` | The bottle lands in your runner's hand | A plastic bottle smacking into a palm | Catch a closed plastic bottle, slapping it into your palm | 0.1–0.2 s |
+| `whoosh.mp3` | The bottle rocketing up out of the intro; the SPEED UP! moments | A fast air whoosh going past | Swing a thin stick or a belt fast past the phone | 0.4–0.6 s |
+| `gold-glint.mp3` | The cap shines gold in the road (street scene) | A bright, magical sparkle / glint | A few light taps on wine glasses, or a wind chime brushed once | 0.6–0.8 s |
+| `catch.mp3` | The bottle hits the road, and again when your runner snatches it up | A plastic bottle smacking down / into a palm | Drop a closed plastic bottle on a hard floor; slap one into your palm | 0.1–0.2 s |
 | `whistle.mp3` | The Chairman blows his whistle: the chase starts (also on RUN AGAIN) | A referee-style pea whistle, one long trilling "FEEEEW!" | A real pea whistle (sports or police type), one blast | about 0.75 s |
 
 ### The chase
@@ -125,11 +118,11 @@ These play very often, so keep them short and not too loud.
 
 ## Checklist
 
-- [ ] Voice lines (9): agbero-see-that, chairman-golden-cap, you-drink-male, you-drink-female,
-      chairman-no-escape, chairman-drop-am, chairman-wetin, agberos-caught, chairman-inside-cap
+- [ ] Voice lines (6): agbero-gimme, agberos-if-i-catch-you, agbero-use-me-play, chairman-wetin,
+      agberos-caught, chairman-inside-cap
 - [ ] Crowd shouts (6): agbero-1 … agbero-6
-- [ ] Intro and cinematic (10): fizz-loop, fizz-pop, hiss, pop, cap-open, whoosh, reveal,
-      gold-glint, catch, whistle
+- [ ] Intro and street scene (9): fizz-loop, fizz-pop, hiss, pop, cap-open, whoosh, gold-glint,
+      catch, whistle
 - [ ] Chase (9): coin, swoosh, jump, land, slide, near-miss, horn, crash, crash-hard
 - [ ] Pulse (4): pulse-charge, pulse-windup, pulse-release, pulse-end
 - [ ] Game over (1): cap-rattle

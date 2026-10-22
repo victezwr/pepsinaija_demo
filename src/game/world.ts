@@ -37,26 +37,42 @@ const TROPHY_SPOTS: ReadonlyArray<readonly [number, number, number]> = [
   [0.3, 1.4, 0],
 ];
 const MENU_SPOTS: ReadonlyArray<readonly [number, number, number]> = [
-  [1.2, 4.0, -0.25],
-  [2.6, 5.2, -0.45],
-  [-0.4, 5.8, -0.1],
+  [1.2, 3.2, -0.25],
+  [2.5, 4.3, -0.45],
+  [-0.5, 4.6, -0.1],
 ];
 const isLive = (p: GamePhase): boolean => p === 'running' || p === 'starting';
 const MENU_CAM: readonly [number, number, number] = [1.35, 1.5, -3.5];
 const MENU_LOOK: readonly [number, number, number] = [0.2, 1.15, 1.5];
-/** Motor-park cinematic camera: [time, position, look-at], eased between keys. */
+/** Where the bottle lands on the street: just in front of the runner, on the camera's side. */
+const LAND: readonly [number, number, number] = [0.42, 0, -0.75];
+/** Where it flies in from (high up, off to the side): it left the intro out of the top of the frame. */
+const FLY_FROM: readonly [number, number, number] = [-5, 9, -10];
+/** Street cinematic camera: [time, position, look-at], eased between keys. */
 const CINE_SHOTS: ReadonlyArray<readonly [number, readonly [number, number, number], readonly [number, number, number]]> = [
-  [0, [3.2, 4.4, -9.5], [0.4, 1.4, 2]], // wide: the motor park
-  [1.5, MENU_CAM, MENU_LOOK], // the runner, the crew behind
-  [3.7, MENU_CAM, MENU_LOOK],
-  [4.6, [0.5, 1.9, 0.9], [1.2, 1.95, 4]], // push in on the Chairman
-  [5.9, [0.5, 1.9, 0.9], [1.2, 1.95, 4]],
-  [6.6, [1.0, 1.55, -2.2], [0.05, 1.3, 0.6]], // the runner answers (in shot before the line)
-  [8.3, [1.0, 1.55, -2.2], [0.05, 1.3, 0.6]],
-  [8.9, MENU_CAM, MENU_LOOK], // back for the swing behind
+  [0, [3.6, 4.6, -10.5], [0.3, 1.0, 0.5]], // wide: the street, the runner, the crew nearby
+  [0.8, [3.0, 3.4, -8.0], [0.4, 0.6, -0.4]], // following the bottle down
+  [1.25, [0.72, 0.3, -1.6], [0.42, 0.16, -0.75]], // low and close on the bottle in the road: the cap shines
+  [2.25, [0.72, 0.3, -1.6], [0.42, 0.16, -0.75]],
+  [2.7, [1.7, 1.2, -3.0], [0.25, 0.65, -0.2]], // the runner crouches and grabs it
+  [3.3, [1.7, 1.2, -3.0], [0.25, 0.75, -0.2]],
+  [3.9, [0.5, 1.85, 0.4], [1.2, 1.9, 3.2]], // over the runner's shoulder: the agbero wants it
+  [5.9, [0.5, 1.85, 0.4], [1.2, 1.9, 3.2]],
+  [6.4, [3.4, 1.7, -2.4], [0.5, 1.1, 1.8]], // from the bottle-hand side, runner and agbero both in: she turns to hand it over...
+  [7.3, [3.4, 1.7, -2.4], [0.5, 1.1, 1.8]],
+  [7.7, MENU_CAM, MENU_LOOK], // ...and bolts: back for the swing behind
 ];
-/** Seconds into the motor-park cinematic at which each story beat fires. */
-const CINE = { catch: G.DROP_S, react: 1.3, boy: 1.7, chairman: 4.0, runner: 6.7, chase: 8.9 } as const;
+/** Seconds into the street cinematic at which each story beat fires. */
+const CINE = { land: 1.0, glow: 1.35, react: 1.6, crouch: 2.35, grab: 2.75, stand: 3.05, line: 3.6, offer: 6.2, bolt: 7.4 } as const;
+/** The runner's turn towards the crew when offering the bottle (rad) and the step towards them (m). */
+const OFFER_YAW = -2.6; // (yaw 0 faces down the road, -Z; the crew stands behind, towards +X +Z)
+const OFFER_STEP = 0.55;
+
+// The offering arm (Mixamo rig, bone-local X, checked by render): the upper arm swings forward
+// to chest height, the elbow straightens a little
+const REACH_UPPER = -1.4;
+const REACH_FORE = -0.5;
+const REACH_Q = new THREE.Quaternion();
 
 /** A skinned character with cross-faded clips. Models face +Z; the chase runs towards -Z. */
 class Actor {
@@ -64,6 +80,11 @@ class Actor {
   readonly hand: THREE.Object3D | null;
   /** Curl the fingers round whatever is in the right hand (the clips are open-handed). */
   grip = false;
+  /** Hold the right arm out in front (0 by the side .. 1 out): offering what's in the hand. */
+  reach = 0;
+  private readonly arm: THREE.Object3D[] = []; // upper arm, forearm
+  private armBase: THREE.Quaternion[] = [new THREE.Quaternion(), new THREE.Quaternion()];
+  private armSet: THREE.Quaternion[] = [new THREE.Quaternion(NaN, NaN, NaN, NaN), new THREE.Quaternion(NaN, NaN, NaN, NaN)];
   private readonly fingers: THREE.Object3D[] = [];
   private readonly thumb: THREE.Object3D[] = [];
   /** Each finger's pose from the animation (before the curl), and the curled pose we last set. */
@@ -86,6 +107,7 @@ class Actor {
       if (/RightHand(Index|Middle|Ring|Pinky)[123]$/.test(o.name)) this.fingers.push(o);
       if (/RightHandThumb[23]$/.test(o.name)) this.thumb.push(o);
     });
+    for (const re of [/RightArm$/, /RightForeArm$/]) model.traverse((o) => void (re.test(o.name) && this.arm.length < 2 && !this.arm.includes(o) && this.arm.push(o)));
     this.hand = hand;
     const n = this.fingers.length + this.thumb.length;
     this.gripBase = Array.from({ length: n }, () => new THREE.Quaternion());
@@ -109,6 +131,26 @@ class Actor {
     next.play();
     this.current = next;
     this.currentName = name;
+  }
+
+  /**
+   * The arm held out (on top of the animation, re-applied to the remembered pose like the grip):
+   * the upper arm swings forward and up, the elbow straightens a little.
+   */
+  private reachArm(): void {
+    if (this.arm.length < 2) return;
+    for (let i = 0; i < 2; i++) {
+      const b = this.arm[i];
+      if (!b.quaternion.equals(this.armSet[i])) this.armBase[i].copy(b.quaternion);
+      if (this.reach <= 0.001) {
+        b.quaternion.copy(this.armBase[i]);
+        this.armSet[i].set(NaN, NaN, NaN, NaN);
+        continue;
+      }
+      REACH_Q.setFromAxisAngle(AXIS_X, (i === 0 ? REACH_UPPER : REACH_FORE) * this.reach);
+      b.quaternion.copy(this.armBase[i]).multiply(REACH_Q);
+      this.armSet[i].copy(b.quaternion);
+    }
   }
 
   /** Test hook: the first finger's rotation (to check the grip holds still). */
@@ -142,6 +184,7 @@ class Actor {
       for (const list of [this.fingers, this.thumb]) for (const b of list) b.quaternion.copy(this.gripBase[i++]);
       for (const q of this.gripSet) q.set(NaN, NaN, NaN, NaN);
     }
+    this.reachArm();
     this.root.updateMatrixWorld(true);
   }
 }
@@ -251,7 +294,9 @@ export class ChaseWorld {
   private bubblePinned = false;
   private readonly saidOnce = new Set<string>(); // one-time lines this run
   private readonly lastSaid: Record<string, number> = {};
-  private cineStep = 0; // next motor-park story beat to fire
+  private cineStep = 0; // next street-cinematic story beat to fire
+  private cineYaw = 0; // the runner's turn in the cinematic (towards the crew to offer the bottle)
+  private cineZ = 0; // ...and the step towards them
   private lastLaneChange = -99;
   private jumpQueuedUntil = 0; // a swipe up just before landing still counts
   private liteMats = false;
@@ -562,8 +607,9 @@ export class ChaseWorld {
   }
 
   /**
-   * Cinematic beats D–E: the bottle that rocketed off-screen falls into the runner's hand at the
-   * motor park, the crew clocks the Golden Cap, words are exchanged, and the chase starts.
+   * The street cinematic: the bottle that rocketed out of the intro flies in and lands in the road
+   * by the runner, the crew clocks the shining cap, the runner grabs it, an agbero demands it, the
+   * runner makes as if to hand it over... and bolts. The chase starts.
    */
   activate(): void {
     this.scene.background = this.sky;
@@ -572,6 +618,8 @@ export class ChaseWorld {
     this.group.visible = true;
     this.phaseT = 0;
     this.cineStep = 0;
+    this.cineYaw = 0;
+    this.cineZ = 0;
     this.chooseRunner(useGame.getState().runner);
     this.toMenuPose();
     this.releaseBottle();
@@ -587,6 +635,8 @@ export class ChaseWorld {
   skipCinematic(): void {
     if (useGame.getState().phase !== 'reveal') return;
     this.cineStep = 99;
+    this.cineYaw = 0;
+    this.cineZ = 0;
     score.stopGroove(0.1);
     if (!music.themePlaying()) void music.startTheme();
     this.holdBottle(this.runner);
@@ -890,11 +940,16 @@ export class ChaseWorld {
     const wantLean = this.slideT > 0 && this.grounded ? G.SLIDE_LEAN : 0;
     this.lean += (wantLean - this.lean) * Math.min(1, dt * (wantLean > this.lean ? 22 : 12));
     this.runner.root.rotation.x = this.lean;
-    this.runner.root.position.set(this.px, this.py - this.lean * 0.12, 0);
+    this.runner.root.position.set(this.px, this.py - this.lean * 0.12, phase === 'reveal' ? this.cineZ : 0);
     if (phase === 'reveal') {
-      const look = this.phaseT > CINE.runner - 0.3 && this.phaseT < CINE.chase ? G.RUNNER_LOOK_BACK : 0;
-      this.runner.root.rotation.y += (look - this.runner.root.rotation.y) * Math.min(1, dt * 5);
+      // Turning to offer the bottle (slow), then whipping round to run (fast)
+      const rate = this.cineYaw !== 0 ? 3 : 12;
+      this.runner.root.rotation.y += (this.cineYaw - this.runner.root.rotation.y) * Math.min(1, dt * rate);
+      if (this.cineYaw !== 0) this.cineZ += (OFFER_STEP - this.cineZ) * Math.min(1, dt * 2);
     }
+    // ...the bottle held out to them, until the bolt
+    const reach = phase === 'reveal' && this.cineYaw !== 0 ? 1 : 0;
+    this.runner.reach += (reach - this.runner.reach) * Math.min(1, dt * (reach ? 2.5 : 10));
     const runRate = Math.min(1.75, Math.max(0.6, this.speed / 12));
     if (this.runner.currentName === 'run') this.runner.setSpeed(runRate);
     this.runner.update(dt);
@@ -909,43 +964,57 @@ export class ChaseWorld {
     this.updateBubble();
   }
 
-  /** Cinematic beats D–E (motor park), fired once each in order. */
+  /** The street cinematic's beats, fired once each in order. */
   private revealStep(): void {
     const t = this.phaseT;
-    if (this.cineStep === 0 && t >= CINE.catch) {
+    if (this.cineStep === 0 && t >= CINE.land) {
       this.cineStep++;
-      this.holdBottle(this.runner);
+      sfx.land(); // it hits the road...
       sfx.catchIt();
-      sfx.goldGlint();
-      this.glowFlash = 1; // the Golden Cap flares as it lands
-      this.glowColor = 0xffb300;
-      this.pulseFx.shockwave(this.time, this.px, 0, 9, 2, 0.6);
     }
-    if (this.cineStep === 1 && t >= CINE.react) {
+    if (this.cineStep === 1 && t >= CINE.glow) {
+      this.cineStep++;
+      sfx.goldGlint(); // ...and the cap shines
+      this.glowFlash = 1;
+      this.glowColor = 0xffb300;
+      this.pulseFx.shockwave(this.time, LAND[0], LAND[2], 6, 2, 0.6);
+    }
+    if (this.cineStep === 2 && t >= CINE.react) {
       this.cineStep++;
       this.agberos[1].play('shout', { fade: 0.1 }); // the boys jump at the flash
       this.agberos[2].play('shout', { fade: 0.1 });
     }
-    if (this.cineStep === 2 && t >= CINE.boy) {
+    if (this.cineStep === 3 && t >= CINE.crouch) {
       this.cineStep++;
-      this.say(this.agberos[2], 'AGBERO', 'Chairman, you see that thing?', 2.1, 1, 0.4);
+      this.runner.play('duck', { loop: false, fade: 0.35 }); // bends down for it
       this.agberos[1].play('idle', { fade: 0.4 });
       this.agberos[2].play('idle', { fade: 0.4 });
     }
-    if (this.cineStep === 3 && t >= CINE.chairman) {
+    if (this.cineStep === 4 && t >= CINE.grab + 0.2) {
+      this.cineStep++;
+      this.holdBottle(this.runner);
+      sfx.catchIt();
+    }
+    if (this.cineStep === 5 && t >= CINE.stand) {
+      this.cineStep++;
+      this.runner.play('idle', { speed: 0, fade: 0.45 });
+    }
+    if (this.cineStep === 6 && t >= CINE.line) {
       this.cineStep++;
       this.chairman.play('shout', { fade: 0.15 });
-      this.say(this.chairman, 'CHAIRMAN', 'Ha! Golden Cap! Omo, bring that one come!', 2.5, 2, 0.6);
+      this.say(this.chairman, 'AGBERO', 'Afa, wetin be that wey dey shine? Gimme am ASAP!', 2.9, 2, 0.6);
     }
-    if (this.cineStep === 4 && t >= CINE.runner) {
+    if (this.cineStep === 7 && t >= CINE.offer) {
       this.cineStep++;
       this.chairman.play('idle', { fade: 0.4 });
-      this.say(this.runner, 'YOU', 'Na drink I come buy!', 1.9, 0);
+      this.cineYaw = OFFER_YAW; // turns and steps towards them, bottle out...
     }
-    if (this.cineStep === 5 && t >= CINE.chase) {
+    if (this.cineStep === 8 && t >= CINE.bolt) {
       this.cineStep++;
+      this.cineYaw = 0; // ...and bursts away
+      this.cineZ = 0;
       this.beginChase(); // (resets the run, so the line comes after it)
-      this.say(this.chairman, 'CHAIRMAN', 'Oya! No let am escape!', 1.8, 3, 0.7);
+      this.say(this.agberos[1], 'AGBEROS', 'If I catch you!', 1.6, 3, 0.7);
       this.chairman.play('shout', { fade: 0.1 });
       sfx.whistle();
       score.stopGroove(0.15);
@@ -1272,7 +1341,7 @@ export class ChaseWorld {
     this.chairmanLunge = 1; // the Chairman surges right up behind you
     this.camShake = 0.25;
     sfx.crash(false);
-    this.say(this.chairman, 'CHAIRMAN', 'Oya drop am!', 1.8, 1, 0.6);
+    this.say(this.chairman, 'AGBERO', 'You dey use me play, abi?!', 2.0, 1, 0.6);
   }
 
   private caught(): void {
@@ -1435,12 +1504,24 @@ export class ChaseWorld {
   }
 
   private updateBottle(phase: GamePhase): void {
-    if (phase === 'reveal' && !this.bottleHolder) {
-      // Falling from where the story's bottle left the frame, spinning, into the runner's hand
-      const t = Math.min(1, this.phaseT / G.DROP_S);
+    if (phase !== 'reveal' || this.bottleHolder) return;
+    const t = this.phaseT;
+    if (t < CINE.land) {
+      // Flying in from where it left the intro (out of the top of the frame), tumbling, on an arc
+      const k = t / CINE.land;
+      this.bottleGrip.position.set(lerp(FLY_FROM[0], LAND[0], k), lerp(FLY_FROM[1], LAND[1], k * k) + Math.sin(k * Math.PI) * 1.5, lerp(FLY_FROM[2], LAND[2], k));
+      this.bottleGrip.rotation.set(this.time * 7, 0, this.time * 4);
+    } else if (t < CINE.grab) {
+      // Landed upright in the road: a little bounce, then it wobbles still
+      const a = t - CINE.land;
+      this.bottleGrip.position.set(LAND[0], LAND[1] + 0.22 * Math.abs(Math.sin(a * 9)) * Math.exp(-a * 7), LAND[2]);
+      this.bottleGrip.rotation.set(0.3 * Math.sin(a * 13) * Math.exp(-a * 3.5), 0.4, 0.2 * Math.sin(a * 11) * Math.exp(-a * 3.5));
+    } else {
+      // Picked up: from the road into the crouching runner's hand
+      const k = smooth(Math.min(1, (t - CINE.grab) / 0.2));
       this.handPos(this.runner, this.v);
-      this.bottleGrip.position.set(this.v.x, lerp(this.v.y + 7, this.v.y, t * t), this.v.z);
-      this.bottleGrip.rotation.set(0, this.time * 6, 0);
+      this.bottleGrip.position.set(lerp(LAND[0], this.v.x, k), lerp(LAND[1], this.v.y - 0.1, k), lerp(LAND[2], this.v.z, k));
+      this.bottleGrip.rotation.set(0, 0.4, 0);
     }
   }
 
@@ -1526,7 +1607,7 @@ export class ChaseWorld {
     this.bubbleSpeaker = who;
     this.bubbleName = name;
     this.bubbleUntil = this.time + secs;
-    voices.speak(text, useGame.getState().runner, voice, loud);
+    voices.speak(text, voice, loud);
   }
 
   /**

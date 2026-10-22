@@ -12,12 +12,11 @@ import { cam, dom, getRig, lights, pose, ring, type Rig } from './rig';
 
 // ---------------------------------------------------------------------------
 // The intro: SAME TASTE. NEW LOOK. over the cold bottle, which you can spin and shake, and PLAY.
-// Two ways in:
-// - PLAY runs the opening cinematic, beats A–C here (the Golden Cap wakes, DON'T SHAKE ME, the
-//   pop and lift-off).
+// Two ways in, both ending in the same eruption (launch):
+// - PLAY: the foam surges up, POP, and the bottle lifts off.
 // - Shaking the bottle: the cola only sloshes at first; keep shaking and it fizzes, the foam climbs
 //   the neck (DON'T SHAKE ME), and with the foam at the cap it blows and lifts off, shedding cola.
-// Either way: WHO CATCHES IT? (pick a runner), then the motor park (beats D–E, src/game/world.ts).
+// Then WHO CATCHES IT? (name, runner), and the street, where the bottle lands (src/game/world.ts).
 // SKIP works throughout. Every step change goes through enter(); nothing else sets `step`.
 
 let story: gsap.core.Timeline | null = null;
@@ -92,70 +91,22 @@ export function ready(): void {
 }
 
 /**
- * PLAY: the opening cinematic, beats A–C (about 9 s), timed against the dùndún groove.
- * A 0–3 s  lights out, a blue rim finds the can: SOME THINGS SHOULD STAY CLOSED. + three trumpet notes
- * B 3–7 s  the camera circles, the yellow cap glows gold, a blue ripple: DON'T SHAKE ME. The music stops.
- * C 7–9 s  pressure builds, POP: cap flash, blue shockwave, and the bottle rockets off to the motor park.
+ * PLAY: the bottle erupts there and then, the same as shaking it until it blows: the foam
+ * surges to the cap, POP, and it lifts off shedding cola. Then WHO CATCHES IT? and the street.
  */
 export function play(): void {
-  if (getState().step !== 'intro') return;
-  sfx.unlock();
-  track('started');
-  writePref('played', '1');
-  enter('cinematic');
-  useGame.setState({ cinematic: true });
-  turn.dragging = false;
-  gsap.killTweensOf(pose);
-  const rm = reduced();
-  const front = Math.round(pose.ry / (Math.PI * 2)) * Math.PI * 2;
-  const tl = newStory(toChoose);
-  // Beat A: the awakening
-  tl.to(lights, { key: 0, env: 0, rimL: 0, rimR: 0, duration: 0.5, ease: 'power2.out' }, 0)
-    .to(ring, { opacity: 0, duration: 0.4 }, 0)
-    .to(pose, { ry: front, duration: 0.6, ease: 'power2.inOut' }, 0)
-    .to(turn, { tilt: 0, duration: 0.4 }, 0)
-    .call(() => {
-      sfx.reveal();
-      score.startGroove(0.7);
-    }, [], 0.5)
-    .to(lights, { rimL: C.RIM_L_INTENSITY, rimR: C.RIM_R_INTENSITY, duration: 1.0, ease: 'power1.in' }, 0.8)
-    .fromTo(cam, { dolly: rm ? 1.05 : 1.3 }, { dolly: 1.05, duration: 6.2, ease: 'sine.inOut', immediateRender: false }, 0.5)
-    .call(() => headline({ text: 'SOME THINGS SHOULD STAY CLOSED.', size: 'cine' }), [], 1.1)
-    .call(() => score.suspiciousTrumpet(), [], 1.8)
-    // Beat B: the Golden Cap
-    .call(() => headline(null), [], 3.1)
-    .to(lights, { key: C.KEY_INTENSITY * 0.5, env: C.ENV_INTENSITY * 0.6, duration: 1.2 }, 3.1)
-    .to(cam, { orbit: rm ? 0 : 0.75, duration: 3.6, ease: 'sine.inOut' }, 3.1)
-    .call(goldenGlow, [], 3.9)
-    .call(() => ripple(false), [], 4.5)
-    .to(ring, { opacity: 0.7, scale: 1, duration: 0.8 }, 4.5)
-    .call(() => headline({ text: "DON'T SHAKE ME.", accent: true }), [], 5.1)
-    .call(() => score.stopGroove(0.25), [], 5.9) // the music holds its breath
-    // Beat C: the pop
-    .call(() => {
-      headline(null);
-      sfx.hiss(1.6);
-    }, [], 7.0)
-    .to(cam, { orbit: 0, duration: 1.4, ease: 'sine.inOut' }, 6.9)
-    .to(fx, { tremble: rm ? 0.004 : 0.03, duration: 1.6, ease: 'power2.in' }, 7.0)
-    .to(press, { fizz: 1, duration: 1.5, ease: 'power1.in' }, 7.0) // the foam climbs to the cap
-    .to(ring, { pulse: 1, duration: 1.6 }, 7.0)
-    .call(popOpen, [], 8.6)
-    .to(pose, { sy: rm ? 1 : 1.15, sx: rm ? 1 : 0.92, duration: 0.12 }, 8.65)
-    .to(pose, { y: C.ESCAPE_HEIGHT, duration: 0.45, ease: 'power2.in' }, 8.7)
-    .call(() => sfx.whoosh(0.5, 0.45), [], 8.7)
-    .to(ring, { opacity: 0, duration: 0.4 }, 8.8)
-    .call(() => {}, [], 9.5); // the shed cola falls clear
+  launch('play');
 }
 
 /**
- * Shaken until it blew: no build-up, straight to the pop and the lift-off (beat C's ending),
- * shedding cola from the body as it goes, then the runner pick.
+ * The bottle blows (PLAY, or shaken until the foam hit the cap): a quick surge of foam if it isn't
+ * already there, the pop, and the lift-off out of the top of the frame, shedding cola from the
+ * body as it goes; then the runner pick.
  */
-function shakeLaunch(): void {
+function launch(via: 'play' | 'shake'): void {
   if (getState().step !== 'intro') return;
   sfx.unlock();
-  track('started', { via: 'shake' });
+  track('started', { via });
   writePref('played', '1');
   enter('cinematic');
   useGame.setState({ cinematic: true });
@@ -163,25 +114,21 @@ function shakeLaunch(): void {
   turn.dragging = false;
   gsap.killTweensOf(pose);
   const rm = reduced();
+  const surge = press.fizz < 0.95 ? 0.5 : 0; // PLAY: the foam rushes up first
   const tl = newStory(toChoose);
   tl.to(ring, { opacity: 0, duration: 0.3 }, 0)
-    .to(turn, { tilt: 0, vel: 0, duration: 0.2 }, 0)
-    .call(popOpen, [], 0.05)
-    .to(pose, { sy: rm ? 1 : 1.15, sx: rm ? 1 : 0.92, duration: 0.12 }, 0.1)
-    .to(pose, { y: C.ESCAPE_HEIGHT, duration: 0.8, ease: 'power2.in' }, 0.2)
-    .call(() => sfx.whoosh(0.6, 0.45), [], 0.3)
-    .to(lights, { key: C.KEY_INTENSITY * 0.4, env: C.ENV_INTENSITY * 0.4, duration: 0.8 }, 0.4)
-    .call(() => {}, [], 1.7); // the shed cola falls clear
-}
-
-/** Beat B: the yellow cap glows gold for a moment. */
-function goldenGlow(): void {
-  const r = rigOrNull();
-  if (!r) return;
-  sfx.goldGlint();
-  r.capMat.emissive.set(0xffb000);
-  gsap.fromTo(r.capMat, { emissiveIntensity: 0 }, { emissiveIntensity: 1.3, duration: 0.3, ease: 'power2.out', yoyo: true, repeat: 1, repeatDelay: 0.5 });
-  gsap.fromTo(r.capFlash, { intensity: 0 }, { intensity: 2.5, duration: 0.3, yoyo: true, repeat: 1, repeatDelay: 0.5 });
+    .to(turn, { tilt: 0, vel: 0, duration: 0.2 }, 0);
+  if (surge) {
+    tl.call(() => sfx.hiss(surge), [], 0)
+      .to(press, { fizz: 1, duration: surge, ease: 'power2.in' }, 0)
+      .to(fx, { tremble: rm ? 0.003 : 0.02, duration: surge, ease: 'power2.in' }, 0);
+  }
+  tl.call(popOpen, [], surge + 0.05)
+    .to(pose, { sy: rm ? 1 : 1.15, sx: rm ? 1 : 0.92, duration: 0.12 }, surge + 0.1)
+    .to(pose, { y: C.ESCAPE_HEIGHT, duration: 0.8, ease: 'power2.in' }, surge + 0.2)
+    .call(() => sfx.whoosh(0.6, 0.45), [], surge + 0.3)
+    .to(lights, { key: C.KEY_INTENSITY * 0.4, env: C.ENV_INTENSITY * 0.4, duration: 0.8 }, surge + 0.4)
+    .call(() => {}, [], surge + 1.7); // the shed cola falls clear
 }
 
 /** Beat C: the can opens: pop, cap flash, the blue shockwave (a taste of PULSE MODE). */
@@ -406,6 +353,14 @@ export function debugSpin(): number {
   return pose.ry;
 }
 
+let pressureHeld = false;
+
+/** Test hook (?debug): hold the fizz at a level (null lets shaking drive it again). */
+export function debugHoldFizz(level: number | null): void {
+  pressureHeld = level !== null;
+  if (level !== null) press.fizz = level;
+}
+
 /** Test hook (?debug): the shake build-up (fizz, how long shaken, foam-at-the-cap hold, slosh). */
 export function debugPressure(): { fizz: number; shakeT: number; hold: number; level: number; lastKick: number; slosh: number } {
   return { ...press, slosh: getRig()?.liquid.slosh ?? 0 };
@@ -438,7 +393,7 @@ function updateLiquid(r: Rig, dt: number): void {
   liq.up.lerp(phoneUp, Math.min(1, dt * 6)).normalize();
   const light = Math.min(1, 0.12 + (lights.key / C.KEY_INTENSITY) * 0.6 + (lights.rimL / C.RIM_L_INTENSITY) * 0.35);
   const kicks = liq.takeKicks();
-  if (getState().step === 'intro') buildPressure(liq.slosh, kicks, dt);
+  if (getState().step === 'intro' && !pressureHeld) buildPressure(liq.slosh, kicks, dt);
   liq.fizz = press.fizz;
   liq.foam = THREE.MathUtils.smoothstep(press.fizz, 0.3, 1);
   liq.update(Math.min(dt, 1 / 30), clock, light);
@@ -468,7 +423,7 @@ function buildPressure(slosh: number, kicks: number, dt: number): void {
     setState({ shakeWarn: warn });
     if (warn) sfx.hiss(0.6);
   }
-  if (press.hold > S.holdS) shakeLaunch();
+  if (press.hold > S.holdS) launch('shake');
 }
 
 /** Drops of cola thrown off the body as the bottle blows and lifts off; they fall away. */

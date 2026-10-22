@@ -19,29 +19,29 @@ game-over screen. Unofficial concept by @VOtakpor for @Pepsi_naija.
 Beneath the bottle: **PLAY**, a **Leaderboard** link, and "best with sound" (and your best run, once you have one). Two ways in:
 - **Shake it** (quick back-and-forth drags, or shake the phone on Android), as in real life:
   1. The first couple of seconds the cola **only sloshes**: no fizz, no sound.
-  2. Keep shaking and it starts to **fizz**: bubbles stream up, you hear it, and a **head of foam climbs** up the shoulder towards the cap. Halfway there the title turns into **DON'T SHAKE ME.** (with a hiss) and the ring throbs.
+  2. Keep shaking and it starts to **fizz**: bubbles stream up, you hear it, and a **head of foam climbs** up the shoulder towards the cap. Halfway there the title turns into **DON'T SHAKE ME.** (with a hiss) and the ring throbs. As with real shaken soda, the cola clouds with tiny bubbles and the foam fills the bottle **wall to wall** and settles **level** (it barely sloshes): coarse, darker bubbles where it meets the cola, fine creamy foam on top.
   3. Stop and it slowly settles (the foam sinks back). Keep shaking with the foam at the cap and it **blows**: POP, cap flash, blue shockwave, and the bottle lifts off out of the top of the frame, **shedding cola** that falls away. About 6 seconds of steady shaking end to end.
-- **Tap PLAY** (or Enter / Space) for the opening cinematic (Part 2), which ends in the same pop and lift-off.
+- **Tap PLAY** (or Enter / Space): the same thing at once: the foam surges up to the cap, **POP**, and the bottle lifts off, shedding cola. (No cinematic around the bottle any more: just the bottle and PLAY.)
 
 ### 3. Who catches it?
 - Either way, once the bottle is gone: **WHO CATCHES IT?**
 - First, **your name on the leaderboard** (2–16 letters or numbers). The first time it's empty and ready to type in; after that it's remembered and filled in (you can change it). Tapping a runner without a name doesn't start: "Type your name first".
-- Then the two runners side by side. Tap one to open the motor park, where the bottle drops into that runner's hand.
+- Then the two runners side by side. Tap one to open the street, where the bottle lands (Part 2).
 
 ---
 
-## Part 2: The opening cinematic (about 20 seconds with the runner pick; **SKIP** top right, or Esc)
+## Part 2: The street scene (about 7 seconds; **SKIP** top right, or Esc)
 
-**The story:** the Golden Cap holds the energy behind PULSE MODE. You set it off by accident, the blue burst catches the eye of the Chairman and his two boys at the motor park, the Chairman decides the cap is his, and you refuse.
+**The story:** the bottle you set off lands in a Lagos street right by your runner. The agberos hanging about see the shining Golden Cap and want it. Your runner makes as if to hand it over... and bolts.
 
 | Time | Beat | What happens |
 |---|---|---|
-| 0–3 s | **The awakening** | The lights go out. A low dùndún talking-drum groove starts. A blue rim light finds the bottle as the camera eases in. **SOME THINGS SHOULD STAY CLOSED.** Three short, suspicious trumpet notes. |
-| 3–7 s | **The Golden Cap** | The camera circles the bottle. The yellow cap glows **gold** for a moment (with a shimmer), a restrained blue energy ripple pulses out. **DON'T SHAKE ME.** Then the music stops dead. |
-| 7–9 s | **The pop** | The bottle trembles as pressure hisses up (the cola shivers and the foam climbs to the cap), then **POP**: the cap flashes, a big blue shockwave rings out (a taste of PULSE MODE), and the bottle rockets up out of the frame, shedding cola. |
-| | **Who catches it?** | Pick your runner (see 3 above). |
-| 9–16 s | **Chairman notices** | A Lagos motor park at sunset; the drums come back. The bottle drops into your runner's hand and the Golden Cap flares gold. The boys jump at the flash. **AGBERO:** "Chairman, you see that thing?" The camera pushes in: **CHAIRMAN:** "Ha! Golden Cap! Omo, bring that one come!" |
-| 16–20 s | **The chase** | Your runner turns to face them: **"Na drink I come buy!"** **CHAIRMAN:** "Oya! No let am escape!" A whistle, a trumpet fanfare and drum roll throw into the **theme song**, the camera swings in behind you and the controls come on. |
+| 0–1 s | **It lands** | A Lagos street at sunset; the drums come back. Your runner is standing in the road, the agberos close by. The bottle flies in from where it left the intro, tumbling, and **lands upright in the road** just in front of your runner with a bounce and a wobble. |
+| 1–2 s | **The shine** | Low and close on the bottle: the **cap flashes gold** with a ring of light and a shimmer. The boys jump at it. |
+| 2–3 s | **The grab** | Your runner **crouches and picks it up**. |
+| 3.5–6 s | **"Gimme am"** | Over your runner's shoulder, the lead agbero: **AGBERO:** "Afa, wetin be that wey dey shine? Gimme am ASAP!" |
+| 6–7.4 s | **The offer** | Your runner turns to him, steps closer and **holds the bottle out**, as if to hand it over... |
+| 7.4 s | **The bolt** | ...then whips round and **bursts away**. **AGBEROS:** "If I catch you!" A whistle, a trumpet fanfare and drum roll throw into the **theme song**, the camera swings in behind you, the crew gives chase and the controls come on. |
 
 - **SKIP** at any point drops you straight into the run: bottle in hand, theme playing, camera behind you, controls live. (Pressed before the pick, the pick still comes first, then straight into the run.)
 - **RUN AGAIN** never replays the cinematic.
@@ -95,11 +95,11 @@ Every row of traffic always leaves you a way through. **Rows reach you on the be
 
 ### 5. The agberos
 - They run right behind you, then drop back out of view until you make a mistake.
-- **Once the run starts they say nothing except:** "Oya drop am!" every time you **stumble**, and "Ha! Wetin be that?!" the **first time you release the Pulse** in a run. The line sits over the speaker's head, or at the bottom of the screen with their name when they're out of view ("CHAIRMAN: …").
+- **Once the run starts they say nothing except:** "You dey use me play, abi?!" every time you **stumble**, and "Ha! Wetin be that?!" the **first time you release the Pulse** in a run. The line sits over the speaker's head, or at the bottom of the screen with their name when they're out of view ("CHAIRMAN: …").
 - **Near misses** (a late swerve past traffic, or a close jump / slide) get a whoosh past your ear.
 
 ### 6. Stumbles and getting caught
-- **Clip the side of something** and you **stumble**. The **Chairman surges right up behind you**, reaching for the Pepsi: **"Oya drop am!"**
+- **Clip the side of something** and you **stumble**. The **Chairman surges right up behind you**, reaching for the Pepsi: **"You dey use me play, abi?!"**
 - **A second stumble within 4 seconds**, or **running head-on into anything**, and you're caught.
 
 ### 7. Pulse Mode (the Golden Cap's power)

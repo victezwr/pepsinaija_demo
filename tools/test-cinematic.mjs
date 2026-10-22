@@ -72,16 +72,12 @@ async function run(kind) {
     await page.waitForTimeout(1500);
     await shot('running');
     const want = [
-      'H:SOME THINGS SHOULD STAY CLOSED.',
-      "H:DON'T SHAKE ME.",
-      'AGBERO:Chairman, you see that thing?',
-      'CHAIRMAN:Ha! Golden Cap! Omo, bring that one come!',
-      'YOU:Na drink I come buy!',
-      'CHAIRMAN:Oya! No let am escape!',
+      'AGBERO:Afa, wetin be that wey dey shine? Gimme am ASAP!',
+      'AGBEROS:If I catch you!',
     ];
     let i = 0;
     for (const x of seen) if (x === want[i]) i++;
-    check('watch: beats A-E in order', i === want.length, JSON.stringify(seen));
+    check('watch: the street scene in order (no headlines before it)', i === want.length && !seen.some((x) => x.startsWith('H:')), JSON.stringify(seen));
     check('watch: ends in a live run', s.game.phase === 'running' && !s.game.cinematic, `${s.game.phase}, cinematic ${s.game.cinematic}`);
     check('watch: chosen runner holds the can', s.game.runner === 'female' && s.w.holder === 'runner' && s.w.runnerVisible, `${s.game.runner}, holder ${s.w.holder}`);
     check('watch: camera behind the runner', s.w.camZ > 3, `cam z ${s.w.camZ.toFixed(2)}`);
@@ -89,9 +85,9 @@ async function run(kind) {
     check('watch: theme playing (chase soundtrack) and synced', p.synced, '');
     check('watch: SKIP gone once running', !(await page.getByRole('button', { name: 'SKIP' }).isVisible()));
   } else {
-    // Skip either around the bottle (beats A-C) or in the motor park (beats D-E); press twice
-    if (kind === 'skip-early') await page.waitForFunction(() => window.__dsm.getState().headline?.text === "DON'T SHAKE ME.", null, { timeout: 120000 });
-    else await page.waitForFunction(() => window.__dsm.gameDebugState()?.bubble === 'Ha! Golden Cap! Omo, bring that one come!', null, { timeout: 300000 });
+    // Skip either during the lift-off or in the street scene; press twice
+    if (kind === 'skip-early') await page.waitForFunction(() => window.__dsm.getState().step === 'cinematic', null, { timeout: 30000 });
+    else await page.waitForFunction(() => window.__dsm.gameDebugState()?.bubble === 'Afa, wetin be that wey dey shine? Gimme am ASAP!', null, { timeout: 300000 });
     await shot('before-skip');
     const skip = page.getByRole('button', { name: 'SKIP' });
     await skip.click();
@@ -99,7 +95,7 @@ async function run(kind) {
     if (kind === 'skip-early') await pick();
     let seenPark = false;
     while ((await S()).game.phase !== 'running') {
-      if ((await S()).w?.bubble === 'Chairman, you see that thing?') seenPark = true;
+      if ((await S()).w?.bubble === 'Afa, wetin be that wey dey shine? Gimme am ASAP!') seenPark = true;
       await page.waitForTimeout(100);
     }
     await page.waitForTimeout(2500);
@@ -110,7 +106,7 @@ async function run(kind) {
     check(`${kind}: valid running state`, s.game.phase === 'running' && !s.game.cinematic && s.step === 'game' && s.w.speed > 5, `${s.game.phase}, speed ${s.w.speed.toFixed(1)}`);
     check(`${kind}: runner holds the can, camera behind`, s.w.holder === 'runner' && s.w.runnerVisible && s.w.camZ > 3, `holder ${s.w.holder}, cam z ${s.w.camZ.toFixed(2)}`);
     check(`${kind}: theme playing and synced`, p.synced);
-    check(`${kind}: no cinematic dialogue left over`, !['Chairman, you see that thing?', 'Ha! Golden Cap! Omo, bring that one come!', 'Na drink I come buy!', 'Oya! No let am escape!'].includes(s.w.bubble), s.w.bubble);
+    check(`${kind}: no cinematic dialogue left over`, !['Afa, wetin be that wey dey shine? Gimme am ASAP!', 'If I catch you!'].includes(s.w.bubble), s.w.bubble);
     // Controls live
     const lane0 = p.lane;
     await page.keyboard.press('ArrowLeft');

@@ -34,18 +34,19 @@ await page.mouse.up();
 const spin1 = await page.evaluate(() => window.__dsm.debugSpin());
 console.log(JSON.stringify({ spun: +(spin1 - spin0).toFixed(2) }));
 await page.getByRole('button', { name: 'PLAY' }).click();
-// The opening cinematic plays through (beats A-C around the bottle, the runner pick, D-E in the motor park)
-await page.waitForFunction(() => window.__dsm.getState().headline?.text === "DON'T SHAKE ME.", null, { timeout: 120000 });
-await shot('cine-dont-shake');
+// PLAY: the bottle erupts and lifts off; the runner pick; the street scene
+await page.waitForFunction(() => window.__dsm.getState().step === 'cinematic', null, { timeout: 30000 });
+await page.waitForTimeout(900);
+await shot('launch');
 await waitStep('choose');
 await shot('choose');
 await page.getByRole('button', { name: 'Female runner' }).click();
 await waitStep('game');
 await page.waitForTimeout(700);
-await shot('cine-drop');
-await page.waitForFunction(() => window.__dsm.gameDebugState()?.speaker === 'CHAIRMAN', null, { timeout: 300000 });
+await shot('cine-land');
+await page.waitForFunction(() => window.__dsm.gameDebugState()?.bubble === 'Afa, wetin be that wey dey shine? Gimme am ASAP!', null, { timeout: 300000 });
 await page.waitForTimeout(400);
-await shot('cine-chairman');
+await shot('cine-gimme');
 await waitPhase('starting', 300000);
 await page.waitForTimeout(500);
 await shot('start-swing');

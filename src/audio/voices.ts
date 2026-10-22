@@ -5,26 +5,20 @@
 import { playRecording } from './recordings';
 import { audioGraph } from './sfx';
 
-/**
- * The spoken lines, by their text → the recording that voices them (public/audio/voice/<cue>.mp3).
- * The runner's line has a male and a female take (you-drink-male / you-drink-female).
- */
+/** The spoken lines, by their text → the recording that voices them (public/audio/voice/<cue>.mp3). */
 export const LINE_CUES: Readonly<Record<string, string>> = {
-  'Chairman, you see that thing?': 'agbero-see-that',
-  'Ha! Golden Cap! Omo, bring that one come!': 'chairman-golden-cap',
-  'Na drink I come buy!': 'you-drink',
-  'Oya! No let am escape!': 'chairman-no-escape',
-  'Oya drop am!': 'chairman-drop-am',
+  'Afa, wetin be that wey dey shine? Gimme am ASAP!': 'agbero-gimme',
+  'If I catch you!': 'agberos-if-i-catch-you',
+  'You dey use me play, abi?!': 'agbero-use-me-play',
   'Ha! Wetin be that?!': 'chairman-wetin',
   'We don catch am!': 'agberos-caught',
   'Ehn? Wetin dey inside this cap sef?': 'chairman-inside-cap',
 };
 
 /** A line of dialogue: its recording if there is one, else (voices > 0) a generic shout. */
-export function speak(text: string, runner: 'male' | 'female', voices: number, loud: number): void {
+export function speak(text: string, voices: number, loud: number): void {
   const g = audioGraph();
-  let cue = LINE_CUES[text];
-  if (cue === 'you-drink') cue = `${cue}-${runner}`;
+  const cue = LINE_CUES[text] ?? '';
   if (g && cue && playRecording(g.ctx, g.master, `voice/${cue}`)) return;
   if (voices > 0) shout(voices, loud);
 }

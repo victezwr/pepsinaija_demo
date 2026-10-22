@@ -100,13 +100,13 @@ try {
 
   // Stumbles: the line every time
   await page.evaluate(() => window.__dsm.gameDebugStumble());
-  check('stumble: "Oya drop am!"', await heard('Oya drop am!', 5000));
+  check('stumble: "You dey use me play, abi?!"', await heard('You dey use me play, abi?!', 5000));
   // Past the second-stumble window (4 s of game time; headless game time runs slow)
   const tStumble = (await W()).time;
   await page.waitForFunction((t) => window.__dsm.gameDebugState().time > t + 4.5, tStumble, { timeout: 120000 });
   await page.waitForFunction(() => !window.__dsm.gameDebugState().bubble, null, { timeout: 20000 }).catch(() => {});
   await page.evaluate(() => window.__dsm.gameDebugStumble());
-  check('stumble again: "Oya drop am!" again', await heard('Oya drop am!', 5000));
+  check('stumble again: the line again', await heard('You dey use me play, abi?!', 5000));
 
   // Game over payoff
   if ((await phase()) === 'running') await page.evaluate(() => window.__dsm.gameDebugCatch());
