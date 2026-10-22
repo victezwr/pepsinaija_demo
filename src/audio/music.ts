@@ -4,16 +4,19 @@
 // instead and the game keeps its own clock at the same tempo.
 import { audioGraph } from './sfx';
 
-// Theme beat grid, measured from the file: 163.53 BPM, first beat 0.234 s in.
+// Theme: "Morning Train to Somewhere", measured from the file: a steady 124 BPM (within a few ms
+// for the whole song), D minor. theme.mp3 is cut from the song to start just before the bar where
+// the drums come in (the song's beat 24, 11.97 s), so its beat 0 is 0.048 s in; the drop lands on
+// beat 7. It plays once from there, then loops beats 240 → 320 (the song's last high section,
+// 20 bars, whole 16-beat phrases so the grid never slips). The seam is crossfaded over a beat
+// when the file is decoded (bakeLoopSeam).
 const THEME_URL = '/audio/theme.mp3';
-export const THEME_BPM = 163.53;
+export const THEME_BPM = 124;
 export const BEAT_S = 60 / THEME_BPM;
-const FIRST_BEAT_S = 0.234;
-// Loop a whole number of 16-beat phrases, so the grid never slips when it wraps: beats 32 → 112
-// (11.98 s → 41.33 s), the cleanest seam inside the part of the recording that sits tightly on
-// the grid (from about 47 s the screen recording drifts off it). The opening plays once.
-const LOOP_START = FIRST_BEAT_S + 32 * BEAT_S;
-const LOOP_END = LOOP_START + 5 * 16 * BEAT_S;
+const FIRST_BEAT_S = 0.048;
+const LOOP_START = FIRST_BEAT_S + 240 * BEAT_S;
+const LOOP_END = FIRST_BEAT_S + 320 * BEAT_S;
+const SEAM_S = BEAT_S;
 const THEME_LEVEL = 0.8;
 const DUCK_LEVEL = 0.3;
 
@@ -68,8 +71,32 @@ export function preloadTheme(): Promise<AudioBuffer | null> {
       const OAC = window.OfflineAudioContext ?? (window as unknown as { webkitOfflineAudioContext: typeof OfflineAudioContext }).webkitOfflineAudioContext;
       return new OAC(1, 1, 44100).decodeAudioData(buf);
     })
+    .then((buffer) => {
+      bakeLoopSeam(buffer);
+      return buffer;
+    })
     .catch(() => null);
   return themeData;
+}
+
+/**
+ * The loop jumps from LOOP_END back to LOOP_START: over the last beat before the end, fade into
+ * the audio that leads into LOOP_START, so the wrap is seamless (equal-power crossfade).
+ */
+function bakeLoopSeam(buffer: AudioBuffer): void {
+  const sr = buffer.sampleRate;
+  const end = Math.round(LOOP_END * sr);
+  const n = Math.round(SEAM_S * sr);
+  const shift = Math.round((LOOP_END - LOOP_START) * sr);
+  if (end > buffer.length || end - n - shift < 0) return;
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const d = buffer.getChannelData(c);
+    for (let i = 0; i < n; i++) {
+      const k = end - n + i;
+      const a = (i / n) * (Math.PI / 2);
+      d[k] = d[k] * Math.cos(a) + d[k - shift] * Math.sin(a);
+    }
+  }
 }
 
 /** PLAY: the theme from the top. Call inside the tap, after sfx.unlock(). */

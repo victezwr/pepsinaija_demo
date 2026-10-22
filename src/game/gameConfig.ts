@@ -8,14 +8,14 @@ export const SHARE_URL = 'https://dontshakeme.vercel.app';
 /**
  * Endless run: the pace jumps in stages by distance. Rows of obstacles are timed to the theme
  * song: one row reaches the runner every `beats` beats, so the spacing in metres is
- * beats × beat length × speed (e.g. 4 beats at 17 m/s ≈ 26 m).
+ * beats × beat length × speed (e.g. 3 beats at 124 BPM and 17 m/s ≈ 25 m).
  */
 export const STAGES: ReadonlyArray<{ dist: number; speed: number; beats: number; maxBlocked: number }> = [
-  { dist: 0, speed: 17, beats: 4, maxBlocked: 1 },
-  { dist: 500, speed: 18.5, beats: 4, maxBlocked: 2 },
-  { dist: 1200, speed: 20, beats: 4, maxBlocked: 2 },
-  { dist: 2000, speed: 22, beats: 3, maxBlocked: 3 },
-  { dist: 3000, speed: 24, beats: 3, maxBlocked: 3 },
+  { dist: 0, speed: 17, beats: 3, maxBlocked: 1 },
+  { dist: 500, speed: 18.5, beats: 3, maxBlocked: 2 },
+  { dist: 1200, speed: 20, beats: 3, maxBlocked: 2 },
+  { dist: 2000, speed: 22, beats: 2, maxBlocked: 3 },
+  { dist: 3000, speed: 24, beats: 2, maxBlocked: 3 },
 ];
 export const SPEED_EASE_PER_S = 2.5;
 export const MAX_STEP = 0.4; // metres per collision sub-step
@@ -26,7 +26,7 @@ export const ROAD_HALF = LANE_WIDTH * 1.5 + 0.3;
 export const SIDEWALK = 3.2;
 export const SPAWN_HORIZON = 130;
 export const DESPAWN_Z = 12;
-export const START_GRACE_BEATS = 6; // empty road (once up to speed) before the first row
+export const START_GRACE_BEATS = 5; // empty road (once up to speed) before the first row
 
 // Player
 export const RUNNER_HEIGHT = 1.75;
@@ -77,7 +77,7 @@ export const PULSE_COST_STEP = 2000;
 export const pulseCostFor = (used: number): number => PULSE_COST_STEP * (used + 1);
 
 // Pulse Mode: release → shockwave, then a ring on every beat while you keep running
-export const PULSE_BEATS = 22; // beats of the theme it pulses for (≈ 8 s at 163.5 BPM)
+export const PULSE_BEATS = 16; // beats of the theme it pulses for (4 bars, ≈ 7.7 s at 124 BPM)
 export const PULSE_WINDUP_S = 0.16; // anticipation: the world draws in before the shockwave
 export const PULSE_GRACE_S = 0.5; // protection after the last ring
 export const PULSE_SHOCK_S = 0.7; // shockwave expansion time
@@ -93,7 +93,7 @@ export const PULSE_KNOCKBACK = 9; // metres the agberos are blown back
 export const CAM_HEIGHT = 2.9;
 export const CAM_BACK = 5.4;
 export const CAM_LOOK_AHEAD = 9;
-export const DROP_S = 0.73; // the bottle falling into the runner's hand: two beats of the theme
+export const DROP_S = 2 * (60 / 124); // the bottle falling into the runner's hand: two beats of the theme
 export const START_S = 1.8; // tap → whistle → camera swing → control
 
 /** Metres between roadside billboards on the same side (they alternate sides, so one every half that). */

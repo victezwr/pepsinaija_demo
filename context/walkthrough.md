@@ -69,7 +69,7 @@ An endless run down a three-lane Lagos street lined with shops, balconies and el
 | Concrete barrier with cones, sachet-water table | Jump |
 | Banner on poles | Slide under |
 
-Every row of traffic always leaves you a way through. **Rows reach you on the beat of the theme song**: one every 4 beats at first, every 3 beats from 2,000 m.
+Every row of traffic always leaves you a way through. **Rows reach you on the beat of the theme song**: one every 3 beats at first (about 1.5 s), every 2 beats from 2,000 m.
 
 **Pepsi branding:** billboards on the pavements ("STAY ON THE PULSE" / "SAME TASTE. NEW LOOK." with the Pepsi globe), well spaced: one every 60 m or so, switching sides (about every 3 seconds at full speed). The overhead banners you slide under carry a Pepsi print.
 
@@ -105,7 +105,7 @@ Every row of traffic always leaves you a way through. **Rows reach you on the be
   - The agberos are blown back and stagger. The first time in a run, CHAIRMAN: "Ha! Wetin be that?!"
   - Traffic and barriers just ahead are flung aside (each one only once).
   - Caps ahead fly straight to you.
-- **Then you keep running for about 8 seconds** (22 beats of the song). No floating, no foam: a ring pulses out from your feet **on every beat**, flinging away anything within about 26 m ahead, caps keep flying to you and the street light pulses with it. A sub-bass thump joins the song on each beat. **STAY ON THE PULSE** shows under the score and a **timer bar** under the meter runs down. Nothing can hit you, and you can still change lanes, jump and slide.
+- **Then you keep running for about 8 seconds** (16 beats, four bars of the song). No floating, no foam: a ring pulses out from your feet **on every beat**, flinging away anything within about 26 m ahead, caps keep flying to you and the street light pulses with it. A sub-bass thump joins the song on each beat. **STAY ON THE PULSE** shows under the score and a **timer bar** under the meter runs down. Nothing can hit you, and you can still change lanes, jump and slide.
 - After the last ring you get half a second of protection and the meter starts again from empty. Double-tapping with an empty meter does nothing.
 - On **LITE**, the gameplay is identical, with fewer rings and bubbles, a softer flash and no camera-facing burst.
 
@@ -134,6 +134,6 @@ Every row of traffic always leaves you a way through. **Rows reach you on the be
 
 ## Placeholders, to be replaced
 - **Agbero voices:** generated in code until the voice-over is recorded (`public/audio/agbero-1.mp3` … `agbero-6.mp3`).
-- **Music:** the owner's theme song (`public/audio/theme.mp3`, 163.5 BPM, G minor). Swapping it means re-measuring the beat grid in `src/audio/music.ts`. The cinematic score and the chase intensity layers (talking drum, agogo, trumpet, brass) are generated in code (`src/audio/score.ts`).
+- **Music:** the owner's theme song, "Morning Train to Somewhere" (`public/audio/theme.mp3`, 124 BPM, D minor). Swapping it means re-measuring the beat grid in `src/audio/music.ts`. The cinematic score and the chase intensity layers (talking drum, agogo, trumpet, brass) are generated in code (`src/audio/score.ts`).
 - **Voices:** every line of dialogue is a speech bubble; the agbero voices under them are generated placeholders, and the runner's line has no voice yet.
 - **Running on the danfo roofs via ramps:** planned, not built yet.

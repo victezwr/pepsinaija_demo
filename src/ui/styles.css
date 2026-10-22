@@ -355,7 +355,7 @@ body {
 .pulse-meter span { position: relative; display: block; text-align: center; font-size: 9px; line-height: 15px; font-weight: 800; letter-spacing: 0.1em; white-space: nowrap; }
 .pulse-meter--ready { border-color: #2ee6ff; box-shadow: 0 0 0 2px rgba(46, 230, 255, 0.55), 0 0 18px rgba(31, 91, 255, 0.9); animation-duration: 0.5s; }
 .pulse-meter--on { animation: none; }
-.pulse-meter--on .pulse-meter__fill { animation: drain 8.2s linear both; }
+.pulse-meter--on .pulse-meter__fill { animation: drain 7.9s linear both; }
 @keyframes meterBeat { 0%, 100% { transform: scale(1); } 12% { transform: scale(1.07); } 24% { transform: scale(1); } }
 .pulse-hint { font-size: 10px; letter-spacing: 0.14em; color: #9fe9ff; text-transform: uppercase; }
 .pulse-stay {

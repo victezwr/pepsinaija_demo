@@ -1,5 +1,5 @@
-// The Nigerian arcade layer, generated with the Web Audio API and tuned to the theme (G minor,
-// 163.53 BPM): dùndún talking drum, agogo bell, trumpet and brass stabs.
+// The Nigerian arcade layer, generated with the Web Audio API and tuned to the theme (D minor,
+// 124 BPM): dùndún talking drum, agogo bell, trumpet and brass stabs.
 // - The cinematic's own score: a low talking-drum groove, three suspicious trumpet notes and
 //   the fanfare that throws into the theme.
 // - Chase intensity layers stacked on the theme at the distance milestones, locked to its beat
@@ -8,9 +8,10 @@
 import * as music from './music';
 import { audioGraph } from './sfx';
 
-// G minor: tonic, b3, 4, 5 in the drum's range; the trumpet's G, Ab (the suspicious b2), Bb, D, G, F
-const G3 = 196.0, BB3 = 233.08, C4 = 261.63, D4 = 293.66;
-const G4 = 392.0, AB4 = 415.3, BB4 = 466.16, D5 = 587.33, G5 = 783.99, F5 = 698.46;
+// D minor (the theme's key): tonic, b3, 4, 5 in the drum's range; the trumpet's D, Eb (the
+// suspicious b2), F, A, D, C
+const D3 = 146.83, F3 = 174.61, G3 = 196.0, A3 = 220.0;
+const D4 = 293.66, EB4 = 311.13, F4 = 349.23, A4 = 440.0, D5 = 587.33, C5 = 523.25;
 
 type Ctx = AudioContext;
 
@@ -98,9 +99,9 @@ function trumpet(ctx: Ctx, out: AudioNode, t: number, f: number, len: number, pe
   vib.stop(t + len + 0.08);
 }
 
-/** Brass section stab: the G minor triad, short and punchy. */
+/** Brass section stab: the D minor triad, short and punchy. */
 function brassStab(ctx: Ctx, out: AudioNode, t: number, peak: number): void {
-  for (const f of [G4, BB4, D5]) trumpet(ctx, out, t, f, 0.12, peak / 2);
+  for (const f of [D4, F4, A4]) trumpet(ctx, out, t, f, 0.12, peak / 2);
 }
 
 /** Tension riser: noise sweeping up over `len`. */
@@ -127,13 +128,13 @@ function riser(ctx: Ctx, out: AudioNode, noise: AudioBuffer, t: number, len: num
 
 // One bar of dùndún "speech": [step, pitch, bend, level]. Low, conversational, a question and an answer.
 const GROOVE: ReadonlyArray<readonly [number, number, number, number]> = [
-  [0, G3, 1.0, 1],
-  [3, BB3, 0.86, 0.6],
-  [6, G3, 1.0, 0.7],
-  [8, D4, 0.8, 0.8],
-  [10, C4, 1.12, 0.5],
-  [11, BB3, 0.9, 0.55],
-  [14, G3, 1.0, 0.6],
+  [0, D3, 1.0, 1],
+  [3, F3, 0.86, 0.6],
+  [6, D3, 1.0, 0.7],
+  [8, A3, 0.8, 0.8],
+  [10, G3, 1.12, 0.5],
+  [11, F3, 0.9, 0.55],
+  [14, D3, 1.0, 0.6],
 ];
 
 let cineBus: GainNode | null = null;
@@ -188,9 +189,9 @@ export function suspiciousTrumpet(): void {
   if (!a) return;
   const t = a.ctx.currentTime + 0.02;
   const b = music.BEAT_S;
-  trumpet(a.ctx, a.out, t, G4, b * 0.45, 0.16);
-  trumpet(a.ctx, a.out, t + b, AB4, b * 0.45, 0.16);
-  trumpet(a.ctx, a.out, t + b * 2, G4, b * 0.9, 0.16);
+  trumpet(a.ctx, a.out, t, D4, b * 0.45, 0.16);
+  trumpet(a.ctx, a.out, t + b, EB4, b * 0.45, 0.16);
+  trumpet(a.ctx, a.out, t + b * 2, D4, b * 0.9, 0.16);
 }
 
 /** Beat E: the trumpet motif and drums that throw into the theme. */
@@ -201,10 +202,10 @@ export function fanfare(): void {
   const s = music.BEAT_S / 2;
   a.out.gain.cancelScheduledValues(a.ctx.currentTime);
   a.out.gain.setValueAtTime(0.55, a.ctx.currentTime);
-  [G4, BB4, D5].forEach((f, i) => trumpet(a.ctx, a.out, t + i * s, f, s * 0.8, 0.2));
-  trumpet(a.ctx, a.out, t + 3 * s, G5, s * 2.2, 0.22);
+  [D4, F4, A4].forEach((f, i) => trumpet(a.ctx, a.out, t + i * s, f, s * 0.8, 0.2));
+  trumpet(a.ctx, a.out, t + 3 * s, D5, s * 2.2, 0.22);
   // Drum roll up into it
-  for (let i = 0; i < 6; i++) talkingDrum(a.ctx, a.out, a.noise, t + i * (s / 2), G3 * (1 + i * 0.08), 1.1, 0.4 + i * 0.06);
+  for (let i = 0; i < 6; i++) talkingDrum(a.ctx, a.out, a.noise, t + i * (s / 2), D3 * (1 + i * 0.08), 1.1, 0.4 + i * 0.06);
 }
 
 // ---------------------------------------------------------------------------
@@ -220,13 +221,13 @@ const AGOGO_HI = [0, 3, 6, 10, 12];
 const AGOGO_LO = [8, 14];
 // Talking-drum fill over two beats (8 sixteenths): [step, pitch, bend]
 const FILL: ReadonlyArray<readonly [number, number, number]> = [
-  [0, D4, 0.85],
-  [2, C4, 1.1],
-  [3, BB3, 0.9],
-  [4, D4, 1.0],
-  [5, C4, 0.85],
-  [6, G3, 1.15],
-  [7, BB3, 0.8],
+  [0, A3, 0.85],
+  [2, G3, 1.1],
+  [3, F3, 0.9],
+  [4, A3, 1.0],
+  [5, G3, 0.85],
+  [6, D3, 1.15],
+  [7, F3, 0.8],
 ];
 
 /** Start the layer engine at run start. It waits for the theme's clock if the song is still loading. */
@@ -281,8 +282,8 @@ function playLayerStep(ctx: Ctx, out: AudioNode, noise: AudioBuffer, sixteenth: 
   const s = ((sixteenth % 16) + 16) % 16;
   const bar = Math.floor(sixteenth / 16);
   // 500 m: agogo + brass accents every 4 bars
-  if (AGOGO_HI.includes(s)) agogo(ctx, out, t, F5 * 1.5, 0.09);
-  if (AGOGO_LO.includes(s)) agogo(ctx, out, t, D5 * 1.5, 0.08);
+  if (AGOGO_HI.includes(s)) agogo(ctx, out, t, C5 * 1.5, 0.09);
+  if (AGOGO_LO.includes(s)) agogo(ctx, out, t, A4 * 1.5, 0.08);
   const stabEvery = intensity >= 4 ? 1 : intensity >= 3 ? 2 : 4;
   if (s === 0 && bar % stabEvery === 0) brassStab(ctx, out, t, 0.18);
   // 1,200 m: talking-drum fills answering every 2 bars (every bar at full intensity)
@@ -317,6 +318,6 @@ export function gameOverSting(): void {
   a.out.gain.cancelScheduledValues(a.ctx.currentTime);
   a.out.gain.setValueAtTime(0.55, a.ctx.currentTime);
   const t = a.ctx.currentTime + 0.35;
-  [D4, 277.18, C4].forEach((f, i) => trumpet(a.ctx, a.out, t + i * 0.32, f, 0.26, 0.15));
-  trumpet(a.ctx, a.out, t + 0.96, 246.94, 0.9, 0.15);
+  [A3, 207.65, G3].forEach((f, i) => trumpet(a.ctx, a.out, t + i * 0.32, f, 0.26, 0.15));
+  trumpet(a.ctx, a.out, t + 0.96, 185.0, 0.9, 0.15);
 }
