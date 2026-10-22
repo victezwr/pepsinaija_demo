@@ -76,6 +76,7 @@ async function call(path: string, init?: RequestInit): Promise<Response | null> 
 /** A run is starting: get its token (best effort; without one the run just isn't recorded). */
 export function startRun(): void {
   runToken = null;
+  if (useBoard.getState().name) useBoard.setState({ problem: null });
   void call('/api/run', { method: 'POST', body: JSON.stringify({ player: playerId() }) })
     .then((r) => (r?.ok ? r.json() : null))
     .then((d: { token?: string } | null) => {
@@ -90,6 +91,7 @@ export async function submitRun(distance: number): Promise<void> {
   runToken = null;
   const name = useBoard.getState().name;
   if (!token || !name) {
+    if (name) useBoard.setState({ problem: 'This run wasn’t saved to the leaderboard: it couldn’t be reached when the run started.' });
     await refresh();
     return;
   }
@@ -104,6 +106,9 @@ export async function submitRun(distance: number): Promise<void> {
     // Not allowed on a public board: ask again on the next WHO CATCHES IT?
     writePref('playerName', '');
     useBoard.setState({ name: '', problem: 'That name isn’t allowed on the leaderboard. You’ll pick another before your next run.' });
+  } else {
+    // Say so (with the server's reason) rather than quietly leaving you off the board
+    useBoard.setState({ problem: `This run couldn’t be saved to the leaderboard (${err ?? 'no connection'}).` });
   }
   await refresh();
 }
